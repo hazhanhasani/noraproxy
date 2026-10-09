@@ -1,0 +1,54 @@
+name: Verify NoraProxy Release Signing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-signing.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-signing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check permanent signing secrets and certificate
+        shell: bash
+        env:
+          NORA_KEYSTORE_BASE64: ${{ secrets.NORA_KEYSTORE_BASE64 }}
+          NORA_SIGNING_STORE_PASSWORD: ${{ secrets.NORA_SIGNING_STORE_PASSWORD }}
+          NORA_SIGNING_KEY_ALIAS: ${{ secrets.NORA_SIGNING_KEY_ALIAS }}
+          NORA_SIGNING_KEY_PASSWORD: ${{ secrets.NORA_SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/nora-verify-signing.p12"
+          trap 'rm -f "$KEYSTORE"' EXIT
+
+          for name in NORA_KEYSTORE_BASE64 NORA_SIGNING_STORE_PASSWORD NORA_SIGNING_KEY_ALIAS NORA_SIGNING_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required secret: $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$NORA_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          # Keystore password and alias are consumed privately without printing values.
+          CERT="$(keytool -list -v -storetype PKCS12 -keystore "$KEYSTORE" \
+            -alias "$NORA_SIGNING_KEY_ALIAS" -storepass:env NORA_SIGNING_STORE_PASSWORD)"
+          printf '%s\n' "$CERT" | grep -q 'PrivateKeyEntry'
+          ACTUAL="$(printf '%s\n' "$CERT" | sed -n 's/.*SHA256:[[:space:]]*//p' | head -n 1 | tr -d ':\r\n ' | tr 'A-F' 'a-f')"
+          EXPECTED="248e68eda1329080c3d05252392c585996b014280c4a380411b0cb3e88ee9a8a"
+          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
+            echo "::error::Registered keystore does not match NoraProxy permanent certificate."
+            exit 1
+          fi
+          if [[ "$NORA_SIGNING_KEY_PASSWORD" != "$NORA_SIGNING_STORE_PASSWORD" ]]; then
+            echo "::error::The original PKCS12 release backup requires matching key and store passwords."
+            exit 1
+          fi
+          echo "Verified: all four Actions Secrets are configured and permanent signing certificate matches."
