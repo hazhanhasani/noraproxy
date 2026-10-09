@@ -275,6 +275,7 @@ jobs:
           retention-days: 90
 
       - name: Automatically publish verified new release for in-app updates
+        id: publish_release
         # This step runs ONLY after APK build, signature verification and SHA256
         # preparation have succeeded. Never publish from feature branches or PRs.
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
@@ -321,6 +322,24 @@ jobs:
             --notes "Verified signed NoraProxy Android APK. Download and install updates inside NoraProxy; Android requires installation confirmation." \
             --latest
           echo "New signed release $NORA_TAG is now available to the Android updater."
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post signed APK and polished Persian changelog to Telegram channel
+        # Runs in this workflow because a Release created with GITHUB_TOKEN
+        # does not trigger a new 'release' workflow automatically.
+        if: steps.publish_release.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NORA_TG_API_ID: ${{ secrets.NORA_TG_API_ID }}
+          NORA_TG_API_HASH: ${{ secrets.NORA_TG_API_HASH }}
+          NORA_TG_BOT_TOKEN: ${{ secrets.NORA_TG_BOT_TOKEN }}
+          NORA_TG_CHANNEL_ID: ${{ secrets.NORA_TG_CHANNEL_ID }}
+          NORA_TG_OPTIONAL: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/post_telegram_release.sh \
+            "${{ steps.nora_version.outputs.version }}" "$GITHUB_REPOSITORY" signed
 
       - name: Delete signing keystore from runner
         if: always()
