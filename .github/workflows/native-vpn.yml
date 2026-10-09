@@ -182,6 +182,9 @@ jobs:
           test -s "$APK"
           APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
           "$APKSIGNER" verify --verbose "$APK"
+          CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
+          EXPECTED="248e68eda1329080c3d05252392c585996b014280c4a380411b0cb3e88ee9a8a"
+          test "$CERT" = "$EXPECTED" || { echo "::error::Unexpected release signing certificate"; exit 1; }
           mkdir -p signed
           cp "$APK" signed/NoraProxy-0.2.0.apk
           sha256sum signed/NoraProxy-0.2.0.apk > signed/NoraProxy-0.2.0.apk.sha256
