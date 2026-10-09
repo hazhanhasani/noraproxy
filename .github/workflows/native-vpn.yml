@@ -179,20 +179,45 @@ jobs:
         run: |
           set -euo pipefail
           OUTPUT="upstream/V2rayNG/app/build/outputs/apk/playstore/release"
-          APK="$(find "$OUTPUT" -type f -name '*universal.apk' | head -n 1)"
-          if [ -z "$APK" ]; then
-            APK="$(find "$OUTPUT" -type f -name '*.apk' | head -n 1)"
-          fi
-          test -s "$APK"
           APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          "$APKSIGNER" verify --verbose "$APK"
-          CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
           EXPECTED="248e68eda1329080c3d05252392c585996b014280c4a380411b0cb3e88ee9a8a"
-          test "$CERT" = "$EXPECTED" || { echo "::error::Unexpected release signing certificate"; exit 1; }
+          test -x "$APKSIGNER"
+          mapfile -d '' APKS < <(find "$OUTPUT" -maxdepth 1 -type f -name '*.apk' -print0 | sort -z)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "::error::No release APK files found"
+            exit 1
+          fi
+          UNIVERSAL=""
+          for APK in "${APKS[@]}"; do
+            test -s "$APK"
+            "$APKSIGNER" verify --verbose "$APK" >/dev/null
+            CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$APK")"
+            CERT="$(printf '%s\n' "$CERT_OUTPUT" |
+              sed -nE 's/^[[:space:]]*Signer #[0-9]+ certificate SHA-256 digest:[[:space:]]*([a-fA-F0-9:]+)[[:space:]]*$/\1/p' |
+              head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+            if [ -z "$CERT" ]; then
+              echo "::error::Unable to parse certificate SHA-256 from apksigner for $(basename "$APK")"
+              printf '%s\n' "$CERT_OUTPUT" | grep 'certificate SHA-256 digest' || true
+              exit 1
+            fi
+            # Certificate digests are PUBLIC metadata; NEVER log private keystores or passwords.
+            echo "APK $(basename "$APK") signed with certificate SHA256=$CERT"
+            if [ "$CERT" != "$EXPECTED" ]; then
+              echo "::error::Release APK signer mismatch (expected $EXPECTED; got $CERT)"
+              exit 1
+            fi
+            case "$(basename "$APK")" in
+              *universal.apk) UNIVERSAL="$APK" ;;
+            esac
+          done
+          if [ -z "$UNIVERSAL" ]; then
+            echo "::error::No verified universal APK was produced"
+            exit 1
+          fi
           mkdir -p signed
-          cp "$APK" signed/NoraProxy-0.2.0.apk
-          sha256sum signed/NoraProxy-0.2.0.apk > signed/NoraProxy-0.2.0.apk.sha256
-          echo "NoraProxy signed release APK was verified."
+          cp "$UNIVERSAL" signed/NoraProxy-0.2.0.apk
+          (cd signed && sha256sum NoraProxy-0.2.0.apk > NoraProxy-0.2.0.apk.sha256)
+          echo "All release APK signatures and fixed NoraProxy certificate verified."
 
       - name: Upload fixed-signature release APK
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
