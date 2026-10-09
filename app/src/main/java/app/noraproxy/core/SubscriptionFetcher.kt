@@ -3,9 +3,9 @@ package app.noraproxy.core
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
-import java.net.InetAddress
 import java.net.URI
 import java.net.URL
+import java.io.ByteArrayOutputStream
 
 object SubscriptionFetcher {
     private const val MAX_BYTES = 2_000_000
@@ -38,9 +38,15 @@ object SubscriptionFetcher {
                 "Subscription is too large."
             }
             connection.inputStream.use { stream ->
-                val bytes = stream.readNBytes(MAX_BYTES + 1)
-                require(bytes.size <= MAX_BYTES) { "Subscription exceeds the 2 MB limit." }
-                String(bytes, Charsets.UTF_8)
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                while (true) {
+                    val count = stream.read(buffer)
+                    if (count < 0) break
+                    output.write(buffer, 0, count)
+                    require(output.size() <= MAX_BYTES) { "Subscription exceeds the 2 MB limit." }
+                }
+                String(output.toByteArray(), Charsets.UTF_8)
             }
         } finally {
             connection.disconnect()
