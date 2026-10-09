@@ -118,14 +118,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun shareConfig(uri: String) {
+        // Official v2rayNG exposes ACTION_SEND text/plain for URI import.
+        val direct = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            setPackage("com.v2ray.ang")
+            putExtra(Intent.EXTRA_TEXT, uri)
+        }
         try {
-            val send = Intent(Intent.ACTION_SEND).apply {
+            startActivity(direct)
+        } catch (_: android.content.ActivityNotFoundException) {
+            // v2rayNG is not installed. Offer any compatible client instead.
+            val fallback = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, uri)
             }
-            startActivity(Intent.createChooser(send, "انتقال کانفیگ به برنامه VPN"))
-        } catch (_: Exception) {
-            copyConfig(uri)
+            try {
+                startActivity(Intent.createChooser(fallback, "انتقال کانفیگ به برنامه VPN"))
+            } catch (_: Exception) {
+                copyConfig(uri)
+            }
         }
     }
 }
@@ -242,7 +253,7 @@ private fun NoraScreen(
                             onClick = { shareConfig(selected.node.uri) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp)
-                        ) { Text("ارسال به v2rayNG یا برنامه دیگر") }
+                        ) { Text("افزودن به v2rayNG یا ارسال به برنامه دیگر") }
                     }
                 }
             }
