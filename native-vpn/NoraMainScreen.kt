@@ -324,16 +324,25 @@ fun MainScreen(
                             // Old nora_wordmark.jpg was not decoded by Android on some devices.
                             // Render this banner with Compose text, without risky bitmap decoding.
                             item {
-                                Column(
+                                Row(
                                     modifier = Modifier.fillMaxWidth()
                                         .background(surface, corner)
-                                        .padding(24.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        .padding(18.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("NoraProxy", fontSize = 30.sp,
-                                        fontWeight = FontWeight.ExtraBold, color = cyan)
-                                    Text("اتصال امن، تجربه‌ای ساده", color = muted,
-                                        fontSize = 13.sp)
+                                    Image(
+                                        painter = originalLogo,
+                                        contentDescription = "نشان رسمی NoraProxy",
+                                        modifier = Modifier.size(76.dp)
+                                            .clip(RoundedCornerShape(17.dp))
+                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("NoraProxy", fontSize = 27.sp,
+                                            fontWeight = FontWeight.ExtraBold, color = cyan)
+                                        Text("اتصال امن، تجربه‌ای ساده",
+                                            color = muted, fontSize = 13.sp)
+                                    }
                                 }
                             }
                             item { NoraSection("تنظیمات NoraProxy", "نسخه و به‌روزرسانی امن") }
