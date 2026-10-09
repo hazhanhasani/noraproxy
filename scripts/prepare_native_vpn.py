@@ -36,6 +36,12 @@ def prepare():
          "java/com/v2ray/ang/ui/main/MainScreen.kt"),
         ("native-vpn/NoraRouteSelector.kt",
          "java/com/v2ray/ang/ui/main/NoraRouteSelector.kt"),
+        ("native-vpn/NoraUpdater.kt",
+         "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
+        ("native-vpn/assets/nora_icon.jpg",
+         "res/drawable/nora_brand.jpg"),
+        ("native-vpn/res/nora_provider_paths.xml",
+         "res/xml/nora_provider_paths.xml"),
         ("app/src/main/res/drawable/ic_launcher.xml",
          "res/drawable/nora_launcher.xml"),
     )
@@ -59,7 +65,11 @@ def prepare():
     replace(manifest, 'android:allowBackup="true"', 'android:allowBackup="false"')
     replace(manifest,
             'android:icon="@mipmap/ic_launcher"',
-            'android:icon="@drawable/nora_launcher"')
+            'android:icon="@drawable/nora_brand"')
+    replace(manifest,
+            '<uses-permission android:name="android.permission.INTERNET" />',
+            '<uses-permission android:name="android.permission.INTERNET" />\n'
+            '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />')
     marker = (
         '        <activity\n'
         '            android:name=".ui.UrlSchemeActivity"\n'
@@ -74,6 +84,29 @@ def prepare():
         '            </intent-filter>'
     )
     replace(manifest, marker, replacement)
+
+    provider = (
+        '        <provider\n'
+        '            android:name="androidx.core.content.FileProvider"\n'
+        '            android:authorities="app.noraproxy.updates"\n'
+        '            android:exported="false"\n'
+        '            android:grantUriPermissions="true">\n'
+        '            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"\n'
+        '                android:resource="@xml/nora_provider_paths" />\n'
+        '        </provider>\n'
+    )
+    replace(manifest, '    </application>', provider + '    </application>')
+
+    activity = SRC / "java/com/v2ray/ang/ui/main/MainActivity.kt"
+    replace(activity,
+            '            LauncherManager.restartService(this)\n'
+            '        }\n'
+            '    }\n\n'
+            '    override fun onKeyDown',
+            '            if (mainViewModel.uiState.value.isRunning) LauncherManager.restartService(this)\n'
+            '        }\n'
+            '    }\n\n'
+            '    override fun onKeyDown')
 
     scheme = SRC / "java/com/v2ray/ang/ui/UrlSchemeActivity.kt"
     replace(scheme,
