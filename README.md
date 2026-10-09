@@ -1,56 +1,50 @@
 # NoraProxy
 
-Android-first **smart subscription companion** for VPN resellers and their customers.
+**NoraProxy** is an Android VPN with its **own in-app Xray engine and Android VpnService**. Customers no longer have to install v2rayNG or V2Box. Sellers can distribute the same NoraProxy APK with a private subscription/invitation, and customers connect through NoraProxy itself.
 
-> **MVP limitation:** NoraProxy v0.1.0 is a real TCP-based endpoint selector, **not** a standalone VPN. It does not yet contain the Xray core or establish a VPN tunnel. After choosing a node, customers can copy/share its configuration into v2rayNG or V2Box. A reachable TCP port does not prove that proxy authentication, TLS/Reality negotiation, or browsing through the tunnel will succeed.
+## Two separate generations of the codebase
 
-## Features
+- **Native VPN (target v0.2.0)**: source overlays in native-vpn/, deployment script in scripts/prepare_native_vpn.py, and reproducible APK CI in .github/workflows/native-vpn.yml. Official v2rayNG 2.3.5 at exact SHA 9fcb1a30f81345920f9609029ae923b4ea0a866c provides the Xray core, tun device, native tunnel and Android VpnService. Our overlay replaces its main screen and brands the application **NoraProxy** (package app.noraproxy).
+- **Legacy v0.1.0 selector prototype**: code in app/, retained temporarily for parser/ranking test coverage. Its standalone APK is NOT the product: it only did TCP endpoint checks and external config export. The old workflow no longer publishes its APK in the native branch.
 
-- Native Persian Jetpack Compose UI with seller branding and one suggested node per location
-- HTTPS-only subscription import; plain or Base64-encoded share links
-- VLESS / VMess / Trojan / Shadowsocks endpoint parsing
-- Real TCP reachability tests from the **customer's own device**, not fake latency values or distant datacenter metrics
-- At most 250 nodes, 12 concurrent tests, and two extra confirmation samples for the eight leading candidates
-- Conservative ranking by reachability, connection latency and stability; unavailable routes do not outrank reachable ones
-- Selected configuration handoff via Android clipboard or the Android share sheet
-- Per-device encrypted subscription storage using Android Keystore AES-GCM
-- Private reseller invitation links with prefilled branding (no silent network requests)
+**No standalone debug APK should be presented as a production release before native CI passes and a device test confirms connectivity.**
 
-## Seller onboarding
+## What the native app provides
 
-The APK can be shared by many resellers. Each customer inputs their *own reseller-issued subscription*; routes never mix across customer subscriptions.
+- Native Persian Compose home with connect/disconnect button and native Android VPN permission.
+- VLESS, VMess, Trojan, Shadowsocks, and other protocols already supported by the pinned upstream Xray runtime.
+- Import a subscription URL or configuration *within NoraProxy*, directly or through a noraproxy://setup invitation.
+- Inspect real proxy-test delays already recorded by the native runtime, rather than random or TCP-only fake ping numbers.
+- Show just one choice per detected country and default to the best successfully measured server.
+- A single APK usable by multiple resellers; invitation can show a private seller's name inside the app.
+- No handoff to external VPN clients.
 
-Run:
+**MVP limits:** automated health-triggered failover and guaranteed minimum latency are NOT shipped yet. The chosen route is based on existing measurements and should be retested after switching Wi-Fi/mobile networks. Server health, authentication and network censorship conditions may change. One shared installation is not a replacement for proper multi-tenant backend isolation.
 
-    python3 tools/create_invite.py --seller "My Shop" --subscription "https://example.com/sub?token=PRIVATE"
+## Build the real VPN APK
 
-Or open [the offline invite builder](web/reseller.html) in a browser.
+Follow .github/workflows/native-vpn.yml; it checks out the official pinned upstream and its native submodules, compiles hev-tunnel using Android NDK, downloads the upstream-compatible libv2ray AAR, applies NoraProxy branding and UI, then runs:
 
-**Security:** Invitation links contain the original subscription URL (a bearer-like secret). Share one link with **one intended customer privately**. Do not post invites publicly or reuse one shared credential for an entire reseller. Centralized signed one-time invite exchange and reseller RBAC are future milestones.
+    cd upstream/V2rayNG
+    ./gradlew --no-daemon :app:assemblePlaystoreDebug
 
-## Build
+A successful workflow uploads **NoraProxy-Native-VPN-Debug** under GitHub Actions artifacts. This is a debug-signed build for functional validation; production updates require a permanent release signing key, end-to-end tests, and license compliance. Never commit signing keys, upstream account credentials or customer subscription links.
 
-Requires JDK 17, Android SDK 35 and Gradle 8.11.1:
+## Invite a reseller customer
 
-    gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+Run (use a per-customer subscription, not the reseller master account):
 
-The debug APK is in app/build/outputs/apk/debug/app-debug.apk. GitHub Actions will also upload noraproxy-debug-apk on a successful build. A debug build is not a signed commercial release.
+    python3 tools/create_invite.py --seller "Example Shop" --subscription "https://example.com/user-secret-sub"
 
-## Project map
+Or open the offline web/reseller.html form. Opening that private link on an Android device pre-fills/imports the subscription into the **NoraProxy** app and stores the seller display name.
 
-- app/src/main/java/app/noraproxy/MainActivity.kt: mobile UI and config export
-- app/src/main/java/app/noraproxy/NoraViewModel.kt: import and ranking state
-- app/src/main/java/app/noraproxy/core/: parsing, real TCP probing, scoring and secrets encryption
-- app/src/test/: parser and selection unit tests
-- web/reseller.html: zero-backend private invite generator
-- tools/: invitation CLI and tests
-- docs/ARCHITECTURE.md: planned native VPN, SaaS security and milestones
+**Invitation URLs contain a sensitive bearer-style subscription address. Share only privately.** The multi-tenant server-side one-time invite service, seller RBAC, reseller account management, and individualized logos are separate roadmap milestones.
 
-## Roadmap
+## Architecture, source and licensing
 
-1. Protocol-aware proxy RTT tests and a native Xray-based Android VPN client with VpnService
-2. Device network-aware smart failover, hysteresis, and realtime tunnel health checks
-3. Multi-tenant admin portal, reseller roles, expiring opaque invites, and server-side entitlements
-4. Branding packs, APK release signing, staged updates, and production end-to-end tests
+- [Native VPN design and limitations](docs/NATIVE-VPN.md)
+- [Future reseller SaaS architecture](docs/ARCHITECTURE.md)
+- [NoraProxy UI overlay](native-vpn/)
+- [Exact pinned upstream source](https://github.com/2dust/v2rayNG/tree/9fcb1a30f81345920f9609029ae923b4ea0a866c)
 
-See [Architecture](docs/ARCHITECTURE.md). Any future derivative based on GPL-3.0 v2rayNG must respect upstream license terms and notices.
+NoraProxy's native VPN is a modified build of v2rayNG under the **GNU GPL-3.0**. The upstream license, attribution, source availability and any dependency notices must be preserved when redistributing the APK. See LICENSE. NoraProxy does not claim authorship of Xray, libv2ray, or the upstream VPN service.
