@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,6 +64,11 @@ fun MainScreen(
     onNavigate: (MainDestination) -> Unit,
 ) {
     val state by mainViewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val seller = remember(context) {
+        context.getSharedPreferences("nora_brand", android.content.Context.MODE_PRIVATE)
+            .getString("seller", "").orEmpty()
+    }
     val loading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     var subscription by remember { mutableStateOf("") }
     var auto by remember { mutableStateOf(true) }
@@ -101,7 +107,8 @@ fun MainScreen(
                             }
                             Column {
                                 Text("NoraProxy",color=white,fontSize=25.sp,fontWeight=FontWeight.ExtraBold)
-                                Text("اتصال هوشمند و مستقل",color=muted,fontSize=12.sp)
+                                Text(if(seller.isBlank()) "اتصال هوشمند و مستقل" else "ارائه‌شده توسط " + seller,
+                                    color=muted,fontSize=12.sp)
                             }
                         }
                     }
