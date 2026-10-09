@@ -1,0 +1,53 @@
+name: Publish NoraProxy APK to Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing official NoraProxy Release tag (e.g. v0.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nora-telegram-post-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  send-existing-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout NoraProxy notes and posting scripts
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate requested official tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected tag such as v0.2.3"
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,isPrerelease |
+            python3 -c 'import json,sys; r=json.load(sys.stdin); assert not r["isDraft"] and not r["isPrerelease"], "Release must be published and stable"'
+
+      - name: Upload existing verified APK and changelog into channel
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          NORA_TG_API_ID: ${{ secrets.NORA_TG_API_ID }}
+          NORA_TG_API_HASH: ${{ secrets.NORA_TG_API_HASH }}
+          NORA_TG_BOT_TOKEN: ${{ secrets.NORA_TG_BOT_TOKEN }}
+          NORA_TG_CHANNEL_ID: ${{ secrets.NORA_TG_CHANNEL_ID }}
+        run: |
+          set -euo pipefail
+          bash scripts/post_telegram_release.sh "${RELEASE_TAG#v}" "$GITHUB_REPOSITORY" signed
