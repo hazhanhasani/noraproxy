@@ -193,7 +193,7 @@ jobs:
             "$APKSIGNER" verify --verbose "$APK" >/dev/null
             CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$APK")"
             CERT="$(printf '%s\n' "$CERT_OUTPUT" |
-              sed -nE 's/^[[:space:]]*Signer #[0-9]+ certificate SHA-256 digest:[[:space:]]*([a-fA-F0-9:]+)[[:space:]]*$/\1/p' |
+              sed -nE 's/^.*certificate SHA-256 digest:[[:space:]]*([a-fA-F0-9:]+)[[:space:]]*$/\1/p' |
               head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
             if [ -z "$CERT" ]; then
               echo "::error::Unable to parse certificate SHA-256 from apksigner for $(basename "$APK")"
