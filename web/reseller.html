@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>NoraProxy — Reseller Invite</title>
+<style>
+:root{color-scheme:dark;--bg:#11161d;--card:#1d262d;--line:#34424b;--gold:#ffc078;--mint:#83e1bd;--muted:#a6b4bc}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 70% 0%,#26423b 0%,#11161d 52%);color:#f5f5f1;font:16px system-ui,Tahoma,sans-serif;min-height:100dvh}
+main{max-width:690px;margin:auto;padding:36px 18px 70px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:32px}
+.logo{display:grid;place-items:center;width:58px;height:58px;background:linear-gradient(135deg,#ffc078,#f38766);border-radius:19px;color:#11161d;font-size:35px;font-weight:900}
+h1{font-size:25px;margin:0}.caption{color:var(--muted);font-size:13px;margin:2px 0}
+.hero{border:1px solid var(--line);border-radius:26px;background:linear-gradient(125deg,#24443d,#20313c);padding:25px;margin-bottom:20px}
+.hero h2{margin:0 0 8px;font-size:24px;line-height:1.5}.hero p{line-height:1.9;color:#c8ded5;margin:0}
+.card{padding:25px;border-radius:26px;background:var(--card);border:1px solid #34424b}
+label{display:block;font-weight:650;margin-bottom:8px;font-size:14px}
+input{width:100%;background:#141c22;border:1px solid #47535c;color:white;border-radius:14px;padding:16px;font-size:15px;outline:none;margin-bottom:20px;direction:ltr;text-align:left}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 3px #ffc07819}
+input[name=seller]{direction:rtl;text-align:right}
+button{display:block;width:100%;border:0;border-radius:14px;padding:17px;font:700 16px system-ui,Tahoma,sans-serif;cursor:pointer;background:var(--gold);color:#151a1d}
+#result{display:none;margin-top:18px;background:#131e23;border:1px solid #3b5b52;padding:16px;border-radius:17px}
+#link{overflow-wrap:anywhere;direction:ltr;text-align:left;unicode-bidi:plaintext;color:var(--mint);font-size:13px;line-height:1.75}
+.warn{margin-top:18px;background:#423429;border:1px solid #62513d;border-radius:15px;padding:14px;color:#ffe2bb;font-size:13px;line-height:2}
+footer{color:var(--muted);font-size:12px;line-height:1.85;margin-top:22px}
+</style>
+</head>
+<body>
+<main>
+<header><div class="logo" aria-hidden="true">N</div><div><h1>NoraProxy</h1><p class="caption">ابزار ساخت لینک دعوت فروشندگان</p></div></header>
+<section class="hero"><h2>هر فروشنده، تجربه اختصاصی مشتریان خودش</h2><p>نام فروشگاه و لینک اشتراک اختصاصی مشتری را وارد کنید تا دعوت‌نامه‌ای برای باز شدن در اپ NoraProxy تولید شود.</p></section>
+<section class="card">
+<form id="inviteForm">
+<label for="seller">نام فروشنده</label><input id="seller" name="seller" placeholder="مثلاً فروشگاه من" maxlength="80" autocomplete="off" required>
+<label for="subscription">لینک اشتراک اختصاصی مشتری (HTTPS)</label>
+<input id="subscription" name="subscription" placeholder="https://example.com/sub/..." type="url" autocomplete="off" spellcheck="false" required>
+<button type="submit">ساخت لینک دعوت خصوصی ↗</button>
+</form>
+<div id="result" role="status"><p>لینک آماده شد:</p><p id="link"></p><button type="button" id="copy">کپی لینک دعوت</button></div>
+<p class="warn">⚠️ لینک دعوت شامل آدرس محرمانه اشتراک است. فقط برای همان مشتری ارسال کنید؛ انتشار عمومی ممکن است به اشتراک او دسترسی بدهد. برای هر مشتری لینک اشتراک مستقل بسازید.</p>
+</section>
+<footer>این صفحه محلی است و داده‌ای ارسال یا ذخیره نمی‌کند. نسخه فعلی اپ انتخاب‌گر سرور است و هنوز VPN داخلی ندارد.</footer>
+</main>
+<script>
+"use strict";
+const form=document.getElementById("inviteForm");
+const result=document.getElementById("result");
+const linkEl=document.getElementById("link");
+let privateInvite="";
+form.addEventListener("submit",event=>{
+ event.preventDefault();
+ const seller=form.elements.seller.value.trim();
+ const raw=form.elements.subscription.value.trim();
+ let parsed;
+ try{parsed=new URL(raw);}catch{alert("لینک معتبر نیست.");return;}
+ if(parsed.protocol!=="https:"||parsed.username||parsed.password||!parsed.hostname||raw.length>4096||!seller){alert("لینک اشتراک باید HTTPS عمومی و معتبر باشد.");return;}
+ privateInvite="noraproxy://setup?"+new URLSearchParams({seller:seller,url:raw}).toString();
+ linkEl.textContent=privateInvite;
+ result.style.display="block";
+});
+document.getElementById("copy").addEventListener("click",async()=>{
+ if(!privateInvite)return;
+ try{await navigator.clipboard.writeText(privateInvite);alert("لینک خصوصی کپی شد.");}
+ catch{alert("کپی خودکار مجاز نبود؛ لینک را دستی کپی کنید.");}
+});
+</script>
+</body>
+</html>
