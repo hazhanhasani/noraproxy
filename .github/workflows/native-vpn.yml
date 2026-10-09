@@ -7,6 +7,10 @@ on:
       - "native-vpn/**"
       - "scripts/prepare_native_vpn.py"
       - "scripts/enable_release_signing.py"
+      - "scripts/telegram_release.py"
+      - "scripts/post_telegram_release.sh"
+      - "release-notes/**"
+      - "tests/test_telegram_release.py"
       - ".github/workflows/native-vpn.yml"
       - "app/src/main/res/drawable/ic_launcher.xml"
   pull_request:
@@ -30,6 +34,16 @@ jobs:
     steps:
       - name: Checkout NoraProxy
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Telegram publishing scripts, caption and checksum rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_telegram_release.py' -v
+          python3 -m py_compile scripts/telegram_release.py
+          bash -n scripts/post_telegram_release.sh
 
       - name: Checkout pinned official v2rayNG runtime and native submodules
         uses: actions/checkout@v4
