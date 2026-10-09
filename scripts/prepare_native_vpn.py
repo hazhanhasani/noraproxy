@@ -37,7 +37,7 @@ def prepare():
         ("native-vpn/NoraRouteSelector.kt",
          "java/com/v2ray/ang/ui/main/NoraRouteSelector.kt"),
         ("app/src/main/res/drawable/ic_launcher.xml",
-         "drawable/nora_launcher.xml"),
+         "res/drawable/nora_launcher.xml"),
     )
     for from_name, to_name in copies:
         to = SRC / to_name
