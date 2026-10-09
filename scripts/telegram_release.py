@@ -106,7 +106,7 @@ def compose_caption(version: str, repo: str, changes: list[str]) -> str:
     footer = (
         "\n\n"
         "📦 <b>نسخه رسمی Android</b>\n"
-        "🔐 امضای ثابت و اعتبار فایل تأیید شده\n"
+        "🔐 امضای ثابت و بررسی SHA-256 تأییدشده\n"
         "♻️ نصب روی نسخه قبلی، بدون حذف اطلاعات\n\n"
         f'🔗 <a href="https://github.com/{repo}/releases/tag/v{version}">'
         "مشاهده جزئیات انتشار</a>\n"
