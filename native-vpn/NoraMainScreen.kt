@@ -8,6 +8,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -75,9 +79,11 @@ private val muted = Color(0xFF9DB6C8)
 private val green = Color(0xFF6EE4BD)
 private val corner = RoundedCornerShape(24.dp)
 
-private enum class NoraTab(val title: String, val glyph: String) {
-    Home("خانه", "⌂"), Locations("لوکیشن‌ها", "◎"),
-    Subscription("اشتراک", "▤"), Settings("تنظیمات", "⚙")
+private enum class NoraTab(val title: String, val iconRes: Int) {
+    Home("خانه", R.drawable.nora_tab_home),
+    Locations("لوکیشن‌ها", R.drawable.nora_tab_locations),
+    Subscription("اشتراک", R.drawable.nora_tab_subscription),
+    Settings("تنظیمات", R.drawable.nora_tab_settings)
 }
 
 /**
@@ -122,7 +128,7 @@ fun MainScreen(
         context.getSharedPreferences("nora_brand", android.content.Context.MODE_PRIVATE)
             .getString("seller", "").orEmpty()
     }
-    val originalLogo = painterResource(R.drawable.nora_brand)
+    val originalLogo = painterResource(R.drawable.nora_launcher)
 
     val startOrStop: () -> Unit = {
         if (appState.isRunning) {
@@ -142,9 +148,17 @@ fun MainScreen(
         onSurface = light, onBackground = light
     )) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Scaffold(containerColor = ink, bottomBar = {
-                NoraBottomBar(active = tab, onSelect = { tab = it })
-            }) { inner ->
+            Scaffold(
+                containerColor = ink,
+                contentWindowInsets = WindowInsets.safeDrawing,
+                bottomBar = {
+                    NoraBottomBar(
+                        active = tab,
+                        onSelect = { tab = it },
+                        modifier = Modifier.background(surface).navigationBarsPadding()
+                    )
+                }
+            ) { inner ->
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                         .background(Brush.verticalGradient(listOf(ink, Color(0xFF0B2037), ink)))
@@ -278,10 +292,20 @@ fun MainScreen(
                             }
                         }
                         NoraTab.Settings -> {
+                            // Old nora_wordmark.jpg was not decoded by Android on some devices.
+                            // Render this banner with Compose text, without risky bitmap decoding.
                             item {
-                                Image(painter = painterResource(R.drawable.nora_wordmark),
-                                    contentDescription = "NoraProxy original full brand",
-                                    modifier = Modifier.fillMaxWidth().height(175.dp))
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .background(surface, corner)
+                                        .padding(24.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("NoraProxy", fontSize = 30.sp,
+                                        fontWeight = FontWeight.ExtraBold, color = cyan)
+                                    Text("اتصال امن، تجربه‌ای ساده", color = muted,
+                                        fontSize = 13.sp)
+                                }
                             }
                             item { NoraSection("تنظیمات NoraProxy", "نسخه و به‌روزرسانی امن") }
                             item {
@@ -429,8 +453,12 @@ private fun NoraLocationCard(
 }
 
 @Composable
-private fun NoraBottomBar(active: NoraTab, onSelect: (NoraTab) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().background(surface).padding(
+private fun NoraBottomBar(
+    active: NoraTab,
+    onSelect: (NoraTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier.fillMaxWidth().background(surface).padding(
         horizontal = 8.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         NoraTab.entries.forEach { tab ->
@@ -441,7 +469,12 @@ private fun NoraBottomBar(active: NoraTab, onSelect: (NoraTab) -> Unit) {
                 .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(tab.glyph, color = if (active == tab) cyan else muted, fontSize = 22.sp)
+                Icon(
+                    painter = painterResource(tab.iconRes),
+                    contentDescription = tab.title,
+                    modifier = Modifier.size(24.dp),
+                    tint = if (active == tab) cyan else muted
+                )
                 Text(tab.title, color = if (active == tab) light else muted, fontSize = 10.sp,
                     fontWeight = if (active == tab) FontWeight.Bold else FontWeight.Normal)
             }

@@ -40,10 +40,12 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
         ("native-vpn/assets/nora_icon.jpg",
          "res/drawable/nora_brand.jpg"),
-        ("native-vpn/assets/nora_wordmark.jpg",
-         "res/drawable/nora_wordmark.jpg"),
         ("native-vpn/res/nora_provider_paths.xml",
          "res/xml/nora_provider_paths.xml"),
+        ("native-vpn/res/nora_tab_home.xml", "res/drawable/nora_tab_home.xml"),
+        ("native-vpn/res/nora_tab_locations.xml", "res/drawable/nora_tab_locations.xml"),
+        ("native-vpn/res/nora_tab_subscription.xml", "res/drawable/nora_tab_subscription.xml"),
+        ("native-vpn/res/nora_tab_settings.xml", "res/drawable/nora_tab_settings.xml"),
         ("app/src/main/res/drawable/ic_launcher.xml",
          "res/drawable/nora_launcher.xml"),
     )
@@ -54,20 +56,37 @@ def prepare():
 
     gradle = APP / "build.gradle.kts"
     replace(gradle, 'applicationId = "com.v2ray.ang"', 'applicationId = "app.noraproxy"')
-    replace(gradle, 'versionCode = 745', 'versionCode = 200')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.0"')
-    replace(gradle, 'v2rayNG_', 'NoraProxy_')
+    replace(gradle, 'versionCode = 745', 'versionCode = 201')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.1"')
+    # Both F-Droid and Play Store output names must use NoraProxy.
+    output_names = gradle.read_text(encoding="utf-8")
+    if "v2rayNG_" not in output_names:
+        raise SystemExit("Upstream APK output name anchor is missing.")
+    gradle.write_text(output_names.replace("v2rayNG_", "NoraProxy_"), encoding="utf-8")
 
-    strings = SRC / "res/values/strings.xml"
-    replace(strings,
-            '<string name="app_name" translatable="false">v2rayNG</string>',
-            '<string name="app_name" translatable="false">NoraProxy</string>')
+    # Android resolves values-fa/strings.xml for Persian phones; overriding
+    # only values/strings.xml leaves the launcher named v2rayNG on MIUI.
+    found_app_names = 0
+    for strings in sorted((SRC / "res").glob("values*/strings.xml")):
+        current = strings.read_text(encoding="utf-8")
+        old_name = '<string name="app_name" translatable="false">v2rayNG</string>'
+        if old_name in current:
+            strings.write_text(current.replace(old_name,
+                '<string name="app_name" translatable="false">NoraProxy</string>'),
+                encoding="utf-8")
+            found_app_names += 1
+    if found_app_names == 0:
+        raise SystemExit("Unable to find localized upstream app labels.")
 
     manifest = SRC / "AndroidManifest.xml"
     replace(manifest, 'android:allowBackup="true"', 'android:allowBackup="false"')
     replace(manifest,
             'android:icon="@mipmap/ic_launcher"',
-            'android:icon="@drawable/nora_brand"')
+            'android:icon="@drawable/nora_brand"\n'
+            '        android:roundIcon="@drawable/nora_brand"')
+    replace(manifest,
+            'android:label="@string/app_name"',
+            'android:label="NoraProxy"')
     replace(manifest,
             '<uses-permission android:name="android.permission.INTERNET" />',
             '<uses-permission android:name="android.permission.INTERNET" />\n'
@@ -128,7 +147,7 @@ def prepare():
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.0, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.1, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()
