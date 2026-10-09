@@ -40,6 +40,8 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
         ("native-vpn/assets/nora_icon.jpg",
          "res/drawable/nora_brand.jpg"),
+        ("native-vpn/assets/nora_wordmark.jpg",
+         "res/drawable/nora_wordmark.jpg"),
         ("native-vpn/res/nora_provider_paths.xml",
          "res/xml/nora_provider_paths.xml"),
         ("app/src/main/res/drawable/ic_launcher.xml",
