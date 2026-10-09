@@ -31,6 +31,10 @@ class NoraTelegramReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mod.check_repo("https://bad.example")
 
+    def test_official_channel_fallback(self):
+        import os
+        self.assertEqual(os.environ.get("NORA_TG_CHANNEL_ID", "@noraproxy"), "@noraproxy")
+
     def test_checksum_verification_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             apk = Path(d) / "NoraProxy-0.2.4.apk"

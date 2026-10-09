@@ -25,7 +25,7 @@ if gh release view "$TAG" --repo "$REPO" --json assets \
 fi
 
 missing=()
-for key in NORA_TG_API_ID NORA_TG_API_HASH NORA_TG_BOT_TOKEN NORA_TG_CHANNEL_ID; do
+for key in NORA_TG_API_ID NORA_TG_API_HASH NORA_TG_BOT_TOKEN; do
   if [[ -z "${!key:-}" ]]; then
     missing+=("$key")
   fi

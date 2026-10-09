@@ -8,19 +8,18 @@
 
 ۱. با @BotFather یک ربات بساز و آن را با مجوز Post Messages مدیر کانالت کن.
 ۲. از https://my.telegram.org/apps یک `api_id` و `api_hash` بساز.
-۳. در https://github.com/hazhanhasani/noraproxy/settings/secrets/actions این ۴ Secret را ثبت کن:
+۳. کانال مقصد به‌صورت ثابت `@noraproxy` (https://t.me/noraproxy) در GitHub Actions تعریف شده است؛ نیازی به ثبت شناسه کانال به‌عنوان Secret نیست.
+۴. در https://github.com/hazhanhasani/noraproxy/settings/secrets/actions این ۳ Secret محرمانه را ثبت کن:
 
 | Secret | مقدار |
 | --- | --- |
 | `NORA_TG_BOT_TOKEN` | توکن ربات صادرشده در BotFather |
 | `NORA_TG_API_ID` | شناسه عددی API در my.telegram.org |
 | `NORA_TG_API_HASH` | هش API در my.telegram.org |
-| `NORA_TG_CHANNEL_ID` | شناسه عمومی کانال مانند `@YourChannel` |
 
 توکن‌ها را هرگز در کد یا گفت‌وگوی عمومی ارسال نکن. ربات باید ادمین کانال باشد.
-در کانال خصوصی شناسه عددی `-100...` تنها در صورتی کار می‌کند که
-اکانت ربات بتواند موجودیت آن کانال را در جلسه MTProto پیدا کند؛
-شناسه عمومی @channel راه مطمئن‌تری است.
+آدرس مقصد رسمی انتشار این پروژه **https://t.me/noraproxy** است.
+ربات باید در همین کانال با اختیار ارسال پیام، مدیر باشد.
 
 ## ارسال APK بزرگ
 
@@ -42,7 +41,7 @@ MTProto و کتابخانه Telethon انجام می‌شود. فایل در ح�
 ## انتشار خودکار و ارسال مجدد
 
 - ارسال خودکار **فقط برای Release جدید و تأییدشده** در main اجرا می‌شود.
-- اگر چهار Secret تلگرام ثبت نشده باشند، انتشار GitHub و آپدیت داخل اپ
+- اگر سه Secret محرمانه تلگرام ثبت نشده باشند، انتشار GitHub و آپدیت داخل اپ
   بدون اختلال ادامه می‌یابد و ارسال تلگرام با هشدار رد می‌شود.
 - بعد از ارسال موفق، یک رسید غیرمحرمانه به Assets همان GitHub Release افزوده
   می‌شود؛ در اجرای مجدد، وجود رسید از تکرار پست جلوگیری می‌کند.

@@ -160,11 +160,11 @@ async def send_to_channel(args: argparse.Namespace) -> None:
     from telethon.sessions import StringSession
 
     required = ("NORA_TG_API_ID", "NORA_TG_API_HASH",
-                "NORA_TG_BOT_TOKEN", "NORA_TG_CHANNEL_ID")
+                "NORA_TG_BOT_TOKEN")
     missing = [k for k in required if not os.environ.get(k)]
     if missing:
         raise ValueError("Missing Telegram GitHub Secrets: " + ", ".join(missing))
-    channel = os.environ["NORA_TG_CHANNEL_ID"].strip()
+    channel = os.environ.get("NORA_TG_CHANNEL_ID", "@noraproxy").strip()
     if not (re.fullmatch(r"@[A-Za-z0-9_]{5,32}", channel)
             or re.fullmatch(r"-100[0-9]{5,}", channel)):
         raise ValueError("Channel should be @public_username or -100... ID")

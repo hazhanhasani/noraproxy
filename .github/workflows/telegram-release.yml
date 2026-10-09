@@ -47,7 +47,7 @@ jobs:
           NORA_TG_API_ID: ${{ secrets.NORA_TG_API_ID }}
           NORA_TG_API_HASH: ${{ secrets.NORA_TG_API_HASH }}
           NORA_TG_BOT_TOKEN: ${{ secrets.NORA_TG_BOT_TOKEN }}
-          NORA_TG_CHANNEL_ID: ${{ secrets.NORA_TG_CHANNEL_ID }}
+          NORA_TG_CHANNEL_ID: '@noraproxy'
         run: |
           set -euo pipefail
           bash scripts/post_telegram_release.sh "${RELEASE_TAG#v}" "$GITHUB_REPOSITORY" signed
