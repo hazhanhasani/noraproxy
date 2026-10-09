@@ -96,6 +96,7 @@ fun MainScreen(
     val updater = remember(context.applicationContext) { NoraUpdater(context.applicationContext) }
     val updateState by updater.state.collectAsStateWithLifecycle()
     DisposableEffect(updater) { onDispose { updater.dispose() } }
+    LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
     var subscription by remember { mutableStateOf("") }
     var selectedCountry by remember { mutableStateOf<String?>(null) }
@@ -161,6 +162,18 @@ fun MainScreen(
                                     )
                                     Text(if (appState.isRunning) "برای قطع اتصال لمس کنید"
                                     else "برای اتصال لمس کنید", color = muted, fontSize = 12.sp)
+                                }
+                            }
+                            if (updateState.available) {
+                                item {
+                                    Row(modifier = Modifier.fillMaxWidth()
+                                        .background(Color(0xFF143C51), RoundedCornerShape(18.dp))
+                                        .clickable { tab = NoraTab.Settings }.padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Text("نسخه جدید NoraProxy آماده دانلود است.", color = cyan,
+                                            modifier = Modifier.weight(1f), fontSize = 12.sp)
+                                        Text("←", color = light)
+                                    }
                                 }
                             }
                             item {
