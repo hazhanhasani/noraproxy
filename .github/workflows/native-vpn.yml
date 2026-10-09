@@ -2,7 +2,7 @@ name: Build NoraProxy Native VPN
 
 on:
   push:
-    branches: [feat/native-xray-vpn]
+    branches: [main, feat/native-xray-vpn]
     paths:
       - "native-vpn/**"
       - "scripts/prepare_native_vpn.py"
