@@ -1,17 +1,25 @@
-name: Android APK & Tests
+name: Validate Legacy Selector Tests (Non-VPN)
 
 on:
   push:
     branches: [main, "feat/**"]
+    paths:
+      - "app/**"
+      - "tools/**"
+      - ".github/workflows/android.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "app/**"
+      - "tools/**"
+      - ".github/workflows/android.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,14 +41,7 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
           "$SDKMANAGER" --sdk_root="$SDK_ROOT" "platforms;android-35" "build-tools;35.0.0"
-      - name: Test invite generator
+      - name: Test reseller invitation tools
         run: python3 -m unittest discover -s tools -p 'test_*.py'
-      - name: Build and test
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: noraproxy-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+      - name: Test non-VPN selector prototype
+        run: gradle --no-daemon :app:testDebugUnitTest
