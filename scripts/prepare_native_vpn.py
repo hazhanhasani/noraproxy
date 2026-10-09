@@ -56,8 +56,8 @@ def prepare():
 
     gradle = APP / "build.gradle.kts"
     replace(gradle, 'applicationId = "com.v2ray.ang"', 'applicationId = "app.noraproxy"')
-    replace(gradle, 'versionCode = 745', 'versionCode = 201')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.1"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 202')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.2"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -147,7 +147,7 @@ def prepare():
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.1, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.2, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()

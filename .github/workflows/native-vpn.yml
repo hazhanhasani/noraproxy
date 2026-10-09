@@ -132,6 +132,11 @@ jobs:
           grep -q 'navigationBarsPadding()' "$MAIN"
           grep -q 'WindowInsets.safeDrawing' "$MAIN"
           ! grep -q 'painterResource(R.drawable.nora_wordmark)' "$MAIN"
+          grep -q 'painterResource(R.drawable.nora_brand)' "$MAIN"
+          grep -q 'onAction(MainAction.SelectServer(route.guid))' "$MAIN"
+          grep -q 'chooseRoute(country, country.countryCode)' "$MAIN"
+          grep -q 'preferred_country' "$MAIN"
+          ! grep -q 'painterResource(R.drawable.nora_launcher)' "$MAIN"
           ! grep -q 'v2rayNG_' upstream/V2rayNG/app/build.gradle.kts
           if grep -R -F '<string name="app_name" translatable="false">v2rayNG</string>' upstream/V2rayNG/app/src/main/res/values*; then
             echo "::error::Localized launcher label still references v2rayNG"
@@ -235,15 +240,15 @@ jobs:
             exit 1
           fi
           mkdir -p signed
-          cp "$UNIVERSAL" signed/NoraProxy-0.2.1.apk
-          (cd signed && sha256sum NoraProxy-0.2.1.apk > NoraProxy-0.2.1.apk.sha256)
+          cp "$UNIVERSAL" signed/NoraProxy-0.2.2.apk
+          (cd signed && sha256sum NoraProxy-0.2.2.apk > NoraProxy-0.2.2.apk.sha256)
           echo "All release APK signatures and fixed NoraProxy certificate verified."
 
       - name: Upload fixed-signature release APK
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v4
         with:
-          name: NoraProxy-Signed-Release-0.2.1
+          name: NoraProxy-Signed-Release-0.2.2
           path: signed/
           if-no-files-found: error
           retention-days: 90
@@ -255,17 +260,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="v0.2.1"
-          test -s signed/NoraProxy-0.2.1.apk
+          TAG="v0.2.2"
+          test -s signed/NoraProxy-0.2.2.apk
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "::error::Release $TAG already exists; refuse to replace the APK for the same version."
             exit 1
           fi
           gh release create "$TAG" \
-            signed/NoraProxy-0.2.1.apk \
-            signed/NoraProxy-0.2.1.apk.sha256 \
+            signed/NoraProxy-0.2.2.apk \
+            signed/NoraProxy-0.2.2.apk.sha256 \
             --target "$GITHUB_SHA" \
-            --title "NoraProxy 0.2.1" \
+            --title "NoraProxy 0.2.2" \
             --notes "Standalone Xray VPN, redesigned NoraProxy interface, private reseller onboarding and signed in-app updates."
           echo "Official update is now visible inside the app from GitHub Releases."
 

@@ -105,7 +105,14 @@ fun MainScreen(
     LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
     var subscription by remember { mutableStateOf("") }
-    var selectedCountry by remember { mutableStateOf<String?>(null) }
+    // Keep the user's preferred country across app restarts, while the real
+    // selected server GUID remains managed by the VPN backend.
+    val routePreferences = remember(context) {
+        context.getSharedPreferences("nora_route", android.content.Context.MODE_PRIVATE)
+    }
+    var selectedCountry by remember {
+        mutableStateOf(routePreferences.getString("preferred_country", null))
+    }
     var refreshTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(appState.groups, appState.isTesting, loading) { refreshTick++ }
@@ -120,21 +127,41 @@ fun MainScreen(
             onAction(MainAction.TestRealAllServers)
         }
     }
-    val selected = if (selectedCountry == null) {
+    val preferredRoute = if (selectedCountry == null) {
         ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull()
     } else locations.firstOrNull { it.countryCode == selectedCountry }
-    val countryTitle = selected?.let { it.flag + "  " + it.countryName } ?: "هنوز اشتراکی ندارید"
+    // When connected, show the backend's actually selected route (not a visual-only choice).
+    val activeRoute = ranked.firstOrNull { it.guid == appState.selectedGuid }
+    val displayedRoute = if (appState.isRunning) activeRoute ?: preferredRoute else preferredRoute
+    val countryTitle = displayedRoute?.let { it.flag + "  " + it.countryName }
+        ?: "هنوز اشتراکی ندارید"
+    val chooseRoute: (NoraNode?, String?) -> Unit = { route, country ->
+        if (route != null) {
+            selectedCountry = country
+            routePreferences.edit().apply {
+                if (country == null) remove("preferred_country")
+                else putString("preferred_country", country)
+            }.apply()
+            // This goes through MainActivity.setSelectServer -> ViewModel/MMKV.
+            // The activity restarts the native service if already running.
+            if (appState.selectedGuid != route.guid) {
+                onAction(MainAction.SelectServer(route.guid))
+            }
+            tab = NoraTab.Home
+        }
+    }
     val brand = remember(context) {
         context.getSharedPreferences("nora_brand", android.content.Context.MODE_PRIVATE)
             .getString("seller", "").orEmpty()
     }
-    val originalLogo = painterResource(R.drawable.nora_launcher)
+    // Use the user's actual cyan circuit-N brand art, not the old orange placeholder vector.
+    val originalLogo = painterResource(R.drawable.nora_brand)
 
     val startOrStop: () -> Unit = {
         if (appState.isRunning) {
             onAction(MainAction.ToggleService)
         } else {
-            selected?.let { route ->
+            preferredRoute?.let { route ->
                 if (appState.selectedGuid != route.guid) onAction(MainAction.SelectServer(route.guid))
                 // Permission-aware original MainActivity -> native CoreVpnService.
                 onAction(MainAction.ToggleService)
@@ -181,7 +208,7 @@ fun MainScreen(
                                         fontSize = 12.sp, color = muted, textAlign = TextAlign.Center)
                                     NoraPowerButton(
                                         connected = appState.isRunning,
-                                        enabled = selected != null || appState.isRunning,
+                                        enabled = preferredRoute != null || appState.isRunning,
                                         onClick = startOrStop
                                     )
                                     Text(if (appState.isRunning) "برای قطع اتصال لمس کنید"
@@ -204,10 +231,10 @@ fun MainScreen(
                                 NoraSection("Smart Location", "بهترین انتخاب متناسب با شبکه شما")
                                 Spacer(Modifier.height(11.dp))
                                 NoraLocationCard(
-                                    emoji = selected?.flag ?: "🌐",
+                                    emoji = displayedRoute?.flag ?: "🌐",
                                     title = if (selectedCountry == null) "انتخاب هوشمند" else countryTitle,
-                                    subtitle = countryTitle,
-                                    delay = selected?.latencyMs,
+                                    subtitle = if (appState.isRunning) "سرور فعال: $countryTitle" else countryTitle,
+                                    delay = displayedRoute?.latencyMs,
                                     selected = true,
                                     onClick = { tab = NoraTab.Locations }
                                 )
@@ -235,15 +262,17 @@ fun MainScreen(
                             item {
                                 NoraSection("انتخاب لوکیشن", "فقط بهترین مسیر هر کشور نمایش داده می‌شود.")
                                 Spacer(Modifier.height(14.dp))
-                                NoraLocationCard("✦", "Smart Location", "انتخاب خودکار سریع‌ترین مسیر شناخته‌شده",
-                                    null, selectedCountry == null) { selectedCountry = null }
+                                NoraLocationCard("✦", "Smart Location", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
+                                    null, selectedCountry == null) {
+                                    chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                                }
                             }
                             items(locations, key = { it.countryCode }) { country ->
                                 NoraLocationCard(country.flag, country.countryName,
                                     "مناسب‌ترین سرور این کشور", country.latencyMs,
-                                    selectedCountry == country.countryCode) {
-                                    selectedCountry = country.countryCode
-                                    tab = NoraTab.Home
+                                    selectedCountry == country.countryCode &&
+                                        activeRoute?.countryCode == country.countryCode) {
+                                    chooseRoute(country, country.countryCode)
                                 }
                             }
                             item {
