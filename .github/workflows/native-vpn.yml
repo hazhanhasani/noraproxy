@@ -171,6 +171,12 @@ jobs:
           grep -q 'chooseRoute(country, country.countryCode)' "$MAIN"
           grep -q 'preferred_country' "$MAIN"
           ! grep -q 'painterResource(R.drawable.nora_launcher)' "$MAIN"
+          # Home must never use a scrollable LazyColumn, even on small phones.
+          grep -q 'if (tab == NoraTab.Home)' "$MAIN"
+          grep -q 'NoraHomeContent(' "$MAIN"
+          grep -q 'BoxWithConstraints(' "$MAIN"
+          grep -q '.clip(CircleShape) // Prevent square ripple artifacts on tap.' "$MAIN"
+          grep -q 'powerPending' "$MAIN"
           ! grep -q 'v2rayNG_' upstream/V2rayNG/app/build.gradle.kts
           if grep -R -F '<string name="app_name" translatable="false">v2rayNG</string>' upstream/V2rayNG/app/src/main/res/values*; then
             echo "::error::Localized launcher label still references v2rayNG"
