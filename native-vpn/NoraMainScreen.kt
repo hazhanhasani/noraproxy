@@ -255,6 +255,11 @@ fun MainScreen(
                             }
                         }
                         NoraTab.Settings -> {
+                            item {
+                                Image(painter = painterResource(R.drawable.nora_wordmark),
+                                    contentDescription = "NoraProxy original full brand",
+                                    modifier = Modifier.fillMaxWidth().height(175.dp))
+                            }
                             item { NoraSection("تنظیمات NoraProxy", "نسخه و به‌روزرسانی امن") }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
