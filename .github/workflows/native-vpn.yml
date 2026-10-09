@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nora-native-${github.ref}}
+  group: nora-native-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -94,13 +94,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: upstream/V2rayNG/app/libs/libv2ray.aar
-          key: noraproxy-libv2ray-${steps.xray.outputs.tag}}
+          key: noraproxy-libv2ray-${{ steps.xray.outputs.tag }}
 
       - name: Download upstream native Xray library
         if: steps.aar.outputs.cache-hit != 'true'
         env:
-          TAG: ${steps.xray.outputs.tag}}
-          GH_TOKEN: ${github.token}}
+          TAG: ${{ steps.xray.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
