@@ -5,6 +5,7 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
         android:theme="@style/Theme.NoraProxy">
         <activity
             android:name=".MainActivity"
