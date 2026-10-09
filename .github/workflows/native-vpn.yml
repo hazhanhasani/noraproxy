@@ -167,6 +167,10 @@ jobs:
       - name: Build fixed-signature release APK
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         working-directory: upstream/V2rayNG
+        env:
+          NORA_SIGNING_STORE_PASSWORD: ${{ secrets.NORA_SIGNING_STORE_PASSWORD }}
+          NORA_SIGNING_KEY_ALIAS: ${{ secrets.NORA_SIGNING_KEY_ALIAS }}
+          NORA_SIGNING_KEY_PASSWORD: ${{ secrets.NORA_SIGNING_KEY_PASSWORD }}
         run: ./gradlew --no-daemon :app:assemblePlaystoreRelease
 
       - name: Verify release package, signature and SHA256
