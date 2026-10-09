@@ -103,10 +103,17 @@ fun MainScreen(
     var refreshTick by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(appState.groups, appState.isTesting, loading) { refreshTick++ }
-    LaunchedEffect(Unit) { while (true) { delay(5000); refreshTick++ } }
+    LaunchedEffect(Unit) { while (true) { delay(15000); refreshTick++ } }
     val nodes = remember(refreshTick) { NoraRouteSelector.load() }
     val ranked = remember(nodes) { NoraRouteSelector.rank(nodes) }
     val locations = remember(ranked) { NoraRouteSelector.locations(ranked) }
+    val identity = remember(nodes) { nodes.joinToString("|") { it.guid } }
+    LaunchedEffect(identity, loading) {
+        if (!loading && nodes.isNotEmpty() && nodes.all { it.latencyMs == 0L } &&
+            !appState.isTesting) {
+            onAction(MainAction.TestRealAllServers)
+        }
+    }
     val selected = if (selectedCountry == null) {
         ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull()
     } else locations.firstOrNull { it.countryCode == selectedCountry }
