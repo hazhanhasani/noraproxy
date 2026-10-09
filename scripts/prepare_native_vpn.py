@@ -81,6 +81,11 @@ def prepare():
             '                        "install-config" -> {',
             '                    when (data?.host) {\n'
             '                        "setup" -> {\n'
+            '                            val seller = data?.getQueryParameter("seller").orEmpty().take(80)\n'
+            '                            if (seller.isNotBlank()) {\n'
+            '                                getSharedPreferences("nora_brand", MODE_PRIVATE)\n'
+            '                                    .edit().putString("seller", seller).apply()\n'
+            '                            }\n'
             '                            val link = data?.getQueryParameter("url").orEmpty()\n'
             '                            if (link.startsWith("https://", ignoreCase = true)) {\n'
             '                                parseUri(link, null)\n'
