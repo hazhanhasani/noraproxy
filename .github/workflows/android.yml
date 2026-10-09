@@ -36,7 +36,7 @@ jobs:
       - name: Install Android platform
         shell: bash
         run: |
-          SDK_ROOT="\${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
