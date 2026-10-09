@@ -124,14 +124,17 @@ fun MainScreen(
     }
     val originalLogo = painterResource(R.drawable.nora_brand)
 
-    val startOrStop = {
+    val startOrStop: () -> Unit = {
         if (appState.isRunning) {
             onAction(MainAction.ToggleService)
-        } else selected?.let { route ->
-            if (appState.selectedGuid != route.guid) onAction(MainAction.SelectServer(route.guid))
-            // Permission-aware original MainActivity -> native CoreVpnService.
-            onAction(MainAction.ToggleService)
+        } else {
+            selected?.let { route ->
+                if (appState.selectedGuid != route.guid) onAction(MainAction.SelectServer(route.guid))
+                // Permission-aware original MainActivity -> native CoreVpnService.
+                onAction(MainAction.ToggleService)
+            }
         }
+        Unit
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
