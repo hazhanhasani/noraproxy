@@ -56,3 +56,16 @@ An unavailable digest or mismatched signature blocks installation.
 There is no production APK before native CI and real Android testing succeed.
 The self-updater only discovers a new version after a properly signed public
 Release is published and does not invent availability.
+
+## Automated publication (approved main branch only)
+
+Once the native VPN Pull Request has passed testing and is merged into main,
+manually dispatch Build NoraProxy Native VPN on the **main** branch.
+With all four signing secrets provided, the workflow validates the APK and
+certificate fingerprint, creates GitHub Release v0.2.0 and attaches the
+production APK and checksum file. The app's update checker reads the latest
+public GitHub Release automatically. Existing tags are never overwritten.
+
+Do NOT publish from a feature branch as a production release; native builds
+there are for testing and review. Manual dispatch on a feature branch produces
+a signed artifact but deliberately does not publish it to consumers.
