@@ -1,0 +1,136 @@
+name: Build NoraProxy Native VPN
+
+on:
+  push:
+    branches: [feat/native-xray-vpn]
+    paths:
+      - "native-vpn/**"
+      - "scripts/prepare_native_vpn.py"
+      - ".github/workflows/native-vpn.yml"
+      - "app/src/main/res/drawable/ic_launcher.xml"
+  pull_request:
+    paths:
+      - "native-vpn/**"
+      - "scripts/prepare_native_vpn.py"
+      - ".github/workflows/native-vpn.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nora-native-${github.ref}}
+  cancel-in-progress: true
+
+jobs:
+  build-native-vpn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout NoraProxy
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned official v2rayNG runtime and native submodules
+        uses: actions/checkout@v4
+        with:
+          repository: 2dust/v2rayNG
+          ref: 9fcb1a30f81345920f9609029ae923b4ea0a866c
+          path: upstream
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK 37
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          log-accepted-android-sdk-licenses: false
+          cmdline-tools-version: '14742923'
+          packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
+
+      - name: Install native Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$MANAGER"
+          echo y | "$MANAGER" --channel=0 --install "ndk;29.0.14206865"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+
+      - name: Restore native hev-tunnel cache
+        uses: actions/cache@v4
+        id: hev
+        with:
+          path: upstream/libs
+          key: noraproxy-hevtun-2.3.5-ndk29-v1
+
+      - name: Build native hev tunnel
+        if: steps.hev.outputs.cache-hit != 'true'
+        working-directory: upstream
+        run: bash compile-hevtun.sh
+
+      - name: Stage native tunnel binaries
+        run: |
+          mkdir -p upstream/V2rayNG/app/libs
+          cp -r upstream/libs/. upstream/V2rayNG/app/libs/
+
+      - name: Resolve upstream Xray AAR release version
+        id: xray
+        working-directory: upstream/AndroidLibXrayLite
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin
+          TAG="$(git describe --tags --abbrev=0)"
+          test -n "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Restore original libv2ray AAR cache
+        id: aar
+        uses: actions/cache@v4
+        with:
+          path: upstream/V2rayNG/app/libs/libv2ray.aar
+          key: noraproxy-libv2ray-${steps.xray.outputs.tag}}
+
+      - name: Download upstream native Xray library
+        if: steps.aar.outputs.cache-hit != 'true'
+        env:
+          TAG: ${steps.xray.outputs.tag}}
+          GH_TOKEN: ${github.token}}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST="upstream/V2rayNG/app/libs/libv2ray.aar"
+          curl -fLSs --connect-timeout 20 --max-time 300 --retry 4 --retry-all-errors \
+            "https://github.com/2dust/AndroidLibXrayLite/releases/download/$TAG/libv2ray.aar" \
+            -o "$DEST" || gh release download "$TAG" -R 2dust/AndroidLibXrayLite \
+            -p libv2ray.aar -D upstream/V2rayNG/app/libs --clobber
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          p=Path("upstream/V2rayNG/app/libs/libv2ray.aar")
+          assert p.stat().st_size>1_000_000
+          with ZipFile(p) as z:
+              assert z.testzip() is None
+          PY
+
+      - name: Apply NoraProxy standalone VPN overlay
+        run: python3 scripts/prepare_native_vpn.py
+
+      - name: Build NoraProxy Android APK
+        working-directory: upstream/V2rayNG
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assemblePlaystoreDebug
+
+      - name: Upload standalone NoraProxy VPN APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoraProxy-Native-VPN-Debug
+          path: upstream/V2rayNG/app/build/outputs/apk/playstore/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
