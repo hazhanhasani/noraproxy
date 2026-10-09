@@ -119,8 +119,25 @@ class NoraUpdater(private val context: Context) {
                 it.optString("name").endsWith(".apk") &&
                 !it.optString("name").contains("debug", ignoreCase = true)
             } ?: error("APK امضاشده NoraProxy هنوز منتشر نشده است.")
-        val sha = asset.optString("digest").removePrefix("sha256:").lowercase()
-        require(sha.matches(Regex("[a-f0-9]{64}"))) { "SHA-256 رسمی منتشر نشده است." }
+        // Some GitHub API responses omit asset.digest. In that case use our
+        // separately published, matching .sha256 asset. Never bypass integrity checks.
+        val expectedApkName = asset.getString("name")
+        var sha = asset.optString("digest").removePrefix("sha256:").lowercase()
+        if (!sha.matches(Regex("[a-f0-9]{64}"))) {
+            val checksum = (0 until assets.length()).map { assets.getJSONObject(it) }
+                .firstOrNull { it.optString("name") == expectedApkName + ".sha256" }
+                ?: error("فایل SHA-256 نسخه منتشر نشده است.")
+            val checksumUrl = checksum.getString("browser_download_url")
+            validateUrl(checksumUrl)
+            val manifest = readLimited(checksumUrl, 4096)
+                .toString(Charsets.UTF_8).trim().split(Regex("\\s+"))
+            require(manifest.size >= 2 &&
+                manifest[1].removePrefix("*") == expectedApkName) {
+                "فایل SHA-256 به نسخه APK تعلق ندارد."
+            }
+            sha = manifest[0].lowercase()
+        }
+        require(sha.matches(Regex("[a-f0-9]{64}"))) { "SHA-256 رسمی معتبر نیست." }
         val size = asset.getLong("size")
         require(size in 1_000_000L..MAX_APK) { "اندازه دانلود غیرمجاز است." }
         val url = asset.getString("browser_download_url")
@@ -142,7 +159,7 @@ class NoraUpdater(private val context: Context) {
 
     private fun downloadAndVerify(release: Release): File {
         val dir = File(context.filesDir, "updates").apply { mkdirs() }
-        val part = File(dir, "nora-upgrade.part")
+        val part = File(dir, "nora-upgrade.part.apk")
         val target = File(dir, "nora-upgrade.apk")
         part.delete()
         target.delete()
@@ -217,7 +234,12 @@ class NoraUpdater(private val context: Context) {
     private fun readLimited(url: String, limit: Int): ByteArray {
         val conn = open(url)
         try {
-            require(conn.responseCode == 200) { "نسخه دریافت نشد." }
+            if (conn.responseCode == 404) {
+                error("هنوز نسخه رسمی در GitHub Releases منتشر نشده است.")
+            }
+            require(conn.responseCode == 200) {
+                "ارتباط با سرور به‌روزرسانی برقرار نشد (HTTP " + conn.responseCode + ")."
+            }
             conn.inputStream.use { stream ->
                 val output = java.io.ByteArrayOutputStream()
                 val buffer = ByteArray(8192)

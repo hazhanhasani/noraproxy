@@ -122,6 +122,26 @@ jobs:
       - name: Apply NoraProxy standalone VPN overlay
         run: python3 scripts/prepare_native_vpn.py
 
+      - name: Read actual Android version for signing and OTA
+        id: nora_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import re
+          from pathlib import Path
+          gradle = Path("upstream/V2rayNG/app/build.gradle.kts").read_text(encoding="utf-8")
+          version = re.search(r'^\s*versionName\s*=\s*"(\d+\.\d+\.\d+)"', gradle, re.M)
+          code = re.search(r'^\s*versionCode\s*=\s*(\d+)', gradle, re.M)
+          assert version is not None and code is not None, "Gradle version information missing"
+          assert 'applicationId = "app.noraproxy"' in gradle, "Unexpected Android package ID"
+          assert int(code.group(1)) > 0, "Android version code must be positive"
+          print("version=" + version.group(1))
+          print("tag=v" + version.group(1))
+          print("apk_filename=NoraProxy-" + version.group(1) + ".apk")
+          PY
+          echo "Android package version derived directly from signed build inputs."
+
       - name: Validate NoraProxy label and crash-safe resource overlay
         shell: bash
         run: |
@@ -240,39 +260,67 @@ jobs:
             exit 1
           fi
           mkdir -p signed
-          cp "$UNIVERSAL" signed/NoraProxy-0.2.2.apk
-          (cd signed && sha256sum NoraProxy-0.2.2.apk > NoraProxy-0.2.2.apk.sha256)
+          VERSION="${{ steps.nora_version.outputs.version }}"
+          cp "$UNIVERSAL" "signed/NoraProxy-$VERSION.apk"
+          (cd signed && sha256sum "NoraProxy-$VERSION.apk" > "NoraProxy-$VERSION.apk.sha256")
           echo "All release APK signatures and fixed NoraProxy certificate verified."
 
       - name: Upload fixed-signature release APK
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v4
         with:
-          name: NoraProxy-Signed-Release-0.2.2
+          name: NoraProxy-Signed-Release-${{ steps.nora_version.outputs.version }}
           path: signed/
           if-no-files-found: error
           retention-days: 90
 
-      - name: Publish approved signed APK for native in-app updates
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+      - name: Automatically publish verified new release for in-app updates
+        # This step runs ONLY after APK build, signature verification and SHA256
+        # preparation have succeeded. Never publish from feature branches or PRs.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          NORA_VERSION: ${{ steps.nora_version.outputs.version }}
+          NORA_TAG: ${{ steps.nora_version.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
-          TAG="v0.2.2"
-          test -s signed/NoraProxy-0.2.2.apk
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "::error::Release $TAG already exists; refuse to replace the APK for the same version."
-            exit 1
+          APK="signed/NoraProxy-$NORA_VERSION.apk"
+          CHECKSUM="$APK.sha256"
+          test -s "$APK"
+          test -s "$CHECKSUM"
+          (cd signed && sha256sum --check "NoraProxy-$NORA_VERSION.apk.sha256")
+
+          # Never replace an existing published APK (stable content/version).
+          # Subsequent pushes without a version bump are successful no-ops.
+          if gh release view "$NORA_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $NORA_TAG already exists. Preserving its original signed APK."
+            exit 0
           fi
-          gh release create "$TAG" \
-            signed/NoraProxy-0.2.2.apk \
-            signed/NoraProxy-0.2.2.apk.sha256 \
+
+          # Reject publication of an older version after a newer stable release.
+          PUBLISHED_TAGS="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 \
+            --json tagName,isDraft,isPrerelease \
+            --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName')"
+          export PUBLISHED_TAGS NORA_VERSION
+          python3 - <<'PY'
+          import os, re
+          current = tuple(map(int, os.environ["NORA_VERSION"].split(".")))
+          for tag in os.environ.get("PUBLISHED_TAGS", "").splitlines():
+              if re.fullmatch(r"v\d+\.\d+\.\d+", tag):
+                  published = tuple(map(int, tag[1:].split(".")))
+                  if published >= current:
+                      raise SystemExit("Refusing OTA release older than a published version: " + tag)
+          PY
+
+          gh release create "$NORA_TAG" \
+            "$APK" "$CHECKSUM" \
+            --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "NoraProxy 0.2.2" \
-            --notes "Standalone Xray VPN, redesigned NoraProxy interface, private reseller onboarding and signed in-app updates."
-          echo "Official update is now visible inside the app from GitHub Releases."
+            --title "NoraProxy $NORA_VERSION" \
+            --notes "Verified signed NoraProxy Android APK. Download and install updates inside NoraProxy; Android requires installation confirmation." \
+            --latest
+          echo "New signed release $NORA_TAG is now available to the Android updater."
 
       - name: Delete signing keystore from runner
         if: always()

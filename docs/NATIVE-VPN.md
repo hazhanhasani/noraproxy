@@ -58,3 +58,26 @@ Run scripts/prepare_native_vpn.py, then the upstream Gradle playstore debug buil
 7. Confirm signing identity, version upgrades, GPL attribution and supported dependency license notices
 
 No production readiness claim until all of these succeed.
+
+
+## Automatic verified OTA release workflow (v0.2.3+)
+
+A successful `main` native build now publishes the fixed-signature Universal APK
+and companion `.apk.sha256` to GitHub Releases automatically. The version and
+asset names are extracted from the actual overlaid Gradle `versionName`, never
+hand-maintained in the workflow. A build cannot publish unless its APK's signing
+certificate matches the pinned production fingerprint and SHA-256 check succeeds.
+
+- Publish only from `main`, after all build/signature verification steps succeed.
+- If the same version already exists, leave its assets immutable and succeed without republishing.
+- Reject an older version than a published stable version.
+- For each intended update, increase both `versionName` and `versionCode` in
+  `scripts/prepare_native_vpn.py` before pushing to main.
+- Releases are distributed through `/releases/latest` and the APK stays inside
+  Android app-private storage until explicit user-approved installation.
+- The updater validates SHA-256, package ID, signing certificate and increasing
+  version code. If GitHub omits `asset.digest`, the updater reads the matching
+  published `.apk.sha256` asset; never skip checksum verification.
+
+Build success does not replace actual Android-device VPN, navigation, updater,
+and reseller subscription testing prior to wider production rollout.
