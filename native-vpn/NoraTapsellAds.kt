@@ -56,7 +56,7 @@ class NoraTapsellAds(private val activity: Activity?) {
         else main.post { if (!stopped) block() }
     }
 
-    fun start() = onMain {
+    fun start(): Unit = onMain {
         if (stopped || !configured) return@onMain
         if (!initialized) {
             try {
@@ -73,7 +73,7 @@ class NoraTapsellAds(private val activity: Activity?) {
         preload()
     }
 
-    fun preload() = onMain {
+    fun preload(): Unit = onMain {
         if (!configured || stopped || showing || loading) return@onMain
         if (!initialized) { start(); return@onMain }
         if (readyAd != null && SystemClock.elapsedRealtime() - readyAt < MAX_AD_AGE_MS) return@onMain
@@ -144,7 +144,7 @@ class NoraTapsellAds(private val activity: Activity?) {
      * Called only after the user-requested actual VPN state change. Never
      * postpones a necessary disconnect or Android system navigation.
      */
-    fun onVpnOperationCompleted() = onMain {
+    fun onVpnOperationCompleted(): Unit = onMain {
         if (!configured || stopped || showing) return@onMain
         val adId = readyAd
         readyAd = null
