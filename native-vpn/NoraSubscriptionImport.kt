@@ -34,7 +34,7 @@ internal object NoraImportRouter {
         if (text.isEmpty()) return NoraImportPayload.Invalid("ابتدا لینک یا کانفیگ را وارد کنید")
         if (text.length > 65_536) return NoraImportPayload.Invalid("متن بیش از حد طولانی است")
 
-        val lines = text.lineSequence().map(String::trim).filter(String::isNotEmpty)
+        val lines = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }
             .distinct().toList()
         val links = lines.filter {
             it.startsWith("https://", true) || it.startsWith("http://", true)
