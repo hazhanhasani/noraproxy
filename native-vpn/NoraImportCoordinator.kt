@@ -19,17 +19,26 @@ internal object NoraImportCoordinator {
             is NoraImportPayload.Invalid -> message(input.reason)
             is NoraImportPayload.Raw -> {
                 activity.lifecycleScope.launch {
-                    val count = withContext(Dispatchers.IO) {
-                        val defaultId = NoraImportRouter.ensureRawDefaultGroup()
-                        // Explicitly target Default, never the currently selected group.
-                        AngConfigManager.importBatchConfig(input.text, defaultId, true).first
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val defaultId = NoraImportRouter.ensureRawDefaultGroup()
+                            // Explicit Default group instead of the selected group.
+                            AngConfigManager.importBatchConfig(input.text, defaultId, true).first
+                        }
                     }
-                    if (count > 0) {
-                        viewModel.setupGroupTab(forceRefresh = true).join()
-                        message("تعداد $count کانفیگ خام به گروه Default اضافه شد")
-                    } else {
-                        message("کانفیگ معتبری دریافت نشد؛ اطلاعات قبلی حفظ شدند")
-                    }
+                    result.fold(
+                        onSuccess = { count ->
+                            if (count > 0) {
+                                viewModel.setupGroupTab(forceRefresh = true).join()
+                                message("تعداد $count کانفیگ خام به Default اضافه شد")
+                            } else {
+                                message("کانفیگ معتبری دریافت نشد؛ اطلاعات قبلی حفظ شدند")
+                            }
+                        },
+                        onFailure = {
+                            message("ورود کانفیگ انجام نشد؛ لطفاً دوباره تلاش کنید")
+                        }
+                    )
                 }
             }
             is NoraImportPayload.Subscriptions -> {
