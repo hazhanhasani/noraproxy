@@ -402,7 +402,7 @@ fun MainScreen(
                             }
                             if (subscriptions.isEmpty()) {
                                 item {
-                                    Text("هنوز گروهی ساخته نشده است؛ می‌توانید گروه جدید بسازید یا کانفیگ خام را مستقیم وارد کنید.",
+                                    Text("ابتدا یک گروه بسازید، سپس لینک یا کانفیگ خود را به آن اضافه کنید.",
                                         color = muted, fontSize = 13.sp, lineHeight = 23.sp)
                                 }
                             }
@@ -452,7 +452,14 @@ fun MainScreen(
                                 ) { Text("بروزرسانی حجم و اعتبار گروه‌ها") }
                             }
                             item {
-                                NoraSection("افزودن سرور", "لینک اشتراک یا کانفیگ خام را در گروه انتخاب‌شده وارد کنید.")
+                                NoraSection("افزودن به گروه", "فقط از این قسمت لینک اشتراک، کانفیگ خام یا QR را وارد کنید.")
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "گروه انتخاب‌شده: " + (subscriptions.firstOrNull {
+                                        it.guid == appState.selectedGroupId
+                                    }?.subscription?.remarks ?: "ابتدا گروهی انتخاب کنید"),
+                                    fontSize = 12.sp, color = cyan
+                                )
                             }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
@@ -470,14 +477,32 @@ fun MainScreen(
                                         Button(
                                             onClick = {
                                                 val input = subscription.trim()
-                                                if (input.isNotEmpty()) {
-                                                    onAction(MainAction.ImportBatchConfig(input))
-                                                    subscription = ""
+                                                when (val parsed = NoraImportRouter.classify(input)) {
+                                                    is NoraImportPayload.Invalid ->
+                                                        Toast.makeText(context, parsed.reason, Toast.LENGTH_LONG).show()
+                                                    is NoraImportPayload.Raw -> {
+                                                        val selected = subscriptions.firstOrNull {
+                                                            it.guid == appState.selectedGroupId
+                                                        }
+                                                        if (selected?.subscription?.url?.isNotBlank() == true) {
+                                                            Toast.makeText(context,
+                                                                "برای کانفیگ خام، یک گروه مستقل بدون لینک اشتراک انتخاب کنید",
+                                                                Toast.LENGTH_LONG).show()
+                                                        } else {
+                                                            onAction(MainAction.ImportBatchConfig(parsed.text))
+                                                            subscription = ""
+                                                        }
+                                                    }
+                                                    is NoraImportPayload.Subscription -> {
+                                                        onAction(MainAction.ImportBatchConfig(parsed.url))
+                                                        subscription = ""
+                                                    }
                                                 }
                                             },
-                                            enabled = subscription.isNotBlank() && !loading,
+                                            enabled = subscription.isNotBlank() && !loading && !groupBusy &&
+                                                appState.selectedGroupId.isNotBlank(),
                                             shape = RoundedCornerShape(15.dp), modifier = Modifier.fillMaxWidth()
-                                        ) { Text("افزودن اشتراک", fontWeight = FontWeight.Bold) }
+                                        ) { Text("افزودن به گروه انتخاب‌شده", fontWeight = FontWeight.Bold) }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -502,9 +527,6 @@ fun MainScreen(
                                             modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                     }
                                 }
-                            }
-                            item {
-                                NoraMetric("سرورهای گروه انتخاب‌شده", nodes.size.toString(), Modifier.fillMaxWidth())
                             }
                         }
                         NoraTab.Settings -> {
@@ -581,17 +603,23 @@ fun MainScreen(
                     existing = editingGroup,
                     busy = groupBusy,
                     onDismiss = { editorVisible = false },
-                    onSave = { name, url, automatic ->
+                    onSave = { name ->
                         groupBusy = true
                         importScope.launch {
                             try {
-                                withContext(Dispatchers.IO) {
-                                    NoraGroupRepository.save(editingGroup, name, url, automatic)
+                                val groupId = withContext(Dispatchers.IO) {
+                                    NoraGroupRepository.save(editingGroup, name)
                                 }
                                 editorVisible = false
-                                onAction(MainAction.RefreshGroups)
+                                mainViewModel.setupGroupTab(forceRefresh = true).join()
+                                if (!appState.isRunning) {
+                                    onAction(MainAction.SelectGroup(groupId))
+                                }
                                 refreshTick++
-                                Toast.makeText(context, "گروه ذخیره شد", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context,
+                                    if (appState.isRunning) "گروه ذخیره شد؛ برای انتخاب آن ابتدا VPN را قطع کنید"
+                                    else "گروه ذخیره و انتخاب شد",
+                                    Toast.LENGTH_SHORT).show()
                             } catch (_: Exception) {
                                 Toast.makeText(context, "ذخیره گروه ناموفق بود", Toast.LENGTH_LONG).show()
                             } finally {
