@@ -32,12 +32,12 @@ internal data class NoraSubscriptionUsage(
     }
 
     fun remainingTimeLabel(nowSeconds: Long = System.currentTimeMillis() / 1000): String {
-        val expiry = expiresAtSeconds ?: return "زمان نامشخص"
-        if (expiry == 0L) return "زمان نامحدود"
+        val expiry = expiresAtSeconds ?: return "اعتبار نامشخص"
+        if (expiry == 0L) return "اعتبار نامحدود"
         val seconds = expiry - nowSeconds
         if (seconds <= 0) return "منقضی شده"
         val days = (seconds / 86400) + if (seconds % 86400 == 0L) 0L else 1L
-        return days.toString() + " روز باقی‌مانده"
+        return persianNumber(days.toString()) + " روز باقی‌مانده"
     }
 
     fun usagePercent(): Float? =
@@ -45,19 +45,29 @@ internal data class NoraSubscriptionUsage(
         else (used!!.toDouble() / total.toDouble()).coerceIn(0.0, 1.0).toFloat()
 }
 
+/** Format traffic in natural Persian; avoid LTR unit/number bidi reordering. */
+internal fun persianNumber(value: String): String = buildString(value.length) {
+    value.forEach { char ->
+        append(when (char) {
+            in '0'..'9' -> ('۰'.code + (char - '0')).toChar()
+            '.' -> '٫'
+            else -> char
+        })
+    }
+}
+
 internal fun formatBytes(bytes: Long): String {
-    val value = bytes.toDouble()
-    val units = listOf("B", "KB", "MB", "GB", "TB")
-    if (bytes < 1024) return bytes.toString() + " B"
-    val div = listOf(1.0, 1024.0, 1024.0 * 1024, 1024.0 * 1024 * 1024, 1024.0 * 1024 * 1024 * 1024)
+    if (bytes < 1024L) return persianNumber(bytes.toString()) + " بایت"
+    val div = listOf(1.0, 1024.0, 1048576.0, 1073741824.0, 1099511627776.0)
+    val units = listOf("بایت", "کیلوبایت", "مگابایت", "گیگابایت", "ترابایت")
     val index = when {
         bytes >= 1024L * 1024 * 1024 * 1024 -> 4
         bytes >= 1024L * 1024 * 1024 -> 3
         bytes >= 1024L * 1024 -> 2
         else -> 1
     }
-    val unit = units[index]
-    return String.format(Locale.US, "%.1f %s", value / div[index], unit)
+    return persianNumber(String.format(Locale.US, "%.1f", bytes.toDouble() / div[index])) +
+        " " + units[index]
 }
 
 /**

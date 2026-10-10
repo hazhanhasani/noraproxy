@@ -123,3 +123,16 @@ and refreshed on subscription tab entry/explicit refresh, not downloaded constan
 
 The pinned upstream VPN service, native Xray runtime, authorization flow and
 Tapsell interstitial implementation are unchanged.
+
+## NoraProxy-only subscription management (v0.2.8)
+
+The `Subscriptions` screen remains within the native NoraProxy dark theme.
+Editing uses branded Compose dialogs and persists directly to the upstream
+MMKV subscription model, while retaining existing profiles. Removal requires
+a confirmation and is disabled while connected. No v2rayNG light-themed
+`SubSettingActivity` is opened from the native NoraProxy tab.
+
+Human-facing volume and expiry labels are rendered in Persian digits and units
+to prevent RTL/LTR reordering. Missing metadata is never treated as zero usage
+or an unlimited account. The actual VPN backend and pinned upstream repository
+are unchanged.

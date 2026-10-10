@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.util.QRCodeDecoder
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,10 @@ fun MainScreen(
     LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
     var subscription by remember { mutableStateOf("") }
+    var editorVisible by remember { mutableStateOf(false) }
+    var editingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
+    var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
+    var groupBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -322,7 +327,7 @@ fun MainScreen(
                         }?.let {
                             val details = usageByGroup[it.guid]
                             (details?.remainingTrafficLabel() ?: "حجم نامشخص") + " · " +
-                                (details?.remainingTimeLabel() ?: "زمان نامشخص")
+                                (details?.remainingTimeLabel() ?: "اعتبار نامشخص")
                         },
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
@@ -345,7 +350,7 @@ fun MainScreen(
                             item {
                                 NoraSection("انتخاب لوکیشن", "فقط بهترین مسیر هر کشور نمایش داده می‌شود.")
                                 Spacer(Modifier.height(14.dp))
-                                NoraLocationCard("✦", "Smart Location", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
+                                NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
                                     null, selectedCountry == null) {
                                     chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
                                 }
@@ -390,10 +395,10 @@ fun MainScreen(
                                 NoraSection("گروه‌های اشتراک", "هر گروه سرورها و مسیر اتصال مستقل دارد.")
                                 Spacer(Modifier.height(12.dp))
                                 Button(
-                                    onClick = { onNavigate(MainDestination.Subscriptions) },
+                                    onClick = { editingGroup = null; editorVisible = true },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(15.dp)
-                                ) { Text("＋ ساخت، ویرایش و حذف گروه اشتراک", fontWeight = FontWeight.Bold) }
+                                ) { Text("＋ افزودن گروه اشتراک", fontWeight = FontWeight.Bold) }
                             }
                             if (subscriptions.isEmpty()) {
                                 item {
@@ -403,10 +408,20 @@ fun MainScreen(
                             }
                             items(subscriptions, key = { "group-" + it.guid }) { group ->
                                 NoraSubscriptionGroupCard(
-                                    name = group.subscription.remarks.ifBlank { "اشتراک بدون نام" },
+                                    name = when (group.subscription.remarks.trim().lowercase()) {
+                                        "default" -> "کانفیگ‌های شخصی"
+                                        "import sub" -> "اشتراک واردشده"
+                                        else -> group.subscription.remarks.ifBlank { "اشتراک بدون نام" }
+                                    },
                                     numberOfNodes = MmkvManager.decodeServerList(group.guid).size,
                                     active = group.guid == appState.selectedGroupId,
                                     usage = usageByGroup[group.guid],
+                                    onEdit = { editingGroup = group; editorVisible = true },
+                                    onDelete = {
+                                        if (appState.isRunning) {
+                                            Toast.makeText(context, "ابتدا VPN را قطع کنید", Toast.LENGTH_LONG).show()
+                                        } else deletingGroup = group
+                                    },
                                     onSelect = {
                                         val savedCountry = routePreferences.getString(
                                             "preferred_country:" + group.guid, null
@@ -560,6 +575,61 @@ fun MainScreen(
                 }
                 }
             }
+
+            if (editorVisible) {
+                NoraGroupEditorDialog(
+                    existing = editingGroup,
+                    busy = groupBusy,
+                    onDismiss = { editorVisible = false },
+                    onSave = { name, url, automatic ->
+                        groupBusy = true
+                        importScope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    NoraGroupRepository.save(editingGroup, name, url, automatic)
+                                }
+                                editorVisible = false
+                                onAction(MainAction.RefreshGroups)
+                                refreshTick++
+                                Toast.makeText(context, "گروه ذخیره شد", Toast.LENGTH_SHORT).show()
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "ذخیره گروه ناموفق بود", Toast.LENGTH_LONG).show()
+                            } finally {
+                                groupBusy = false
+                            }
+                        }
+                    }
+                )
+            }
+            deletingGroup?.let { target ->
+                NoraDeleteGroupDialog(
+                    name = target.subscription.remarks,
+                    busy = groupBusy,
+                    onDismiss = { deletingGroup = null },
+                    onDelete = {
+                        if (appState.isRunning) {
+                            Toast.makeText(context, "ابتدا اتصال را قطع کنید", Toast.LENGTH_LONG).show()
+                        } else {
+                            groupBusy = true
+                            importScope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        NoraGroupRepository.remove(target.guid)
+                                    }
+                                    deletingGroup = null
+                                    onAction(MainAction.RefreshGroups)
+                                    refreshTick++
+                                    Toast.makeText(context, "گروه حذف شد", Toast.LENGTH_SHORT).show()
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "حذف گروه ناموفق بود", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    groupBusy = false
+                                }
+                            }
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -663,7 +733,7 @@ private fun NoraHomeContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Smart Location", color = light,
+                Text("لوکیشن هوشمند", color = light,
                     modifier = Modifier.weight(1f),
                     fontSize = if (compact) 16.sp else 19.sp,
                     fontWeight = FontWeight.Bold)
@@ -692,7 +762,7 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
             modifier = Modifier.size(59.dp).clip(RoundedCornerShape(18.dp)))
         Column(modifier = Modifier.weight(1f)) {
             Text("NoraProxy", color = light, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-            Text(if (seller.isBlank()) "Your secure connection" else "ارائه‌شده توسط " + seller,
+            Text(if (seller.isBlank()) "اتصال سریع و ایمن" else "ارائه‌شده توسط " + seller,
                 color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(modifier = Modifier.background(if (connected) Color(0xFF174D42) else surface2,
@@ -752,6 +822,8 @@ private fun NoraSubscriptionGroupCard(
     numberOfNodes: Int,
     active: Boolean,
     usage: NoraSubscriptionUsage?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
     onSelect: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
@@ -770,7 +842,7 @@ private fun NoraSubscriptionGroupCard(
             Text(if (active) "● فعال" else "انتخاب  ←", color = if (active) cyan else muted,
                 fontSize = 12.sp)
         }
-        Text(numberOfNodes.toString() + " سرور", color = muted, fontSize = 12.sp)
+        Text(persianNumber(numberOfNodes.toString()) + " سرور", color = muted, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(usage?.remainingTrafficLabel() ?: "حجم نامشخص",
                 modifier = Modifier.weight(1f), color = light, fontSize = 12.sp)
@@ -783,8 +855,22 @@ private fun NoraSubscriptionGroupCard(
                 .clip(RoundedCornerShape(6.dp)).background(Color(0xFF29435B))) {
                 Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
             }
-            Text("مصرف‌شده: " + formatBytes(usage.used ?: 0L) + " / " +
-                formatBytes(usage.total ?: 0L), color = muted, fontSize = 11.sp)
+            if (usage.used != null && usage.total != null) {
+                Text(
+                    "مصرف‌شده: " + formatBytes(usage.used!!) +
+                        " از " + formatBytes(usage.total!!),
+                    color = muted, fontSize = 11.sp
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(13.dp)) { Text("ویرایش", fontSize = 12.sp) }
+            OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(13.dp)) { Text("حذف", fontSize = 12.sp) }
         }
     }
 }
