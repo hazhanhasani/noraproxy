@@ -73,23 +73,24 @@ def prepare():
     safe_zone = zone if enabled else ""
     gradle = APP / "build.gradle.kts"
     replace(gradle, 'applicationId = "com.v2ray.ang"', 'applicationId = "app.noraproxy"')
+    import json
     config = (
-        '        manifestPlaceholders["TapsellMediationAppKey"] = "' + safe_app_id + '"\\n'
+        '        manifestPlaceholders["TapsellMediationAppKey"] = "' + safe_app_id + '"\n'
         '        buildConfigField("boolean", "NORA_TAPSELL_ENABLED", "' +
-        str(enabled).lower() + '")\\n'
+        str(enabled).lower() + '")\n'
         '        buildConfigField("String", "NORA_TAPSELL_INTERSTITIAL_ZONE_ID", ' +
-        '\\\"" + "' + safe_zone + '" + "\\\"")\\n'
-    ).replace('\\n', '\n')
+        json.dumps('"' + safe_zone + '"') + ')\n'
+    )
     replace(gradle, '        applicationId = "app.noraproxy"',
             '        applicationId = "app.noraproxy"\\n'.replace('\\n', '\n') + config)
     with gradle.open("a", encoding="utf-8") as stream:
-        stream.write(
-            '\\n// NoraProxy opt-in Tapsell interstitial mediation.\\n'
-            'dependencies {\\n'
-            '    implementation("ir.tapsell:tapsell:1.4.0-alpha04")\\n'
-            '    implementation("ir.tapsell.mediation.adapter:legacy:1.4.0-alpha04")\\n'
-            '}\\n'.replace('\\n', '\n')
-        )
+        stream.write("""
+// NoraProxy opt-in Tapsell interstitial mediation.
+dependencies {
+    implementation("ir.tapsell:tapsell:1.4.0-alpha04")
+    implementation("ir.tapsell.mediation.adapter:legacy:1.4.0-alpha04")
+}
+""")
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
     replace(gradle, 'versionCode = 745', 'versionCode = 205')
     replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.5"')
