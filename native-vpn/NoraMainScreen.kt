@@ -327,7 +327,7 @@ fun MainScreen(
                         }?.let {
                             val details = usageByGroup[it.guid]
                             (details?.remainingTrafficLabel() ?: "حجم نامشخص") + " · " +
-                                (details?.remainingTimeLabel() ?: "زمان نامشخص")
+                                (details?.remainingTimeLabel() ?: "اعتبار نامشخص")
                         },
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
