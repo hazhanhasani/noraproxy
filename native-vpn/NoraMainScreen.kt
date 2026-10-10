@@ -81,6 +81,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 // NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
@@ -202,9 +204,12 @@ fun MainScreen(
         val targets = if (tab == NoraTab.Subscription) subscriptions
             else subscriptions.filter { it.guid == appState.selectedGroupId }
         coroutineScope {
+            val limiter = Semaphore(4)
             val updates = targets.take(16).map { group ->
                 async(Dispatchers.IO) {
-                    group.guid to NoraSubscriptionUsageReader.fetch(group.subscription.url)
+                    group.guid to limiter.withPermit {
+                        NoraSubscriptionUsageReader.fetch(group.subscription.url)
+                    }
                 }
             }.awaitAll().mapNotNull { (id, info) -> info?.let { id to it } }.toMap()
             usageByGroup = usageByGroup.filterKeys { id ->
@@ -406,14 +411,20 @@ fun MainScreen(
                                         val savedCountry = routePreferences.getString(
                                             "preferred_country:" + group.guid, null
                                         )
-                                        selectedCountry = savedCountry
-                                        onAction(MainAction.SelectGroup(group.guid))
                                         val routes = NoraRouteSelector.rank(NoraRouteSelector.load(group.guid))
-                                        val selected = NoraRouteSelector.locations(routes).firstOrNull {
-                                            it.countryCode == savedCountry
-                                        } ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
-                                        if (selected != null && selected.guid != appState.selectedGuid) {
-                                            onAction(MainAction.SelectServer(selected.guid))
+                                        if (routes.isEmpty() && appState.isRunning) {
+                                            Toast.makeText(context,
+                                                "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
+                                                Toast.LENGTH_LONG).show()
+                                        } else {
+                                            selectedCountry = savedCountry
+                                            onAction(MainAction.SelectGroup(group.guid))
+                                            val selected = NoraRouteSelector.locations(routes).firstOrNull {
+                                                it.countryCode == savedCountry
+                                            } ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
+                                            if (selected != null && selected.guid != appState.selectedGuid) {
+                                                onAction(MainAction.SelectServer(selected.guid))
+                                            }
                                         }
                                     }
                                 )
