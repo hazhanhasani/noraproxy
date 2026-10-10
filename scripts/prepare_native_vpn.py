@@ -66,10 +66,11 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
-    test_source = ROOT / "native-vpn/tests/NoraSubscriptionUsageTest.kt"
-    test_target = APP / "src/test/java/com/v2ray/ang/ui/main/NoraSubscriptionUsageTest.kt"
-    test_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(test_source, test_target)
+    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt"):
+        test_source = ROOT / "native-vpn/tests" / test_name
+        test_target = APP / "src/test/java/com/v2ray/ang/ui/main" / test_name
+        test_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(test_source, test_target)
 
     # Tapsell Mediation 1.4 introduces explicit manual initialization. Use
     # the supported flag so SDK traffic stays disabled until real keys exist.
