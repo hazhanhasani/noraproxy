@@ -350,7 +350,7 @@ fun MainScreen(
                             item {
                                 NoraSection("انتخاب لوکیشن", "فقط بهترین مسیر هر کشور نمایش داده می‌شود.")
                                 Spacer(Modifier.height(14.dp))
-                                NoraLocationCard("✦", "Smart Location", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
+                                NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
                                     null, selectedCountry == null) {
                                     chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
                                 }
@@ -408,7 +408,11 @@ fun MainScreen(
                             }
                             items(subscriptions, key = { "group-" + it.guid }) { group ->
                                 NoraSubscriptionGroupCard(
-                                    name = group.subscription.remarks.ifBlank { "اشتراک بدون نام" },
+                                    name = when (group.subscription.remarks.trim().lowercase()) {
+                                        "default" -> "کانفیگ‌های شخصی"
+                                        "import sub" -> "اشتراک واردشده"
+                                        else -> group.subscription.remarks.ifBlank { "اشتراک بدون نام" }
+                                    },
                                     numberOfNodes = MmkvManager.decodeServerList(group.guid).size,
                                     active = group.guid == appState.selectedGroupId,
                                     usage = usageByGroup[group.guid],
@@ -729,7 +733,7 @@ private fun NoraHomeContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Smart Location", color = light,
+                Text("لوکیشن هوشمند", color = light,
                     modifier = Modifier.weight(1f),
                     fontSize = if (compact) 16.sp else 19.sp,
                     fontWeight = FontWeight.Bold)
@@ -758,7 +762,7 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
             modifier = Modifier.size(59.dp).clip(RoundedCornerShape(18.dp)))
         Column(modifier = Modifier.weight(1f)) {
             Text("NoraProxy", color = light, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-            Text(if (seller.isBlank()) "Your secure connection" else "ارائه‌شده توسط " + seller,
+            Text(if (seller.isBlank()) "اتصال سریع و ایمن" else "ارائه‌شده توسط " + seller,
                 color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(modifier = Modifier.background(if (connected) Color(0xFF174D42) else surface2,
