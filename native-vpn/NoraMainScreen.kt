@@ -136,7 +136,7 @@ fun MainScreen(
                         context.contentResolver.openInputStream(uri)?.use {
                             BitmapFactory.decodeStream(it, null, bounds)
                         }
-                        val sample = (maxOf(bounds.outWidth, bounds.outHeight) / 1600).coerceAtLeast(1)
+                        val sample = ((maxOf(bounds.outWidth, bounds.outHeight) + 1599) / 1600).coerceAtLeast(1)
                         val options = BitmapFactory.Options().apply { inSampleSize = sample }
                         val bitmap = context.contentResolver.openInputStream(uri)?.use {
                             BitmapFactory.decodeStream(it, null, options)
