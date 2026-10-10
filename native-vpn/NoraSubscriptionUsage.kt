@@ -2,7 +2,6 @@ package com.v2ray.ang.ui.main
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
 import java.util.Locale
@@ -48,7 +47,7 @@ internal data class NoraSubscriptionUsage(
 
 internal fun formatBytes(bytes: Long): String {
     val value = bytes.toDouble()
-    val units = listOf("B", "KB", "GB", "GB", "TB")
+    val units = listOf("B", "KB", "MB", "GB", "TB")
     if (bytes < 1024) return bytes.toString() + " B"
     val div = listOf(1.0, 1024.0, 1024.0 * 1024, 1024.0 * 1024 * 1024, 1024.0 * 1024 * 1024 * 1024)
     val index = when {
@@ -57,7 +56,7 @@ internal fun formatBytes(bytes: Long): String {
         bytes >= 1024L * 1024 -> 2
         else -> 1
     }
-    val unit = if (index == 2) "MB" else units[index]
+    val unit = units[index]
     return String.format(Locale.US, "%.1f %s", value / div[index], unit)
 }
 
