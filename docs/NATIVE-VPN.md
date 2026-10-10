@@ -81,3 +81,23 @@ certificate matches the pinned production fingerprint and SHA-256 check succeeds
 
 Build success does not replace actual Android-device VPN, navigation, updater,
 and reseller subscription testing prior to wider production rollout.
+
+
+## MIUI/Android native in-app installation fix (v0.2.5)
+
+The updater still downloads APK bytes in NoraProxy's private storage and checks:
+GitHub release SHA-256, APK package ID, versionCode monotonicity, and matching
+installed signing certificate. Just before install, it repeats SHA-256 and APK
+package/signature verification.
+
+NoraProxy now uses Android's `PackageInstaller.Session` rather than sending a
+`FileProvider` URI to Xiaomi's package installer with `ACTION_VIEW`.
+The verified APK is streamed into a full-install session and fsynced. A
+non-exported `NoraInstallResultActivity` receives status callbacks via an
+explicit mutable activity PendingIntent; on `STATUS_PENDING_USER_ACTION`
+it opens Android's official user-confirmation UI. Android's unknown-source
+permission is still required and install consent is never skipped.
+
+The activity shows a visible error message if the system installer reports a
+failure or rejects confirmation. Device-specific installation behavior still
+requires manual testing on MIUI/HyperOS hardware.

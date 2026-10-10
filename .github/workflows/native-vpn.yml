@@ -177,6 +177,17 @@ jobs:
           grep -q 'BoxWithConstraints(' "$MAIN"
           grep -q '.clip(CircleShape) // Prevent square ripple artifacts on tap.' "$MAIN"
           grep -q 'powerPending' "$MAIN"
+          INSTALLER="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraUpdater.kt"
+          RESULT="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraInstallResultActivity.kt"
+          grep -q 'packageInstaller' "$INSTALLER"
+          grep -q 'session.openWrite("base.apk"' "$INSTALLER"
+          grep -q 'PendingIntent.FLAG_MUTABLE' "$INSTALLER"
+          grep -q 'STATUS_PENDING_USER_ACTION' "$RESULT"
+          grep -q 'NoraInstallResultActivity' "$MANIFEST"
+          if grep -q 'Intent.ACTION_VIEW' "$INSTALLER"; then
+            echo "::error::Legacy MIUI FileProvider APK installer must not return"
+            exit 1
+          fi
           ! grep -q 'v2rayNG_' upstream/V2rayNG/app/build.gradle.kts
           if grep -R -F '<string name="app_name" translatable="false">v2rayNG</string>' upstream/V2rayNG/app/src/main/res/values*; then
             echo "::error::Localized launcher label still references v2rayNG"

@@ -38,6 +38,8 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraRouteSelector.kt"),
         ("native-vpn/NoraUpdater.kt",
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
+        ("native-vpn/NoraInstallResultActivity.kt",
+         "java/com/v2ray/ang/ui/main/NoraInstallResultActivity.kt"),
         ("native-vpn/assets/nora_icon.jpg",
          "res/drawable/nora_brand.jpg"),
         ("native-vpn/res/nora_provider_paths.xml",
@@ -56,8 +58,8 @@ def prepare():
 
     gradle = APP / "build.gradle.kts"
     replace(gradle, 'applicationId = "com.v2ray.ang"', 'applicationId = "app.noraproxy"')
-    replace(gradle, 'versionCode = 745', 'versionCode = 204')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.4"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 205')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.5"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -116,7 +118,14 @@ def prepare():
         '                android:resource="@xml/nora_provider_paths" />\n'
         '        </provider>\n'
     )
-    replace(manifest, '    </application>', provider + '    </application>')
+    callback_activity = (
+        '        <activity\n'
+        '            android:name=".ui.main.NoraInstallResultActivity"\n'
+        '            android:exported="false"\n'
+        '            android:theme="@android:style/Theme.Translucent.NoTitleBar" />\n'
+    )
+    replace(manifest, '    </application>',
+            callback_activity + provider + '    </application>')
 
     activity = SRC / "java/com/v2ray/ang/ui/main/MainActivity.kt"
     replace(activity,
@@ -147,7 +156,7 @@ def prepare():
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.4, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.5, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()

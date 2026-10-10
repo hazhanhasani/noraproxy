@@ -1,12 +1,13 @@
 package com.v2ray.ang.ui.main
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -83,7 +84,11 @@ class NoraUpdater(private val context: Context) {
 
     fun install() {
         val file = downloaded?.takeIf { it.isFile } ?: return
+        val release = candidate ?: return
+        if (data.value.busy) return
         try {
+            // Require explicit Android installation permission. The final
+            // confirmation UI is always displayed by the operating system.
             if (Build.VERSION.SDK_INT >= 26 &&
                 !context.packageManager.canRequestPackageInstalls()) {
                 context.startActivity(
@@ -91,17 +96,92 @@ class NoraUpdater(private val context: Context) {
                         Uri.parse("package:" + context.packageName))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 data.value = data.value.copy(message =
-                    "اجازه نصب به NoraProxy بدهید؛ سپس دوباره دکمه نصب را لمس کنید.")
+                    "اجازه نصب را به NoraProxy بدهید و دوباره دکمه نصب را لمس کنید.")
                 return
             }
-            val uri = FileProvider.getUriForFile(context, context.packageName + ".updates", file)
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(uri, "application/vnd.android.package-archive")
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: Exception) {
-            data.value = data.value.copy(message = "باز کردن نصب‌کننده ممکن نشد: " +
-                (e.message ?: "خطا").take(75))
+            data.value = data.value.copy(message =
+                "اجازه نصب قابل دریافت نیست: " + (e.message ?: "خطا").take(80))
+            return
+        }
+
+        scope.launch {
+            data.value = data.value.copy(busy = true, message = "در حال آماده‌سازی نصب امن...")
+            try {
+                withContext(Dispatchers.IO) {
+                    // Revalidate at the time of installation, not only after
+                    // download. The APK is in application-private storage.
+                    require(file.length() == release.size) { "حجم APK تغییر کرده است." }
+                    val md = MessageDigest.getInstance("SHA-256")
+                    file.inputStream().use { input ->
+                        val buffer = ByteArray(1024 * 1024)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            md.update(buffer, 0, count)
+                        }
+                    }
+                    val hash = md.digest().joinToString("") { "%02x".format(it) }
+                    require(hash == release.sha) { "فایل نصب تغییر کرده است." }
+                    verifyPackage(file)
+                    stageInstall(file)
+                }
+                data.value = data.value.copy(
+                    busy = false,
+                    message = "فایل به نصب‌کننده اندروید منتقل شد؛ نصب را تأیید کنید."
+                )
+            } catch (e: Exception) {
+                data.value = data.value.copy(
+                    busy = false, downloaded = true,
+                    message = "خطای آماده‌سازی نصب: " + (e.message ?: "خطا").take(110)
+                )
+            }
+        }
+    }
+
+    /**
+     * Stream the verified APK into Android's PackageInstaller, instead of
+     * passing MIUI a FileProvider content URI via ACTION_VIEW. This avoids
+     * OEM "There was a problem parsing the package" URI hand-off failures.
+     */
+    private fun stageInstall(file: File) {
+        val installer = context.packageManager.packageInstaller
+        val parameters = PackageInstaller.SessionParams(
+            PackageInstaller.SessionParams.MODE_FULL_INSTALL
+        ).apply {
+            setAppPackageName(context.packageName)
+            setSize(file.length())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
+            }
+        }
+        val sessionId = installer.createSession(parameters)
+        var committed = false
+        try {
+            installer.openSession(sessionId).use { session ->
+                file.inputStream().use { source ->
+                    session.openWrite("base.apk", 0, file.length()).use { target ->
+                        source.copyTo(target, 1024 * 1024)
+                        session.fsync(target)
+                    }
+                }
+                val callback = Intent(context, NoraInstallResultActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // Must be mutable so Android can attach install status and
+                // its user-confirmation Intent (Android 12+ requirement).
+                val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                        PendingIntent.FLAG_MUTABLE else 0
+                val sender = PendingIntent.getActivity(
+                    context, sessionId, callback, flags
+                ).intentSender
+                session.commit(sender)
+                committed = true
+            }
+        } finally {
+            if (!committed) {
+                runCatching { installer.abandonSession(sessionId) }
+            }
         }
     }
 
