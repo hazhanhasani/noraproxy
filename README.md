@@ -78,3 +78,12 @@ Expired and missing metadata remain distinct; unlimited is displayed only when
 the provider explicitly reports `0` for the respective field.
 
 For QA, see the native Android CI unit test `NoraSubscriptionUsageTest`.
+
+## Simplified subscription UX (v0.2.9)
+
+The group dialog only asks for a group name. Use the one **Add to group**
+form for an HTTPS subscription, raw VLESS/VMess/Trojan/Shadowsocks URIs, or QR.
+Pasting a subscription URL updates the currently selected group instead of
+creating a duplicate `import sub` group. Keep raw configs in a separate
+local-only group so remote automatic updates cannot overwrite them.
+This change does not remove previously imported groups.
