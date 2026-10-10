@@ -7,10 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -21,51 +19,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
-import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.util.Utils
-import java.net.URI
 
 /** Keep subscription management inside NoraProxy; never open the upstream light-themed UI. */
 internal object NoraGroupRepository {
-    fun validate(name: String, url: String, currentGuid: String? = null): String? {
-        if (name.isBlank() || name.length > 64) return "نام گروه باید بین ۱ تا ۶۴ نویسه باشد"
-        if (url.length > 4096) return "لینک اشتراک بیش از حد طولانی است"
-        if (url.isNotBlank()) {
-            val uri = runCatching { URI(url) }.getOrNull()
-            val host = uri?.host?.lowercase()
-            if (uri == null || !uri.scheme.equals("https", true) ||
-                host.isNullOrBlank() || uri.userInfo != null || uri.fragment != null ||
-                host == "localhost" || host.endsWith(".localhost") ||
-                host.endsWith(".local") || host == "0.0.0.0") {
-                return "لینک اشتراک باید یک آدرس HTTPS معتبر باشد"
-            }
-            if (MmkvManager.decodeSubscriptions().any {
-                    it.guid != currentGuid && it.subscription.url == url
-                }) return "این لینک قبلاً به گروه دیگری اضافه شده است"
-        }
-        return null
-    }
+    fun validateName(name: String): String? =
+        if (name.isBlank() || name.length > 64)
+            "نام گروه باید بین ۱ تا ۶۴ نویسه باشد"
+        else null
 
-    fun save(existing: SubscriptionCache?, label: String, inputUrl: String, automatic: Boolean): String {
+    /** Renames without changing the URL, auto-update policy, or existing nodes. */
+    fun save(existing: SubscriptionCache?, label: String): String {
         val name = label.trim()
-        val url = inputUrl.trim()
-        require(validate(name, url, existing?.guid) == null) { "Invalid subscription group" }
+        require(validateName(name) == null) { "Invalid subscription group name" }
         val guid = existing?.guid ?: Utils.getUuid()
-        val item = existing?.subscription?.copy() ?: SubscriptionItem()
+        val item = (MmkvManager.decodeSubscription(guid) ?: SubscriptionItem()).copy()
         item.remarks = name
-        item.url = url
-        item.enabled = true
-        item.autoUpdate = automatic && url.isNotBlank()
         MmkvManager.encodeSubscription(guid, item)
-        SubscriptionUpdater.syncOne(subId = guid)
         SettingsChangeManager.makeSetupGroupTab()
         return guid
     }
@@ -82,13 +58,11 @@ internal fun NoraGroupEditorDialog(
     existing: SubscriptionCache?,
     busy: Boolean,
     onDismiss: () -> Unit,
-    onSave: (String, String, Boolean) -> Unit
+    onSave: (String) -> Unit
 ) {
     key(existing?.guid) {
         var name by remember { mutableStateOf(existing?.subscription?.remarks.orEmpty()) }
-        var url by remember { mutableStateOf(existing?.subscription?.url.orEmpty()) }
-        var autoUpdate by remember { mutableStateOf(existing?.subscription?.autoUpdate ?: false) }
-        val error = NoraGroupRepository.validate(name.trim(), url.trim(), existing?.guid)
+        val error = NoraGroupRepository.validateName(name.trim())
 
         AlertDialog(
             onDismissRequest = { if (!busy) onDismiss() },
@@ -104,7 +78,7 @@ internal fun NoraGroupEditorDialog(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
-                    Text("برای کانفیگ‌های خام، فیلد لینک را خالی بگذارید.",
+                    Text("اینجا فقط نام گروه را مشخص کنید. افزودن لینک یا کانفیگ در بخش «افزودن به گروه» انجام می‌شود.",
                         color = Color(0xFFB8CBD8))
                     OutlinedTextField(
                         value = name,
@@ -113,26 +87,6 @@ internal fun NoraGroupEditorDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = { url = it.take(4096) },
-                        label = { Text("لینک HTTPS (اختیاری)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        maxLines = 3,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("به‌روزرسانی خودکار", color = Color(0xFFF5FAFF))
-                        Switch(
-                            checked = autoUpdate && url.isNotBlank(),
-                            onCheckedChange = { autoUpdate = it },
-                            enabled = url.isNotBlank() && !busy
-                        )
-                    }
                     if (error != null && name.isNotBlank()) {
                         Text(error, color = Color(0xFFFFADAE))
                     }
@@ -140,7 +94,7 @@ internal fun NoraGroupEditorDialog(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { onSave(name.trim(), url.trim(), autoUpdate) },
+                    onClick = { onSave(name.trim()) },
                     enabled = !busy && error == null
                 ) { Text(if (busy) "در حال ذخیره..." else "ذخیره", color = Color(0xFF1EE2E9)) }
             },
