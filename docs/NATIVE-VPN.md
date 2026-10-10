@@ -136,3 +136,22 @@ Human-facing volume and expiry labels are rendered in Persian digits and units
 to prevent RTL/LTR reordering. Missing metadata is never treated as zero usage
 or an unlimited account. The actual VPN backend and pinned upstream repository
 are unchanged.
+
+## Single subscription import entry (v0.2.9)
+
+The branded group editor now edits **only the group name**, keeping its previously
+stored subscription URL, UUID, server list and auto-update policy intact.
+Users paste one HTTPS subscription URL or one/multiple raw proxy URIs in the
+**Add to selected group** section; camera scanning, gallery QR, clipboard and
+local file import all use the same routing logic.
+
+A subscription URL updates the *selected group's* subscription record, then
+asks upstream to refresh that group. This avoids creating a second "import sub"
+group via the upstream generic batch-import path. Raw nodes remain within a
+local-only group. Mixed URL/raw lists are rejected with guidance because an
+upstream subscription refresh replaces the remote group's server list.
+Existing old imported groups are not automatically deleted or migrated.
+
+Creating a group selects it automatically while the VPN is disconnected to
+reduce accidental imports into the previously active group. No changes were
+made to the Xray, signing, OTA updater, or Tapsell runtime.

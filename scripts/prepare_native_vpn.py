@@ -40,6 +40,10 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraSubscriptionUsage.kt"),
         ("native-vpn/NoraSubscriptionGroups.kt",
          "java/com/v2ray/ang/ui/main/NoraSubscriptionGroups.kt"),
+        ("native-vpn/NoraSubscriptionImport.kt",
+         "java/com/v2ray/ang/ui/main/NoraSubscriptionImport.kt"),
+        ("native-vpn/NoraImportCoordinator.kt",
+         "java/com/v2ray/ang/ui/main/NoraImportCoordinator.kt"),
         ("native-vpn/NoraUpdater.kt",
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
         ("native-vpn/NoraTapsellAds.kt",
@@ -62,10 +66,11 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
-    test_source = ROOT / "native-vpn/tests/NoraSubscriptionUsageTest.kt"
-    test_target = APP / "src/test/java/com/v2ray/ang/ui/main/NoraSubscriptionUsageTest.kt"
-    test_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(test_source, test_target)
+    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt"):
+        test_source = ROOT / "native-vpn/tests" / test_name
+        test_target = APP / "src/test/java/com/v2ray/ang/ui/main" / test_name
+        test_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(test_source, test_target)
 
     # Tapsell Mediation 1.4 introduces explicit manual initialization. Use
     # the supported flag so SDK traffic stays disabled until real keys exist.
@@ -112,8 +117,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 208')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.8"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 209')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.9"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -195,6 +200,24 @@ dependencies {
             '    }\n\n'
             '    override fun onKeyDown')
 
+    # Every user-facing import goes through the same selected-group routing.
+    # Upstream's default ImportBatchConfig creates a new "import sub" group
+    # for URLs, which is not the intended NoraProxy behavior.
+    replace(activity,
+            '                    is MainAction.ImportManually -> importManually(action.type)',
+            '                    is MainAction.ImportBatchConfig -> '
+            'NoraImportCoordinator.accept(this, mainViewModel, action.configText)\n'
+            '                    is MainAction.ImportManually -> importManually(action.type)')
+    replace(activity,
+            'mainViewModel.onAction(MainAction.ImportBatchConfig(scanResult))',
+            'NoraImportCoordinator.accept(this, mainViewModel, scanResult)')
+    replace(activity,
+            'mainViewModel.onAction(MainAction.ImportBatchConfig(text))',
+            'NoraImportCoordinator.accept(this, mainViewModel, text)')
+    replace(activity,
+            'mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))',
+            'NoraImportCoordinator.accept(this, mainViewModel, reader.readText())')
+
     scheme = SRC / "java/com/v2ray/ang/ui/UrlSchemeActivity.kt"
     replace(scheme,
             '                    when (data?.host) {\n'
@@ -213,7 +236,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.8, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.9, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()
