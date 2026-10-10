@@ -3,7 +3,11 @@ package com.v2ray.ang.ui.main
 import org.junit.Assert.*
 import org.junit.Test
 
-class NoraSubscriptionUsageTest {\n    @Test fun localizedTrafficAndDigitsStayInPersian() {\n        assertEquals("۱٫۱ ترابایت", formatBytes(1209462790553L))\n        assertEquals("۱۱۷٫۱ گیگابایت", formatBytes(125735895450L))\n    }
+class NoraSubscriptionUsageTest {
+    @Test fun localizedTrafficAndDigitsStayInPersian() {
+        assertEquals("۱٫۱ ترابایت", formatBytes(1209462790553L))
+        assertEquals("۱۱۷٫۱ گیگابایت", formatBytes(125735895450L))
+    }
     @Test fun parsesStandardSubscriptionUserInfo() {
         val info = NoraSubscriptionUsageReader.parse(
             "upload=1073741824; download=2147483648; total=6442450944; expire=1730000000"
