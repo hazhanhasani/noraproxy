@@ -33,6 +33,11 @@ internal object NoraImportCoordinator {
                 }
             }
             is NoraImportPayload.Subscription -> {
+                if (selectedGroup.url.isBlank() &&
+                    MmkvManager.decodeServerList(selectedId).isNotEmpty()) {
+                    message("این گروه کانفیگ خام دارد؛ برای لینک اشتراک یک گروه جدید بسازید")
+                    return
+                }
                 if (viewModel.uiState.value.isRunning && selectedGroup.url != input.url) {
                     message("برای تغییر لینک گروه، ابتدا اتصال VPN را قطع کنید")
                     return
