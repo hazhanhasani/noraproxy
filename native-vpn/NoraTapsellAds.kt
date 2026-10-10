@@ -78,7 +78,7 @@ class NoraTapsellAds(private val activity: Activity?) {
         if (!initialized) { start(); return@onMain }
         if (readyAd != null && SystemClock.elapsedRealtime() - readyAt < MAX_AD_AGE_MS) return@onMain
         readyAd = null
-        retry?.let(main::removeCallbacks)
+        retry?.let { main.removeCallbacks(it) }
         retry = null
         loading = true
         attempts++
@@ -193,7 +193,7 @@ class NoraTapsellAds(private val activity: Activity?) {
 
     private fun finishAd() {
         if (!showing) return
-        showTimeout?.let(main::removeCallbacks)
+        showTimeout?.let { main.removeCallbacks(it) }
         showTimeout = null
         showing = false
         _blocking.value = false
@@ -203,7 +203,7 @@ class NoraTapsellAds(private val activity: Activity?) {
 
     private fun scheduleRetry() {
         if (stopped || !configured) return
-        retry?.let(main::removeCallbacks)
+        retry?.let { main.removeCallbacks(it) }
         val delay = (RETRY_BASE_MS * (1L shl consecutiveFailures.coerceAtMost(3)))
             .coerceAtMost(RETRY_MAX_MS)
         consecutiveFailures++
@@ -214,7 +214,7 @@ class NoraTapsellAds(private val activity: Activity?) {
     }
 
     private fun clearRequestTimeout() {
-        timeout?.let(main::removeCallbacks)
+        timeout?.let { main.removeCallbacks(it) }
         timeout = null
     }
 
@@ -226,8 +226,8 @@ class NoraTapsellAds(private val activity: Activity?) {
         ++requestGeneration
         ++adGeneration
         clearRequestTimeout()
-        retry?.let(main::removeCallbacks)
-        showTimeout?.let(main::removeCallbacks)
+        retry?.let { main.removeCallbacks(it) }
+        showTimeout?.let { main.removeCallbacks(it) }
         retry = null
         showTimeout = null
         readyAd = null
