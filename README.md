@@ -21,6 +21,19 @@
 
 **MVP limits:** automated health-triggered failover and guaranteed minimum latency are NOT shipped yet. The chosen route is based on existing measurements and should be retested after switching Wi-Fi/mobile networks. Server health, authentication and network censorship conditions may change. One shared installation is not a replacement for proper multi-tenant backend isolation.
 
+## Subscription groups and quota (v0.2.7)
+
+From the **اشتراک** tab, open **ساخت، ویرایش و حذف گروه اشتراک** to create any number of named groups.
+Each group can contain an HTTPS subscription URL, manually pasted VLESS/VMess/Trojan/Shadowsocks URLs, or both.
+Select a group before importing; country choices, latency tests and native connection routing use the selected group's real server GUIDs.
+You can paste several raw share links at once, scan a QR code with the camera, or select a QR image directly from the Android gallery.
+
+Traffic/expiry badges use the provider's optional HTTP `subscription-userinfo` header
+(`upload`, `download`, `total`, `expire`) over validated HTTPS without redirects.
+The application does **not** infer remote account quotas from locally observed VPN traffic:
+if metadata is unavailable (especially for standalone raw configs), it explicitly shows **unknown**.
+A refresh button requests fresh quota headers; account tokens and full subscription URLs are never shown on the public UI.
+
 ## Build the real VPN APK
 
 Follow .github/workflows/native-vpn.yml; it checks out the official pinned upstream and its native submodules, compiles hev-tunnel using Android NDK, downloads the upstream-compatible libv2ray AAR, applies NoraProxy branding and UI, then runs:
