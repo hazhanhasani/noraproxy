@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+<title>NoraProxy</title>
+<defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#47f0dc"/><stop offset="1" stop-color="#6483ff"/></linearGradient></defs>
+<rect width="64" height="64" rx="17" fill="#071323"/>
+<rect x="3" y="3" width="58" height="58" rx="14" fill="none" stroke="url(#b)" stroke-width="2" opacity=".7"/>
+<path d="M15 47V17h8l18 22V17h8v30h-8L23 25v22Z" fill="url(#b)"/>
+<circle cx="51" cy="11" r="3" fill="#8bf2ce"/>
+</svg>
