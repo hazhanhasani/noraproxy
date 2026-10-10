@@ -456,14 +456,7 @@ fun MainScreen(
                                 ) { Text("به‌روزرسانی سرورها، حجم و اعتبار") }
                             }
                             item {
-                                NoraSection("افزودن به گروه", "فقط از این قسمت لینک اشتراک، کانفیگ خام یا QR را وارد کنید.")
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "گروه انتخاب‌شده: " + (subscriptions.firstOrNull {
-                                        it.guid == appState.selectedGroupId
-                                    }?.subscription?.remarks ?: "ابتدا گروهی انتخاب کنید"),
-                                    fontSize = 12.sp, color = cyan
-                                )
+                                NoraSection("افزودن کانفیگ", "بدون انتخاب گروه: هر لینک اشتراک، گروه مستقل دارد و کانفیگ خام در Default ذخیره می‌شود.")
                             }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
@@ -481,32 +474,20 @@ fun MainScreen(
                                         Button(
                                             onClick = {
                                                 val input = subscription.trim()
-                                                when (val parsed = NoraImportRouter.classify(input)) {
-                                                    is NoraImportPayload.Invalid ->
-                                                        Toast.makeText(context, parsed.reason, Toast.LENGTH_LONG).show()
-                                                    is NoraImportPayload.Raw -> {
-                                                        val selected = subscriptions.firstOrNull {
-                                                            it.guid == appState.selectedGroupId
-                                                        }
-                                                        if (selected?.subscription?.url?.isNotBlank() == true) {
-                                                            Toast.makeText(context,
-                                                                "برای کانفیگ خام، یک گروه مستقل بدون لینک اشتراک انتخاب کنید",
-                                                                Toast.LENGTH_LONG).show()
-                                                        } else {
-                                                            onAction(MainAction.ImportBatchConfig(parsed.text))
+                                                if (input.isNotEmpty()) {
+                                                    when (val parsed = NoraImportRouter.classify(input)) {
+                                                        is NoraImportPayload.Invalid ->
+                                                            Toast.makeText(context, parsed.reason, Toast.LENGTH_LONG).show()
+                                                        else -> {
+                                                            onAction(MainAction.ImportBatchConfig(input))
                                                             subscription = ""
                                                         }
                                                     }
-                                                    is NoraImportPayload.Subscription -> {
-                                                        onAction(MainAction.ImportBatchConfig(parsed.url))
-                                                        subscription = ""
-                                                    }
                                                 }
                                             },
-                                            enabled = subscription.isNotBlank() && !loading && !groupBusy &&
-                                                appState.selectedGroupId.isNotBlank(),
+                                            enabled = subscription.isNotBlank() && !loading && !groupBusy,
                                             shape = RoundedCornerShape(15.dp), modifier = Modifier.fillMaxWidth()
-                                        ) { Text("افزودن به گروه انتخاب‌شده", fontWeight = FontWeight.Bold) }
+                                        ) { Text("وارد کردن خودکار", fontWeight = FontWeight.Bold) }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -522,6 +503,8 @@ fun MainScreen(
                                                 shape = RoundedCornerShape(15.dp)
                                             ) { Text("QR از گالری", fontSize = 12.sp) }
                                         }
+                                        Text("هر لینک HTTPS → یک گروه جداگانه · کانفیگ VLESS/VMess/Trojan/SS → Default",
+                                            fontSize = 11.sp, color = muted)
                                         if (loading) CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                     }
