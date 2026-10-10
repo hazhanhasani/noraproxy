@@ -41,7 +41,7 @@ internal object NoraRouteSelector {
         } ?: Country("OTHER","سایر لوکیشن‌ها","🌐",emptyList())
     }
 
-    fun load(): List<NoraNode> = MmkvManager.decodeAllServerList().distinct().mapNotNull { guid ->
+    fun load(groupId: String): List<NoraNode> = MmkvManager.decodeServerList(groupId).distinct().mapNotNull { guid ->
         val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
         val country = classify(profile.remarks)
         NoraNode(
