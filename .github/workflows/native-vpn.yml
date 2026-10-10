@@ -220,6 +220,10 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon :app:assemblePlaystoreDebug
 
+      - name: Run NoraProxy subscription metadata unit tests
+        working-directory: upstream/V2rayNG
+        run: ./gradlew --no-daemon :app:testPlaystoreDebugUnitTest --tests com.v2ray.ang.ui.main.NoraSubscriptionUsageTest
+
       - name: Upload standalone NoraProxy VPN APK
         uses: actions/upload-artifact@v4
         with:
