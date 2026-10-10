@@ -6,6 +6,13 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
+      - "tests/test_site.py"
+      - "native-vpn/assets/nora_icon.jpg"
+  pull_request:
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+      - "tests/test_site.py"
   workflow_dispatch:
 
 permissions:
@@ -18,7 +25,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate:
+    name: Validate static website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout site and tests
+        uses: actions/checkout@v4
+      - name: Run website safety and accessibility checks
+        run: python3 -m unittest discover -s tests -p 'test_site.py' -v
+
   deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Deploy official website
     runs-on: ubuntu-latest
     environment:
