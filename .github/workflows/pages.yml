@@ -1,0 +1,60 @@
+name: Deploy NoraProxy Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "noraproxy-pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy official website
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Prepare static website and branded logo
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/assets
+          cp -a site/. _site/
+          cp native-vpn/assets/nora_icon.jpg _site/assets/nora-icon.jpg
+          touch _site/.nojekyll
+          test -s _site/index.html
+          test -s _site/styles.css
+          test -s _site/app.js
+          test -s _site/assets/nora-icon.jpg
+          test -s _site/favicon.svg
+          if grep -Rl "YOUR_API_KEY\|INSERT_TOKEN_HERE" _site; then
+            echo "::error::Website contains placeholder credentials."
+            exit 1
+          fi
+          echo "Static site staged without exposing API keys or subscription links."
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
