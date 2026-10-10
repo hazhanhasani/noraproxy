@@ -89,6 +89,8 @@ def prepare():
 dependencies {
     implementation("ir.tapsell:tapsell:1.4.0-alpha04")
     implementation("ir.tapsell.mediation.adapter:legacy:1.4.0-alpha04")
+    // Restore Guava actual API: the mediation SDK brings an empty ListenableFuture stub.
+    implementation("com.google.guava:guava:33.4.8-android")
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
