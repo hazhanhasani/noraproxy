@@ -38,6 +38,8 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraRouteSelector.kt"),
         ("native-vpn/NoraUpdater.kt",
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
+        ("native-vpn/NoraTapsellAds.kt",
+         "java/com/v2ray/ang/ui/main/NoraTapsellAds.kt"),
         ("native-vpn/NoraInstallResultActivity.kt",
          "java/com/v2ray/ang/ui/main/NoraInstallResultActivity.kt"),
         ("native-vpn/assets/nora_icon.jpg",
@@ -56,8 +58,39 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
+    # Tapsell Mediation 1.4 introduces explicit manual initialization. Use
+    # the supported flag so SDK traffic stays disabled until real keys exist.
+    settings = UPSTREAM / "V2rayNG" / "settings.gradle.kts"
+    replace(settings, '        mavenCentral()\\n        maven { url = uri("https://jitpack.io") }'.replace('\\n', '\n'),
+            '        mavenCentral()\\n        maven { url = uri("https://maven.tapsell.ir") }\\n        maven { url = uri("https://jitpack.io") }'.replace('\\n', '\n'))
+    import os, re
+    app_id = os.getenv("NORA_TAPSELL_APP_ID", "").strip()
+    zone = os.getenv("NORA_TAPSELL_INTERSTITIAL_ZONE_ID", "").strip()
+    allowed = re.compile(r"^[a-zA-Z0-9_-]{8,100}$")
+    enabled = bool(allowed.fullmatch(app_id) and allowed.fullmatch(zone))
+    # IDs missing -> no ad requests, no SDK initialization, no test ads.
+    safe_app_id = app_id if enabled else "00000000-0000-0000-0000-000000000000"
+    safe_zone = zone if enabled else ""
     gradle = APP / "build.gradle.kts"
     replace(gradle, 'applicationId = "com.v2ray.ang"', 'applicationId = "app.noraproxy"')
+    config = (
+        '        manifestPlaceholders["TapsellMediationAppKey"] = "' + safe_app_id + '"\\n'
+        '        buildConfigField("boolean", "NORA_TAPSELL_ENABLED", "' +
+        str(enabled).lower() + '")\\n'
+        '        buildConfigField("String", "NORA_TAPSELL_INTERSTITIAL_ZONE_ID", ' +
+        '\\\"" + "' + safe_zone + '" + "\\\"")\\n'
+    ).replace('\\n', '\n')
+    replace(gradle, '        applicationId = "app.noraproxy"',
+            '        applicationId = "app.noraproxy"\\n'.replace('\\n', '\n') + config)
+    with gradle.open("a", encoding="utf-8") as stream:
+        stream.write(
+            '\\n// NoraProxy opt-in Tapsell interstitial mediation.\\n'
+            'dependencies {\\n'
+            '    implementation("ir.tapsell:tapsell:1.4.0-alpha04")\\n'
+            '    implementation("ir.tapsell.mediation.adapter:legacy:1.4.0-alpha04")\\n'
+            '}\\n'.replace('\\n', '\n')
+        )
+    print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
     replace(gradle, 'versionCode = 745', 'versionCode = 205')
     replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.5"')
     # Both F-Droid and Play Store output names must use NoraProxy.
@@ -89,6 +122,9 @@ def prepare():
     replace(manifest,
             'android:label="@string/app_name"',
             'android:label="NoraProxy"')
+    replace(manifest, '    </application>',
+            '        <meta-data android:name="ir.tapsell.mediation.AUTO_INIT" '
+            'android:value="false" />\\n'.replace('\\n', '\n') + '    </application>')
     replace(manifest,
             '<uses-permission android:name="android.permission.INTERNET" />',
             '<uses-permission android:name="android.permission.INTERNET" />\n'

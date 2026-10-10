@@ -177,6 +177,10 @@ jobs:
           grep -q 'BoxWithConstraints(' "$MAIN"
           grep -q '.clip(CircleShape) // Prevent square ripple artifacts on tap.' "$MAIN"
           grep -q 'powerPending' "$MAIN"
+          grep -q 'tapsell.onVpnOperationCompleted()' "$MAIN"
+          test -f upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraTapsellAds.kt
+          grep -q NORA_TAPSELL_ENABLED upstream/V2rayNG/app/build.gradle.kts
+          grep -q ir.tapsell.mediation.AUTO_INIT upstream/V2rayNG/app/src/main/AndroidManifest.xml
           INSTALLER="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraUpdater.kt"
           RESULT="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraInstallResultActivity.kt"
           grep -q 'packageInstaller' "$INSTALLER"
@@ -200,6 +204,9 @@ jobs:
 
       - name: Build NoraProxy Android APK
         working-directory: upstream/V2rayNG
+        env:
+          NORA_TAPSELL_APP_ID: ${{ secrets.NORA_TAPSELL_APP_ID }}
+          NORA_TAPSELL_INTERSTITIAL_ZONE_ID: ${{ secrets.NORA_TAPSELL_INTERSTITIAL_ZONE_ID }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :app:assemblePlaystoreDebug
@@ -244,6 +251,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         working-directory: upstream/V2rayNG
         env:
+          NORA_TAPSELL_APP_ID: ${{ secrets.NORA_TAPSELL_APP_ID }}
+          NORA_TAPSELL_INTERSTITIAL_ZONE_ID: ${{ secrets.NORA_TAPSELL_INTERSTITIAL_ZONE_ID }}
           NORA_SIGNING_STORE_PASSWORD: ${{ secrets.NORA_SIGNING_STORE_PASSWORD }}
           NORA_SIGNING_KEY_ALIAS: ${{ secrets.NORA_SIGNING_KEY_ALIAS }}
           NORA_SIGNING_KEY_PASSWORD: ${{ secrets.NORA_SIGNING_KEY_PASSWORD }}

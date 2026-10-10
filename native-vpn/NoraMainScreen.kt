@@ -99,6 +99,12 @@ fun MainScreen(
     onNavigate: (MainDestination) -> Unit
 ) {
     val context = LocalContext.current
+    val tapsell = remember(context) { NoraTapsellAds(context.noraActivity()) }
+    val adShowing by tapsell.blocking.collectAsStateWithLifecycle()
+    DisposableEffect(tapsell) {
+        tapsell.start()
+        onDispose { tapsell.dispose() }
+    }
     val appState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val loading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val updater = remember(context.applicationContext) { NoraUpdater(context.applicationContext) }
@@ -123,6 +129,7 @@ fun MainScreen(
         if (expectedPowerState != null && appState.isRunning == expectedPowerState) {
             expectedPowerState = null
             powerPending = false
+            tapsell.onVpnOperationCompleted()
         }
     }
     // Re-enable the control if Android VPN permission was declined or startup failed.
@@ -179,7 +186,7 @@ fun MainScreen(
     val originalLogo = painterResource(R.drawable.nora_brand)
 
     val startOrStop: () -> Unit = {
-        if (!powerPending) {
+        if (!powerPending && !adShowing) {
             if (appState.isRunning) {
                 powerPending = true
                 expectedPowerState = false
@@ -221,7 +228,7 @@ fun MainScreen(
                         logo = originalLogo,
                         seller = brand,
                         connected = appState.isRunning,
-                        waiting = powerPending,
+                        waiting = powerPending || adShowing,
                         canConnect = preferredRoute != null,
                         selectedCountryName = if (selectedCountry == null) "انتخاب هوشمند"
                             else countryTitle,
