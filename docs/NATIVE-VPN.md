@@ -101,3 +101,25 @@ permission is still required and install consent is never skipped.
 The activity shows a visible error message if the system installer reports a
 failure or rejects confirmation. Device-specific installation behavior still
 requires manual testing on MIUI/HyperOS hardware.
+
+## Subscription groups, QR gallery and usage (v0.2.7)
+
+The subscription tab exposes the pinned upstream Subscription Manager for group creation,
+renaming, deleting and per-group URLs, including local-only groups with empty URLs.
+NoraProxy's own main UI displays the groups, switches the selected group in the
+upstream MainViewModel, and calls MainAction.SelectServer with an actual GUID from
+that group. Location deduplication and real latency tests are scoped to the group.
+
+Both multiline raw node links and HTTPS subscriptions use the upstream
+AngConfigManager import path. QR scanning uses upstream CameraX; gallery images
+use Android's content picker and are decoded at reduced resolution in a worker.
+Decoding failures do not alter existing subscriptions.
+
+Remaining traffic and expiry come only from the optional subscription-userinfo
+response header. HTTP requests use HTTPS, disabled redirects, bounded timeouts,
+no private IP literals, and no token logging. Missing data is shown as unknown;
+raw configurations do not include account balances. Quota data is held in memory
+and refreshed on subscription tab entry/explicit refresh, not downloaded constantly.
+
+The pinned upstream VPN service, native Xray runtime, authorization flow and
+Tapsell interstitial implementation are unchanged.

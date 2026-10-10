@@ -1,5 +1,9 @@
 package com.v2ray.ang.ui.main
 
+import android.graphics.BitmapFactory
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -47,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,7 +73,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
+import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.util.QRCodeDecoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 
 // NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
 private val ink = Color(0xFF071323)
@@ -113,13 +128,44 @@ fun MainScreen(
     LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
     var subscription by remember { mutableStateOf("") }
+    val importScope = rememberCoroutineScope()
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            importScope.launch {
+                val payload = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        context.contentResolver.openInputStream(uri)?.use {
+                            BitmapFactory.decodeStream(it, null, bounds)
+                        }
+                        val sample = ((maxOf(bounds.outWidth, bounds.outHeight) + 1599) / 1600).coerceAtLeast(1)
+                        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                        val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                            BitmapFactory.decodeStream(it, null, options)
+                        }
+                        bitmap?.let { QRCodeDecoder.syncDecodeQRCode(it).also { _ -> it.recycle() } }
+                    }.getOrNull()
+                }
+                if (!payload.isNullOrBlank() && payload.length <= 65536) {
+                    onAction(MainAction.ImportBatchConfig(payload))
+                } else {
+                    Toast.makeText(context, "کد QR معتبر در تصویر پیدا نشد", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
     // Keep the user's preferred country across app restarts, while the real
     // selected server GUID remains managed by the VPN backend.
     val routePreferences = remember(context) {
         context.getSharedPreferences("nora_route", android.content.Context.MODE_PRIVATE)
     }
     var selectedCountry by remember {
-        mutableStateOf(routePreferences.getString("preferred_country", null))
+        mutableStateOf(routePreferences.getString("preferred_country:" + appState.selectedGroupId, null))
+    }
+    LaunchedEffect(appState.selectedGroupId) {
+        selectedCountry = routePreferences.getString(
+            "preferred_country:" + appState.selectedGroupId, null
+        )
     }
     var refreshTick by remember { mutableIntStateOf(0) }
     // Prevent double-taps from dispatching conflicting native start/stop commands.
@@ -145,10 +191,44 @@ fun MainScreen(
 
     LaunchedEffect(appState.groups, appState.isTesting, loading) { refreshTick++ }
     LaunchedEffect(Unit) { while (true) { delay(15000); refreshTick++ } }
-    val nodes = remember(refreshTick) { NoraRouteSelector.load() }
+    val nodes = remember(refreshTick, appState.selectedGroupId) {
+        NoraRouteSelector.load(appState.selectedGroupId)
+    }
     val ranked = remember(nodes) { NoraRouteSelector.rank(nodes) }
     val locations = remember(ranked) { NoraRouteSelector.locations(ranked) }
     val identity = remember(nodes) { nodes.joinToString("|") { it.guid } }
+    val subscriptions = remember(appState.groups) { mainViewModel.getSubscriptions() }
+    var usageByGroup by remember { mutableStateOf<Map<String, NoraSubscriptionUsage>>(emptyMap()) }
+    var usageRefresh by remember { mutableIntStateOf(0) }
+    LaunchedEffect(tab, appState.selectedGroupId, subscriptions, usageRefresh) {
+        val targets = if (tab == NoraTab.Subscription) subscriptions
+            else subscriptions.filter { it.guid == appState.selectedGroupId }
+        coroutineScope {
+            val limiter = Semaphore(4)
+            val updates = targets.take(16).map { group ->
+                async(Dispatchers.IO) {
+                    group.guid to limiter.withPermit {
+                        NoraSubscriptionUsageReader.fetch(group.subscription.url)
+                    }
+                }
+            }.awaitAll().mapNotNull { (id, info) -> info?.let { id to it } }.toMap()
+            usageByGroup = usageByGroup.filterKeys { id ->
+                subscriptions.any { it.guid == id }
+            } + updates
+        }
+    }
+    // The active Xray GUID must belong to the visible group, not the previous one.
+    LaunchedEffect(appState.selectedGroupId, identity) {
+        if (ranked.isNotEmpty() && ranked.none { it.guid == appState.selectedGuid }) {
+            val country = routePreferences.getString(
+                "preferred_country:" + appState.selectedGroupId, null
+            )
+            val route = NoraRouteSelector.locations(ranked).firstOrNull {
+                it.countryCode == country
+            } ?: ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.first()
+            onAction(MainAction.SelectServer(route.guid))
+        }
+    }
     LaunchedEffect(identity, loading) {
         if (!loading && nodes.isNotEmpty() && nodes.all { it.latencyMs == 0L } &&
             !appState.isTesting) {
@@ -167,8 +247,9 @@ fun MainScreen(
         if (route != null) {
             selectedCountry = country
             routePreferences.edit().apply {
-                if (country == null) remove("preferred_country")
-                else putString("preferred_country", country)
+                val preferenceKey = "preferred_country:" + appState.selectedGroupId
+                if (country == null) remove(preferenceKey)
+                else putString(preferenceKey, country)
             }.apply()
             // This goes through MainActivity.setSelectServer -> ViewModel/MMKV.
             // The activity restarts the native service if already running.
@@ -236,6 +317,13 @@ fun MainScreen(
                         locationSubtitle = if (appState.isRunning) "مسیر فعال: $countryTitle"
                             else countryTitle,
                         locationPing = displayedRoute?.latencyMs,
+                        usageText = subscriptions.firstOrNull {
+                            it.guid == appState.selectedGroupId
+                        }?.let {
+                            val details = usageByGroup[it.guid]
+                            (details?.remainingTrafficLabel() ?: "حجم نامشخص") + " · " +
+                                (details?.remainingTimeLabel() ?: "زمان نامشخص")
+                        },
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
                         onChooseLocation = { tab = NoraTab.Locations },
@@ -298,16 +386,68 @@ fun MainScreen(
                             }
                         }
                         NoraTab.Subscription -> {
-                            item { NoraSection("اشتراک من", "اشتراک اختصاصی فروشنده را اینجا اضافه کنید.") }
+                            item {
+                                NoraSection("گروه‌های اشتراک", "هر گروه سرورها و مسیر اتصال مستقل دارد.")
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { onNavigate(MainDestination.Subscriptions) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(15.dp)
+                                ) { Text("＋ ساخت، ویرایش و حذف گروه اشتراک", fontWeight = FontWeight.Bold) }
+                            }
+                            if (subscriptions.isEmpty()) {
+                                item {
+                                    Text("هنوز گروهی ساخته نشده است؛ می‌توانید گروه جدید بسازید یا کانفیگ خام را مستقیم وارد کنید.",
+                                        color = muted, fontSize = 13.sp, lineHeight = 23.sp)
+                                }
+                            }
+                            items(subscriptions, key = { "group-" + it.guid }) { group ->
+                                NoraSubscriptionGroupCard(
+                                    name = group.subscription.remarks.ifBlank { "اشتراک بدون نام" },
+                                    numberOfNodes = MmkvManager.decodeServerList(group.guid).size,
+                                    active = group.guid == appState.selectedGroupId,
+                                    usage = usageByGroup[group.guid],
+                                    onSelect = {
+                                        val savedCountry = routePreferences.getString(
+                                            "preferred_country:" + group.guid, null
+                                        )
+                                        val routes = NoraRouteSelector.rank(NoraRouteSelector.load(group.guid))
+                                        if (routes.isEmpty() && appState.isRunning) {
+                                            Toast.makeText(context,
+                                                "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
+                                                Toast.LENGTH_LONG).show()
+                                        } else {
+                                            selectedCountry = savedCountry
+                                            onAction(MainAction.SelectGroup(group.guid))
+                                            val selected = NoraRouteSelector.locations(routes).firstOrNull {
+                                                it.countryCode == savedCountry
+                                            } ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
+                                            if (selected != null && selected.guid != appState.selectedGuid) {
+                                                onAction(MainAction.SelectServer(selected.guid))
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                            item {
+                                OutlinedButton(
+                                    onClick = { usageRefresh++ },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(15.dp)
+                                ) { Text("بروزرسانی حجم و اعتبار گروه‌ها") }
+                            }
+                            item {
+                                NoraSection("افزودن سرور", "لینک اشتراک یا کانفیگ خام را در گروه انتخاب‌شده وارد کنید.")
+                            }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
                                     Column(modifier = Modifier.padding(18.dp),
                                         verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                         OutlinedTextField(
                                             value = subscription,
-                                            onValueChange = { subscription = it.take(4096) },
-                                            modifier = Modifier.fillMaxWidth(), maxLines = 3,
-                                            label = { Text("لینک HTTPS یا کانفیگ") },
+                                            onValueChange = { subscription = it.take(65536) },
+                                            modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
+                                            label = { Text("لینک اشتراک یا کانفیگ خام (چندخطی)") },
                                             keyboardOptions = KeyboardOptions(
                                                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
                                             shape = RoundedCornerShape(15.dp)
@@ -323,10 +463,25 @@ fun MainScreen(
                                             enabled = subscription.isNotBlank() && !loading,
                                             shape = RoundedCornerShape(15.dp), modifier = Modifier.fillMaxWidth()
                                         ) { Text("افزودن اشتراک", fontWeight = FontWeight.Bold) }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportQRcode) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("اسکن QR", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { galleryPicker.launch("image/*") },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("QR از گالری", fontSize = 12.sp) }
+                                        }
                                         OutlinedButton(onClick = { onAction(MainAction.UpdateSubscriptions) },
                                             enabled = !loading, modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(15.dp)) {
-                                            Text("همگام‌سازی سرورهای جدید")
+                                            Text("همگام‌سازی گروه انتخاب‌شده")
                                         }
                                         if (loading) CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
@@ -334,7 +489,7 @@ fun MainScreen(
                                 }
                             }
                             item {
-                                NoraMetric("کانفیگ‌های این اشتراک", nodes.size.toString(), Modifier.fillMaxWidth())
+                                NoraMetric("سرورهای گروه انتخاب‌شده", nodes.size.toString(), Modifier.fillMaxWidth())
                             }
                         }
                         NoraTab.Settings -> {
@@ -427,6 +582,7 @@ private fun NoraHomeContent(
     locationFlag: String,
     locationSubtitle: String,
     locationPing: Long?,
+    usageText: String?,
     hasUpdate: Boolean,
     onToggle: () -> Unit,
     onChooseLocation: () -> Unit,
@@ -497,6 +653,11 @@ private fun NoraHomeContent(
                     Text("←", color = light, fontSize = 15.sp)
                 }
                 Spacer(Modifier.height(9.dp))
+            }
+            if (usageText != null) {
+                Text(usageText, color = muted, fontSize = 11.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(6.dp))
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -581,6 +742,49 @@ private fun NoraPowerButton(
                     end = androidx.compose.ui.geometry.Offset(center.x, center.y + size.height * .04f),
                     strokeWidth = stroke, cap = StrokeCap.Round)
             }
+        }
+    }
+}
+
+@Composable
+private fun NoraSubscriptionGroupCard(
+    name: String,
+    numberOfNodes: Int,
+    active: Boolean,
+    usage: NoraSubscriptionUsage?,
+    onSelect: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(if (active) surface2 else surface)
+            .then(if (active) Modifier.border(1.dp, cyan.copy(alpha = .6f), shape) else Modifier)
+            .clickable(onClick = onSelect)
+            .padding(17.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, color = light, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(if (active) "● فعال" else "انتخاب  ←", color = if (active) cyan else muted,
+                fontSize = 12.sp)
+        }
+        Text(numberOfNodes.toString() + " سرور", color = muted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(usage?.remainingTrafficLabel() ?: "حجم نامشخص",
+                modifier = Modifier.weight(1f), color = light, fontSize = 12.sp)
+            Text(usage?.remainingTimeLabel() ?: "زمان نامشخص",
+                modifier = Modifier.weight(1f), color = muted, fontSize = 12.sp,
+                textAlign = TextAlign.End)
+        }
+        usage?.usagePercent()?.let { percent ->
+            Box(Modifier.fillMaxWidth().height(5.dp)
+                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF29435B))) {
+                Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
+            }
+            Text("مصرف‌شده: " + formatBytes(usage.used ?: 0L) + " / " +
+                formatBytes(usage.total ?: 0L), color = muted, fontSize = 11.sp)
         }
     }
 }
