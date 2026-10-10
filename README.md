@@ -61,3 +61,20 @@ Or open the offline web/reseller.html form. Opening that private link on an Andr
 - [Exact pinned upstream source](https://github.com/2dust/v2rayNG/tree/9fcb1a30f81345920f9609029ae923b4ea0a866c)
 
 NoraProxy's native VPN is a modified build of v2rayNG under the **GNU GPL-3.0**. The upstream license, attribution, source availability and any dependency notices must be preserved when redistributing the APK. See LICENSE. NoraProxy does not claim authorship of Xray, libv2ray, or the upstream VPN service.
+
+## Native subscription management and Persian formatting (v0.2.8)
+
+Group creation, editing and deletion now use NoraProxy dark-themed Compose dialogs
+inside the application's own Subscription tab. We no longer navigate to the
+unbranded v2rayNG `SubSettingActivity` for customer group management.
+Existing subscriptions persist in the original MMKV schema and are not migrated,
+replaced or silently discarded. Deletion requires confirmation and is blocked
+during an active VPN connection.
+
+Quota cards and the compact Home usage line display Persian digits and
+Persian storage units (بایت، کیلوبایت، مگابایت، گیگابایت، ترابایت),
+rather than mixing Latin `TB`/`GB` with right-to-left sentences.
+Expired and missing metadata remain distinct; unlimited is displayed only when
+the provider explicitly reports `0` for the respective field.
+
+For QA, see the native Android CI unit test `NoraSubscriptionUsageTest`.
