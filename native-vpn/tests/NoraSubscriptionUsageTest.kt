@@ -3,7 +3,7 @@ package com.v2ray.ang.ui.main
 import org.junit.Assert.*
 import org.junit.Test
 
-class NoraSubscriptionUsageTest {
+class NoraSubscriptionUsageTest {\n    @Test fun localizedTrafficAndDigitsStayInPersian() {\n        assertEquals("۱٫۱ ترابایت", formatBytes(1209462790553L))\n        assertEquals("۱۱۷٫۱ گیگابایت", formatBytes(125735895450L))\n    }
     @Test fun parsesStandardSubscriptionUserInfo() {
         val info = NoraSubscriptionUsageReader.parse(
             "upload=1073741824; download=2147483648; total=6442450944; expire=1730000000"
@@ -11,7 +11,7 @@ class NoraSubscriptionUsageTest {
         assertEquals(3221225472L, info.used)
         assertEquals(3221225472L, info.remaining)
         assertEquals(0.5f, info.usagePercent()!!, 0.0001f)
-        assertEquals("3.0 GB باقی‌مانده", info.remainingTrafficLabel())
+        assertEquals("۳٫۰ گیگابایت باقی‌مانده", info.remainingTrafficLabel())
     }
 
     @Test fun handlesMissingOrMalformedHeadersWithoutInventedValues() {
@@ -21,7 +21,7 @@ class NoraSubscriptionUsageTest {
         val info = NoraSubscriptionUsageReader.parse("total=4294967296")!!
         assertNull(info.remaining)
         assertEquals("مصرف نامشخص", info.remainingTrafficLabel())
-        assertEquals("زمان نامشخص", info.remainingTimeLabel(100))
+        assertEquals("اعتبار نامشخص", info.remainingTimeLabel(100))
     }
 
     @Test fun zeroAndExpiredMetadataAreExplicit() {
@@ -29,7 +29,7 @@ class NoraSubscriptionUsageTest {
             "UPLOAD=0; DOWNLOAD=0; TOTAL=0; EXPIRE=0"
         )!!
         assertEquals("حجم نامحدود", unlimited.remainingTrafficLabel())
-        assertEquals("زمان نامحدود", unlimited.remainingTimeLabel(100))
+        assertEquals("اعتبار نامحدود", unlimited.remainingTimeLabel(100))
         val expired = NoraSubscriptionUsageReader.parse("expire=100")!!
         assertEquals("منقضی شده", expired.remainingTimeLabel(101))
     }
@@ -42,8 +42,8 @@ class NoraSubscriptionUsageTest {
 
     @Test fun calculatesRemainingDaysWithoutRoundingDown() {
         val info = NoraSubscriptionUsageReader.parse("expire=172800")!!
-        assertEquals("2 روز باقی‌مانده", info.remainingTimeLabel(1))
-        assertEquals("1 روز باقی‌مانده", info.remainingTimeLabel(86401))
+        assertEquals("۲ روز باقی‌مانده", info.remainingTimeLabel(1))
+        assertEquals("۱ روز باقی‌مانده", info.remainingTimeLabel(86401))
     }
 
     @Test fun rejectsOutOfRangeNumbers() {
