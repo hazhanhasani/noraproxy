@@ -155,3 +155,16 @@ Existing old imported groups are not automatically deleted or migrated.
 Creating a group selects it automatically while the VPN is disconnected to
 reduce accidental imports into the previously active group. No changes were
 made to the Xray, signing, OTA updater, or Tapsell runtime.
+
+## Automatic import routing (v0.2.10)
+
+Group selection is no longer required before an import. Each distinct HTTPS
+subscription creates a separate persistent group (or reuses the group with an
+identical URL). Multiple URLs may be pasted in one operation and each is fetched
+only for its corresponding group. All raw share links, whether pasted, scanned
+from a camera, imported from gallery, or shared from another app, are stored in
+the stable upstream `DEFAULT_SUBSCRIPTION_ID` group named Default.
+When that reserved ID already contains a legacy remote subscription, NoraProxy
+protects that subscription and uses a separate persistent "Default · خام"
+fallback group rather than overwriting its URL or profile data. Existing
+groups are not deleted or migrated.

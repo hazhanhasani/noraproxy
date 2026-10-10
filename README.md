@@ -90,3 +90,17 @@ Pasting a subscription URL updates the currently selected group instead of
 creating a duplicate `import sub` group. Keep raw configs in a separate
 local-only group so remote automatic updates cannot overwrite them.
 This change does not remove previously imported groups.
+
+## Automatic import and ad diagnostics (v0.2.10)
+
+No manual group selection is required to import. One HTTPS subscription URL
+creates one dedicated group; identical URLs reuse existing groups. Several
+HTTPS subscription URLs can be pasted at once. Raw VLESS, VMess, Trojan,
+Shadowsocks and other supported share links automatically go into the Default
+local-only group, even when a different subscription is selected. The app
+preserves existing groups and user profiles.
+
+Tapsell interstitials are prefetched and now use bounded retries, timeout
+handling and an ad status indicator on Settings. Missing inventory or an SDK
+error must never delay VPN connection or disconnection. Ad impressions cannot
+be guaranteed on all carriers, devices, networks or countries.

@@ -77,3 +77,28 @@ Version **0.2.6** enables this integration in signed public APKs when the
 Tapsell IDs are present and valid. A successful Android CI build does not prove
 that a live ad will be returned by the Tapsell network. Confirm real display,
 dismissal, lack-of-inventory fallback and VPN behavior on a physical device.
+
+## Device-level reliability improvements (v0.2.10)
+
+Tapsell ad fill is not guaranteed across phones: regional availability,
+device eligibility, connectivity, DNS/ad blockers, network policy, user consent,
+SDK response latency and invalid inventory can all prevent delivery.
+Even correctly configured production IDs cannot force an impression on every
+connection or disconnection.
+
+The app now retries failed ad requests with capped exponential delays
+(15/30/60/120 seconds), applies a request timeout, discards stale loaded ads,
+and uses a display watchdog to avoid indefinitely locking the app controls.
+The **Settings → Ad status** field shows local load/no-fill/display state
+without exposing advertisement IDs, subscription URLs or SDK error payloads.
+The VPN operation always takes place first and must not depend on ad inventory.
+
+Manual testing on affected devices:
+1. Use the official *release-signed* APK (debug and PR builds can disable ads).
+2. Open Settings → Ad status and wait for the SDK to load a creative.
+3. Switch between cellular and Wi-Fi; check restricted/ad-blocking DNS settings.
+4. Test connect and disconnect with enough time for preload; do not assume
+   every toggle gets an impression.
+5. If missing inventory persists on a particular region/carrier, inspect
+   Tapsell dashboard fill rate, placement health, mediation adapters, consent
+   and country targeting. Never force-close OS navigation to compensate.
