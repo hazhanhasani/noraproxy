@@ -446,10 +446,14 @@ fun MainScreen(
                             }
                             item {
                                 OutlinedButton(
-                                    onClick = { usageRefresh++ },
+                                    onClick = {
+                                        onAction(MainAction.UpdateSubscriptions)
+                                        usageRefresh++
+                                    },
+                                    enabled = !loading && appState.selectedGroupId.isNotBlank(),
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(15.dp)
-                                ) { Text("بروزرسانی حجم و اعتبار گروه‌ها") }
+                                ) { Text("به‌روزرسانی سرورها، حجم و اعتبار") }
                             }
                             item {
                                 NoraSection("افزودن به گروه", "فقط از این قسمت لینک اشتراک، کانفیگ خام یا QR را وارد کنید.")
@@ -517,11 +521,6 @@ fun MainScreen(
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(15.dp)
                                             ) { Text("QR از گالری", fontSize = 12.sp) }
-                                        }
-                                        OutlinedButton(onClick = { onAction(MainAction.UpdateSubscriptions) },
-                                            enabled = !loading, modifier = Modifier.fillMaxWidth(),
-                                            shape = RoundedCornerShape(15.dp)) {
-                                            Text("همگام‌سازی گروه انتخاب‌شده")
                                         }
                                         if (loading) CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
