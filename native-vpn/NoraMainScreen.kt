@@ -117,6 +117,7 @@ fun MainScreen(
     val context = LocalContext.current
     val tapsell = remember(context) { NoraTapsellAds(context.noraActivity()) }
     val adShowing by tapsell.blocking.collectAsStateWithLifecycle()
+    val adDiagnostics by tapsell.diagnostics.collectAsStateWithLifecycle()
     DisposableEffect(tapsell) {
         tapsell.start()
         onDispose { tapsell.dispose() }
@@ -566,6 +567,21 @@ fun MainScreen(
                                             else if (updateState.available) "دانلود داخل برنامه"
                                             else "بررسی نسخه جدید", fontWeight = FontWeight.Bold)
                                         }
+                                    }
+                                }
+                            }
+                            item {
+                                Card(shape = corner,
+                                    colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("وضعیت تبلیغات", fontWeight = FontWeight.Bold,
+                                            color = light, fontSize = 16.sp)
+                                        Text(adDiagnostics, color = muted,
+                                            fontSize = 12.sp, lineHeight = 21.sp)
+                                        Text("نمایش تبلیغ به موجودی تپسل، شبکه و شرایط دستگاه بستگی دارد. " +
+                                            "در نبود تبلیغ، اتصال VPN بدون توقف انجام می‌شود.",
+                                            color = muted, fontSize = 11.sp, lineHeight = 20.sp)
                                     }
                                 }
                             }
