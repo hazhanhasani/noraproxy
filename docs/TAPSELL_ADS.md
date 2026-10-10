@@ -15,10 +15,20 @@ This optional integration displays Tapsell Mediation **interstitial** ads after 
    `Build NoraProxy Native VPN` workflow on main. Official releases are immutable;
    registering secrets alone cannot modify a published APK.
 
-**Missing or invalid IDs:** the controller is disabled, connects/disconnects
-work normally, and no test ads are served to users. The SDK has its automatic
-initialization disabled in AndroidManifest and is initialized manually only
-when configured.
+**Missing or invalid IDs:** main-branch production builds fail BEFORE APK
+compilation or release, rather than silently releasing an ad-disabled build.
+Pull-request and development builds can still compile with ads disabled.
+When a valid production APK is built, the controller preloads interstitials and
+connects/disconnects without depending on ad availability. The SDK has its
+automatic initialization disabled in AndroidManifest and is initialized
+manually only when configured.
+
+**Important build detail:** the secrets must be injected during the
+`Apply NoraProxy standalone VPN overlay` step: that is when `BuildConfig` and
+the Tapsell manifest placeholder are generated. Passing secrets only to the
+later Gradle build step does **not** enable ads. A CI assertion now verifies
+that `NORA_TAPSELL_ENABLED=true` is compiled into main releases. No values
+are printed in build logs.
 
 ## User experience and safety
 
@@ -63,6 +73,7 @@ quality guidelines. Consider frequency caps or a paid no-ads tier.
 - `.github/workflows/native-vpn.yml`: injects production values only from
   GitHub Secrets, without committing identifiers or credentials.
 
-Initial staging is intentionally **without a new version number** while waiting
-for real Tapsell IDs and end-to-end testing. It therefore does not replace the
-existing public release.
+Version **0.2.6** enables this integration in signed public APKs when the
+Tapsell IDs are present and valid. A successful Android CI build does not prove
+that a live ad will be returned by the Tapsell network. Confirm real display,
+dismissal, lack-of-inventory fallback and VPN behavior on a physical device.

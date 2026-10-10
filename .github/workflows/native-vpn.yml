@@ -134,6 +134,12 @@ jobs:
           PY
 
       - name: Apply NoraProxy standalone VPN overlay
+        # This is the ONLY step that generates BuildConfig and the
+        # Tapsell manifest placeholder; pass IDs here, not to Gradle.
+        env:
+          NORA_TAPSELL_APP_ID: ${{ secrets.NORA_TAPSELL_APP_ID }}
+          NORA_TAPSELL_INTERSTITIAL_ZONE_ID: ${{ secrets.NORA_TAPSELL_INTERSTITIAL_ZONE_ID }}
+          NORA_REQUIRE_TAPSELL: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
         run: python3 scripts/prepare_native_vpn.py
 
       - name: Read actual Android version for signing and OTA
@@ -181,6 +187,12 @@ jobs:
           test -f upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraTapsellAds.kt
           grep -q NORA_TAPSELL_ENABLED upstream/V2rayNG/app/build.gradle.kts
           grep -q ir.tapsell.mediation.AUTO_INIT upstream/V2rayNG/app/src/main/AndroidManifest.xml
+          # BuildConfig is generated at overlay time. Do not publish an
+          # apparently monetized version that quietly has ads disabled.
+          if [ "$GITHUB_REF" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            grep -Fq 'buildConfigField("boolean", "NORA_TAPSELL_ENABLED", "true")' upstream/V2rayNG/app/build.gradle.kts ||
+              { echo "::error::Tapsell is disabled in the compiled app despite configured Secrets."; exit 1; }
+          fi
           INSTALLER="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraUpdater.kt"
           RESULT="upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraInstallResultActivity.kt"
           grep -q 'packageInstaller' "$INSTALLER"
@@ -204,9 +216,6 @@ jobs:
 
       - name: Build NoraProxy Android APK
         working-directory: upstream/V2rayNG
-        env:
-          NORA_TAPSELL_APP_ID: ${{ secrets.NORA_TAPSELL_APP_ID }}
-          NORA_TAPSELL_INTERSTITIAL_ZONE_ID: ${{ secrets.NORA_TAPSELL_INTERSTITIAL_ZONE_ID }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon :app:assemblePlaystoreDebug
@@ -251,8 +260,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         working-directory: upstream/V2rayNG
         env:
-          NORA_TAPSELL_APP_ID: ${{ secrets.NORA_TAPSELL_APP_ID }}
-          NORA_TAPSELL_INTERSTITIAL_ZONE_ID: ${{ secrets.NORA_TAPSELL_INTERSTITIAL_ZONE_ID }}
           NORA_SIGNING_STORE_PASSWORD: ${{ secrets.NORA_SIGNING_STORE_PASSWORD }}
           NORA_SIGNING_KEY_ALIAS: ${{ secrets.NORA_SIGNING_KEY_ALIAS }}
           NORA_SIGNING_KEY_PASSWORD: ${{ secrets.NORA_SIGNING_KEY_PASSWORD }}

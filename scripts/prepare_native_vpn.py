@@ -66,9 +66,18 @@ def prepare():
     import os, re
     app_id = os.getenv("NORA_TAPSELL_APP_ID", "").strip()
     zone = os.getenv("NORA_TAPSELL_INTERSTITIAL_ZONE_ID", "").strip()
-    allowed = re.compile(r"^[a-zA-Z0-9_-]{8,100}$")
+    allowed = re.compile(r"^[a-zA-Z0-9_-]{4,128}$")
     enabled = bool(allowed.fullmatch(app_id) and allowed.fullmatch(zone))
-    # IDs missing -> no ad requests, no SDK initialization, no test ads.
+    # Fail closed for main-branch published releases. A production APK
+    # must never silently embed NORA_TAPSELL_ENABLED=false when the owner
+    # has explicitly enabled monetization in GitHub Secrets.
+    if os.getenv("NORA_REQUIRE_TAPSELL", "").lower() == "true" and not enabled:
+        raise SystemExit(
+            "Tapsell app ID and interstitial zone ID are missing or invalid. "
+            "Set NORA_TAPSELL_APP_ID and NORA_TAPSELL_INTERSTITIAL_ZONE_ID "
+            "as GitHub Actions repository secrets. No APK will be published."
+        )
+    # IDs missing -> no ad requests in opt-out/dev builds; no test ads.
     safe_app_id = app_id if enabled else "00000000-0000-0000-0000-000000000000"
     safe_zone = zone if enabled else ""
     gradle = APP / "build.gradle.kts"
@@ -94,8 +103,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 205')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.5"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 206')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.6"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -195,7 +204,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.5, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.6, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()
