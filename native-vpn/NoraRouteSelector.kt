@@ -116,7 +116,7 @@ internal object NoraRouteSelector {
             if (first in 0x1F1E6..0x1F1FF && next < label.length) {
                 val second = label.codePointAt(next)
                 if (second in 0x1F1E6..0x1F1FF) {
-                    val code = "" + ('A' + first - 0x1F1E6) + ('A' + second - 0x1F1E6)
+                    val code = "" + ('A' + (first - 0x1F1E6)) + ('A' + (second - 0x1F1E6))
                     countries[code]?.let { return it }
                 }
             }
