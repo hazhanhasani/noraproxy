@@ -33,7 +33,7 @@ jobs:
         run: dotnet build desktop/windows/NoraProxy.Windows/NoraProxy.Windows.csproj -c Release --nologo
       - name: Run offline-import and DPAPI protection checks
         shell: pwsh
-        run: dotnet run --project desktop/windows/NoraProxy.Windows.Tests/NoraProxy.Windows.Tests.csproj -c Release --no-restore
+        run: dotnet run --project desktop/windows/NoraProxy.Windows.Tests/NoraProxy.Windows.Tests.csproj -c Release
       - name: Publish standalone Windows x64 executable
         shell: pwsh
         run: |
