@@ -23,7 +23,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         ConnectButton.IsEnabled = _engine.IsAvailable;
-        HeaderVersion.Text = "Windows Preview · v" + WindowsUpdateService.CurrentVersion;
         CurrentWinVersion.Text = "نسخه نصب‌شده: " + WindowsUpdateService.CurrentVersion;
         ShowPage(HomePage);
         Closed += (_, _) =>
@@ -208,7 +207,6 @@ public partial class MainWindow : Window
 
     private void UpdateCounts()
     {
-        HomeSubscriptionCount.Text = Entries.Count.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("fa-IR"));
         GroupCounter.Text = Entries.Count == 0 ? "هنوز اشتراکی افزوده نشده" : $"{Entries.Count} ورودی ذخیره‌شده";
     }
 }
