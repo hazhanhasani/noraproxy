@@ -108,3 +108,19 @@ altered bytes but are *not* equivalent to code signing. The Windows Preview
 installer is currently unsigned; Microsoft SmartScreen may warn, and it is
 not yet a fully publisher-authenticated automatic update system.
 
+
+## UI parity with Android (Windows Preview 0.1.3)
+
+Windows now uses the real **same NoraProxy icon bytes** from the Android
+project, the four Android vector tab icons in a **bottom bar** (not a sidebar),
+and the same graphite/mint/violet visual palette. The Home page follows the
+same Android layout order: connection pill, circular gradient power button,
+selected location/latency card, remaining traffic and time, then quick country
+selection. Windows is shown as a portrait-proportioned, desktop-resizable app
+rather than a generic desktop admin dashboard. Subscription entry and the
+GitHub Windows updater remain on their respective Android-equivalent tabs.
+
+Only the visual language is aligned: the Windows Xray/TUN engine is still
+unfinished. This preview never fabricates a country, measured ping, remaining
+traffic, remaining time or working VPN connection. The Connect button remains
+disabled until native functionality can be validated.
