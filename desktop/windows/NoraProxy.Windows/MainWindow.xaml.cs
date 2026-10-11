@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Media;
 using System.Windows;
 using System.Windows.Controls;
 using NoraProxy.Windows.Core;
@@ -9,6 +10,11 @@ public partial class MainWindow : Window
 {
     private readonly UserSecretStore _store = new();
     private readonly IVpnEngine _engine = new UnavailableVpnEngine();
+    private readonly WindowsUpdateService _updates = new();
+    private readonly CancellationTokenSource _updateCancellation = new();
+    private WindowsUpdate? _availableUpdate;
+    private string? _verifiedInstaller;
+    private bool _updateBusy;
     private bool _storageAvailable = true;
     public ObservableCollection<SubscriptionEntry> Entries { get; } = new();
 
@@ -17,6 +23,15 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
         ConnectButton.IsEnabled = _engine.IsAvailable;
+        HeaderVersion.Text = "Windows Preview · v" + WindowsUpdateService.CurrentVersion;
+        CurrentWinVersion.Text = "نسخه نصب‌شده: " + WindowsUpdateService.CurrentVersion;
+        ShowPage(HomePage);
+        Closed += (_, _) =>
+        {
+            _updateCancellation.Cancel();
+            _updates.Dispose();
+            _updateCancellation.Dispose();
+        };
         try
         {
             foreach (var entry in _store.Load()) Entries.Add(entry);
@@ -38,6 +53,23 @@ public partial class MainWindow : Window
         SettingsPage.Visibility = Visibility.Collapsed;
         page.Visibility = Visibility.Visible;
         UpdateCounts();
+        SetNavigationState();
+    }
+
+    private void SetNavigationState()
+    {
+        HomeNavButton.Background = HomePage.IsVisible
+            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
+            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+        LocationsNavButton.Background = LocationsPage.IsVisible
+            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
+            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+        SubscriptionsNavButton.Background = SubscriptionsPage.IsVisible
+            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
+            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+        SettingsNavButton.Background = SettingsPage.IsVisible
+            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
+            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
     }
 
     private void Home_Click(object sender, RoutedEventArgs e) => ShowPage(HomePage);
@@ -87,6 +119,91 @@ public partial class MainWindow : Window
             UpdateCounts();
         }
         catch (Exception) { ImportFeedback.Text = "حذف امن ناموفق بود؛ اطلاعات حفظ شد."; }
+    }
+
+    private void SetUpdateBusy(bool busy)
+    {
+        _updateBusy = busy;
+        CheckUpdateButton.IsEnabled = !busy;
+        DownloadUpdateButton.IsEnabled = !busy && _availableUpdate is not null
+            && _verifiedInstaller is null;
+        InstallUpdateButton.IsEnabled = !busy && _availableUpdate is not null
+            && _verifiedInstaller is not null;
+    }
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateBusy) return;
+        _availableUpdate = null;
+        _verifiedInstaller = null;
+        UpdateStatus.Text = "در حال بررسی آخرین نسخه رسمی ویندوز…";
+        UpdateProgress.Visibility = Visibility.Collapsed;
+        SetUpdateBusy(true);
+        try
+        {
+            _availableUpdate = await _updates.CheckAsync(_updateCancellation.Token);
+            UpdateStatus.Text = _availableUpdate is null
+                ? "نسخه ویندوز شما به‌روز است."
+                : "نسخه جدید Windows Preview " + _availableUpdate.Version +
+                  " آماده دانلود است.";
+        }
+        catch (OperationCanceledException) { UpdateStatus.Text = "بررسی متوقف شد."; }
+        catch (Exception)
+        {
+            UpdateStatus.Text = "بررسی نسخه جدید ناموفق بود. اینترنت و دسترسی به GitHub را بررسی کنید.";
+        }
+        finally { SetUpdateBusy(false); }
+    }
+
+    private async void DownloadUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateBusy || _availableUpdate is null) return;
+        var selected = _availableUpdate;
+        _verifiedInstaller = null;
+        UpdateProgress.Value = 0;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateStatus.Text = "در حال دریافت فایل نصب از انتشار رسمی ویندوز…";
+        SetUpdateBusy(true);
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                UpdateProgress.Value = value;
+                UpdateStatus.Text = "در حال دانلود و بررسی فایل نصب: " + value + "٪";
+            });
+            _verifiedInstaller = await _updates.DownloadVerifiedAsync(
+                selected, progress, _updateCancellation.Token);
+            UpdateStatus.Text = "دانلود کامل شد و SHA-256 مطابقت دارد. نصب نیاز به تأیید شما دارد.";
+        }
+        catch (OperationCanceledException) { UpdateStatus.Text = "دانلود متوقف شد."; }
+        catch (Exception)
+        {
+            _verifiedInstaller = null;
+            UpdateStatus.Text = "دانلود یا بررسی فایل ناموفق بود؛ نصب غیرفعال است.";
+        }
+        finally { SetUpdateBusy(false); }
+    }
+
+    private void InstallUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateBusy || _availableUpdate is null || _verifiedInstaller is null) return;
+        var answer = MessageBox.Show(this,
+            "نسخه جدید NoraProxy Windows Preview " + _availableUpdate.Version +
+            " نصب شود؟\n\nفایل با SHA-256 منتشرشده در GitHub تطبیق داده شده، " +
+            "اما هنوز امضای دیجیتال ناشر ویندوز ندارد.\n" +
+            "نصب‌کننده باز می‌شود و داده‌های محلی شما حفظ می‌شوند.",
+            "تأیید نصب نسخه جدید", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return;
+        try
+        {
+            WindowsUpdateService.OpenInstaller(_verifiedInstaller, _availableUpdate);
+            // Windows must close the old executable before Inno Setup replaces it.
+            Application.Current.Shutdown();
+        }
+        catch (Exception)
+        {
+            UpdateStatus.Text = "اجرای نصب‌کننده ناموفق بود. فایل اجرایی را بررسی کنید.";
+        }
     }
 
     private void UpdateCounts()
