@@ -1,4 +1,8 @@
+using System;
 using System.Buffers;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
@@ -198,8 +202,8 @@ public sealed class WindowsUpdateService : IDisposable
                 Path.Combine(directory, update.FileName), StringComparison.OrdinalIgnoreCase)
             || !File.Exists(verifiedPath))
             throw new InvalidDataException("The verified installer is unavailable.");
-        Process.Start(new ProcessStartInfo(verifiedPath) { UseShellExecute = true })
-            ?? throw new InvalidOperationException("Windows did not start the installer.");
+        if (Process.Start(new ProcessStartInfo(verifiedPath) { UseShellExecute = true }) is null)
+            throw new InvalidOperationException("Windows did not start the installer.");
     }
 
     public void Dispose() { if (_ownsClient) _http.Dispose(); }
