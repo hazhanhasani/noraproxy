@@ -141,3 +141,17 @@ changes to native UI state, subscription updates and active ping measurements
 invalidate the cached routes. A connected device refreshes the last native ping
 result after triggering a measurement and then repeats on a 30-second cadence.
 Unavailable ping/quota data remains unknown, rather than showing invented values.
+
+## Favorite locations and compact subscriptions (v0.2.14)
+
+Locations support localized Persian/English ISO country searches, common city
+aliases and country codes. Favorites are saved in local Android SharedPreferences
+by ISO code and promoted to the start of both the Locations list and Home quick
+picker. A favorites-only filter is available. Favoriting is a UI preference and
+never modifies native VPN credentials or server IDs; route selections continue to
+use the original native GUID.
+
+Subscription import stays at the top of its tab, but now opens/collapses on tap.
+Existing group cards keep traffic and expiry visible while hiding edit/delete
+buttons under an explicit Manage group control. The existing manual refresh
+button is labeled to reflect its actual selected-group-only behavior.

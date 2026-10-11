@@ -135,6 +135,7 @@ fun MainScreen(
     LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
     var subscription by remember { mutableStateOf("") }
+    var importExpanded by remember { mutableStateOf(true) }
     var editorVisible by remember { mutableStateOf(false) }
     var editingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
@@ -489,10 +490,23 @@ fun MainScreen(
                         }
                         NoraTab.Subscription -> {
                             item {
-                                NoraSection("افزودن کانفیگ یا اشتراک", "")
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable { importExpanded = !importExpanded }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("افزودن کانفیگ یا اشتراک", color = light,
+                                        modifier = Modifier.weight(1f),
+                                        fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text(if (importExpanded) "−" else "＋",
+                                        color = cyan, fontSize = 22.sp)
+                                }
                             }
-                            item {
-                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                            if (importExpanded) {
+                                item {
+                                    Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
                                     Column(modifier = Modifier.padding(18.dp),
                                         verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                         OutlinedTextField(
@@ -539,6 +553,7 @@ fun MainScreen(
                                         if (loading) CircularProgressIndicator(
                                             modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                     }
+                                }
                                 }
                             }
                             item {
@@ -602,7 +617,7 @@ fun MainScreen(
                                     enabled = !loading && !syncingGroups && appState.selectedGroupId.isNotBlank(),
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(15.dp)
-                                ) { Text("به‌روزرسانی سرورها، حجم و اعتبار") }
+                                ) { Text("به‌روزرسانی گروه انتخاب‌شده") }
                             }
                         }
                         NoraTab.Settings -> {
@@ -1027,6 +1042,7 @@ private fun NoraSubscriptionGroupCard(
     onSelect: () -> Unit
 ) {
     val shape = RoundedCornerShape(20.dp)
+    var actionsExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
@@ -1064,13 +1080,24 @@ private fun NoraSubscriptionGroupCard(
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth().clickable { actionsExpanded = !actionsExpanded }
+                .padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(13.dp)) { Text("ویرایش", fontSize = 12.sp) }
-            OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(13.dp)) { Text("حذف", fontSize = 12.sp) }
+            Text("مدیریت گروه", color = muted, fontSize = 11.sp)
+            Text(if (actionsExpanded) "⌃" else "⌄", color = cyan, fontSize = 17.sp)
+        }
+        if (actionsExpanded) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(13.dp)) { Text("ویرایش", fontSize = 12.sp) }
+                OutlinedButton(onClick = onDelete, modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(13.dp)) { Text("حذف", fontSize = 12.sp) }
+            }
         }
     }
 }
