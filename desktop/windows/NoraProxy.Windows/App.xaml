@@ -3,35 +3,50 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
   <Application.Resources>
-    <SolidColorBrush x:Key="CanvasBrush" Color="#0E141C" />
-    <SolidColorBrush x:Key="CardBrush" Color="#1A2632" />
-    <SolidColorBrush x:Key="MutedBrush" Color="#A5B4C4" />
-    <SolidColorBrush x:Key="AccentBrush" Color="#79E6D2" />
+    <SolidColorBrush x:Key="CanvasBrush" Color="#0C121B"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#182431"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#A4B1C0"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#76EAD0"/>
     <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="#F3F7FC"/>
+      <Setter Property="Foreground" Value="#F5F8FC"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
     </Style>
     <Style TargetType="Button">
-      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="Padding" Value="14,9"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
-      <Setter Property="FontSize" Value="13"/>
-      <Setter Property="Foreground" Value="#F3F7FC"/>
-      <Setter Property="Background" Value="#31404F"/>
-      <Setter Property="BorderBrush" Value="#526073"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="#F5F8FC"/>
+      <Setter Property="Background" Value="#2B3E4A"/>
+      <Setter Property="BorderBrush" Value="#48616B"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Margin" Value="0,0,0,8" />
+      <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+    <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="HorizontalContentAlignment" Value="Right"/>
+      <Setter Property="Padding" Value="14,14"/>
+      <Setter Property="Background" Value="#223341"/>
+      <Setter Property="BorderBrush" Value="#223341"/>
+      <Setter Property="FontSize" Value="14"/>
+    </Style>
+    <Style x:Key="InputStyle" TargetType="TextBox">
+      <Setter Property="Background" Value="#101A24"/>
+      <Setter Property="Foreground" Value="#F5F8FC"/>
+      <Setter Property="CaretBrush" Value="#76EAD0"/>
+      <Setter Property="Padding" Value="10"/>
+      <Setter Property="BorderBrush" Value="#3C555F"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontSize" Value="13"/>
     </Style>
     <Style x:Key="TitleStyle" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="23" />
-      <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="0,0,0,7"/>
     </Style>
     <Style x:Key="MutedStyle" TargetType="TextBlock">
       <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
-      <Setter Property="LineHeight" Value="24"/>
+      <Setter Property="LineHeight" Value="22"/>
     </Style>
   </Application.Resources>
 </Application>
-
