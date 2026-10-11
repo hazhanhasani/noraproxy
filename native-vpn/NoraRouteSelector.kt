@@ -143,10 +143,11 @@ internal object NoraRouteSelector {
                 (!favoritesOnly || node.countryCode in favorites) &&
                     (term.isEmpty() || node.countryCode.lowercase(Locale.ROOT) == term ||
                         normalize(node.countryName).contains(term) ||
-                        (term.length >= 3 && patterns.any { pattern ->
+                        patterns.any { pattern ->
                             pattern.country.code == node.countryCode &&
-                                pattern.key.contains(term)
-                        }))
+                                (pattern.key == term ||
+                                    (term.length >= 3 && pattern.key.contains(term)))
+                        })
             }
             .sortedWith(compareByDescending<IndexedValue<NoraNode>> {
                 it.value.countryCode in favorites

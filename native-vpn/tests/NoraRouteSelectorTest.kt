@@ -44,6 +44,8 @@ class NoraRouteSelectorTest {
         assertEquals(listOf(germany), NoraRouteSelector.searchLocations(all, "germany", emptySet()))
         assertEquals(listOf(france), NoraRouteSelector.searchLocations(all, "فرانسه", emptySet()))
         assertEquals(listOf(canada), NoraRouteSelector.searchLocations(all, "CA", emptySet()))
+        val britain = NoraNode("gb", "GB", "بریتانیا", "🇬🇧", 45L)
+        assertEquals(listOf(britain), NoraRouteSelector.searchLocations(all + britain, "UK", emptySet()))
         assertEquals(listOf(germany), NoraRouteSelector.searchLocations(all, "berlin", emptySet()))
         assertEquals(emptyList<NoraNode>(), NoraRouteSelector.searchLocations(all, "xyz", emptySet()))
     }
