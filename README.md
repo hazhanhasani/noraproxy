@@ -178,3 +178,16 @@ service. No synthetic ping, no independent network leak probes, no unknown
 country guessing. Users can toggle Smart Mode and Automatic Recovery in
 Settings; both preferences persist locally. The policy does not claim a
 fully transparent zero-downtime handoff.
+
+## Windows desktop preparation
+
+The native Windows preview lives in [desktop/windows/](desktop/windows/) and
+uses a [Windows-only GitHub Actions build](.github/workflows/windows.yml).
+It offers a Persian WPF .NET 10 shell plus offline imports of HTTPS subscriptions
+and raw proxy links encrypted with Windows user-scoped DPAPI.
+
+**This first Windows build does not yet connect to a VPN.** The Connect button
+is deliberately disabled until real Windows Xray/TUN integration, leak
+protection and physical device testing. Windows CI produces an **unsigned
+preview ZIP**, not an official signed VPN release, and does not send it to the
+Android Telegram channel. See [Windows roadmap](docs/WINDOWS.md).
