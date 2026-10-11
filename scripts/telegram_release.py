@@ -64,7 +64,8 @@ def notes_from_file(version: str) -> list[str]:
     output = []
     for line in notes.read_text(encoding="utf-8").splitlines():
         clean = re.sub(r"^[•*+\-\u2022\s]+", "", line.strip())
-        clean = "".join(c for c in clean if c.isprintable())
+        # Persian ZWNJ (نیم‌فاصله) is not printable() but must be preserved.
+        clean = "".join(c for c in clean if c.isprintable() or c == "\u200c")
         if not clean or clean.startswith("#"):
             continue
         # Version headings are metadata, not a change to repeat in the bullets.
