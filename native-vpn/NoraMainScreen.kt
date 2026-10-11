@@ -356,11 +356,8 @@ fun MainScreen(
                         connected = appState.isRunning,
                         waiting = powerPending || adShowing,
                         canConnect = preferredRoute != null,
-                        selectedCountryName = if (selectedCountry == null) "انتخاب هوشمند"
-                            else countryTitle,
+                        selectedCountryName = displayedRoute?.countryName ?: "بدون لوکیشن",
                         locationFlag = displayedRoute?.flag ?: "🌐",
-                        locationSubtitle = if (appState.isRunning) "مسیر فعال: $countryTitle"
-                            else countryTitle,
                         locationPing = if (appState.isRunning && !livePingEnabled) null
                             else displayedRoute?.latencyMs,
                         usage = usageByGroup[appState.selectedGroupId],
@@ -676,7 +673,6 @@ private fun NoraHomeContent(
     canConnect: Boolean,
     selectedCountryName: String,
     locationFlag: String,
-    locationSubtitle: String,
     locationPing: Long?,
     usage: NoraSubscriptionUsage?,
     quickLocations: List<NoraNode>,
@@ -716,7 +712,7 @@ private fun NoraHomeContent(
                 Box(Modifier.size(7.dp).background(if (connected) green else muted, CircleShape))
                 Text(
                     if (waiting) "در حال تغییر اتصال"
-                    else if (connected) "اتصال امن برقرار است" else "آماده اتصال",
+                    else if (connected) "تونل VPN فعال است" else "آماده اتصال",
                     color = if (connected) green else light,
                     fontSize = 12.sp, fontWeight = FontWeight.Medium
                 )
@@ -724,7 +720,7 @@ private fun NoraHomeContent(
             Spacer(Modifier.height(if (compact) 6.dp else 12.dp))
             Text(
                 if (waiting) "در حال پردازش..."
-                else if (connected) "محافظت از ارتباط شما فعال است"
+                else if (connected) "سرویس VPN در حال اجراست"
                 else "با یک لمس متصل شوید",
                 color = light, fontWeight = FontWeight.Bold,
                 fontSize = if (compact) 17.sp else 20.sp,
@@ -909,9 +905,9 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
             Text(if (seller.isBlank()) "اتصال سریع و ایمن" else "ارائه‌شده توسط " + seller,
                 color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Box(modifier = Modifier.background(if (connected) Color(0xFF174D42) else surface2,
+        Box(modifier = Modifier.background(if (connected) Color(0xFF1B3D39) else surface2,
             RoundedCornerShape(30.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(if (connected) "● متصل" else "○ قطع",
+            Text(if (connected) "● روشن" else "○ خاموش",
                 color = if (connected) green else muted, fontSize = 11.sp)
         }
     }
@@ -1077,7 +1073,7 @@ private fun NoraBottomBar(
             Column(modifier = Modifier.weight(1f)
                 .clip(RoundedCornerShape(15.dp))
                 .clickable { onSelect(tab) }
-                .background(if (active == tab) Color(0xFF1B4059) else Color.Transparent)
+                .background(if (active == tab) Color(0xFF293A41) else Color.Transparent)
                 .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
