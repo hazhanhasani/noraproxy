@@ -43,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -120,7 +121,6 @@ fun MainScreen(
     val context = LocalContext.current
     val tapsell = remember(context) { NoraTapsellAds(context.noraActivity()) }
     val adShowing by tapsell.blocking.collectAsStateWithLifecycle()
-    val adDiagnostics by tapsell.diagnostics.collectAsStateWithLifecycle()
     DisposableEffect(tapsell) {
         tapsell.start()
         onDispose { tapsell.dispose() }
@@ -138,6 +138,8 @@ fun MainScreen(
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var groupBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
+    val pingPrefs = remember(context) { context.getSharedPreferences("nora_ui", android.content.Context.MODE_PRIVATE) }
+    var livePingEnabled by remember { mutableStateOf(pingPrefs.getBoolean("live_ping", true)) }
     val syncingGroups by NoraForegroundSubscriptions.running.collectAsStateWithLifecycle()
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -201,6 +203,17 @@ fun MainScreen(
 
     LaunchedEffect(appState.groups, appState.isTesting, loading) { refreshTick++ }
     LaunchedEffect(Unit) { while (true) { delay(15000); refreshTick++ } }
+    // Measure native Xray delay for the connected server, never a fake latency.
+    LaunchedEffect(appState.isRunning, appState.selectedGuid, livePingEnabled) {
+        if (appState.isRunning && !appState.selectedGuid.isNullOrBlank() && livePingEnabled) {
+            delay(2500)
+            while (true) {
+                onAction(MainAction.TestCurrentServer)
+                delay(30_000)
+                refreshTick++
+            }
+        }
+    }
     val nodes = remember(refreshTick, appState.selectedGroupId) {
         NoraRouteSelector.load(appState.selectedGroupId)
     }
@@ -344,7 +357,8 @@ fun MainScreen(
                         locationFlag = displayedRoute?.flag ?: "🌐",
                         locationSubtitle = if (appState.isRunning) "مسیر فعال: $countryTitle"
                             else countryTitle,
-                        locationPing = displayedRoute?.latencyMs,
+                        locationPing = if (appState.isRunning && !livePingEnabled) null
+                            else displayedRoute?.latencyMs,
                         usageText = subscriptions.firstOrNull {
                             it.guid == appState.selectedGroupId
                         }?.let {
@@ -415,21 +429,69 @@ fun MainScreen(
                         }
                         NoraTab.Subscription -> {
                             item {
-                                NoraSection("گروه‌های اشتراک", "هر گروه سرورها و مسیر اتصال مستقل دارد.")
+                                NoraSection("افزودن کانفیگ یا اشتراک", "")
+                            }
+                            item {
+                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(modifier = Modifier.padding(18.dp),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        OutlinedTextField(
+                                            value = subscription,
+                                            onValueChange = { subscription = it.take(65536) },
+                                            modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
+                                            label = { Text("لینک اشتراک یا کانفیگ خام") },
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
+                                            shape = RoundedCornerShape(15.dp)
+                                        )
+                                        Button(
+                                            onClick = {
+                                                val input = subscription.trim()
+                                                if (input.isNotEmpty()) {
+                                                    when (val parsed = NoraImportRouter.classify(input)) {
+                                                        is NoraImportPayload.Invalid ->
+                                                            Toast.makeText(context, parsed.reason, Toast.LENGTH_LONG).show()
+                                                        else -> {
+                                                            onAction(MainAction.ImportBatchConfig(input))
+                                                            subscription = ""
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            enabled = subscription.isNotBlank() && !loading && !groupBusy,
+                                            shape = RoundedCornerShape(15.dp), modifier = Modifier.fillMaxWidth()
+                                        ) { Text("وارد کردن خودکار", fontWeight = FontWeight.Bold) }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportQRcode) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("اسکن QR", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { galleryPicker.launch("image/*") },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("QR از گالری", fontSize = 12.sp) }
+                                        }
+                                        if (loading) CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    }
+                                }
+                            }
+                            item {
+                                NoraSection("گروه‌های من", "")
                                 if (syncingGroups) {
                                     Text("در حال به‌روزرسانی خودکار گروه‌های فعال…",
                                         color = cyan, fontSize = 12.sp)
                                 }
-                                Spacer(Modifier.height(12.dp))
-                                Button(
-                                    onClick = { editingGroup = null; editorVisible = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(15.dp)
-                                ) { Text("＋ افزودن گروه اشتراک", fontWeight = FontWeight.Bold) }
+                                Spacer(Modifier.height(4.dp))
                             }
                             if (subscriptions.isEmpty()) {
                                 item {
-                                    Text("ابتدا یک گروه بسازید، سپس لینک یا کانفیگ خود را به آن اضافه کنید.",
+                                    Text("هنوز اشتراکی اضافه نشده است.",
                                         color = muted, fontSize = 13.sp, lineHeight = 23.sp)
                                 }
                             }
@@ -482,106 +544,35 @@ fun MainScreen(
                                     shape = RoundedCornerShape(15.dp)
                                 ) { Text("به‌روزرسانی سرورها، حجم و اعتبار") }
                             }
-                            item {
-                                NoraSection("افزودن کانفیگ", "بدون انتخاب گروه: هر لینک اشتراک، گروه مستقل دارد و کانفیگ خام در Default ذخیره می‌شود.")
-                            }
-                            item {
-                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
-                                    Column(modifier = Modifier.padding(18.dp),
-                                        verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                        OutlinedTextField(
-                                            value = subscription,
-                                            onValueChange = { subscription = it.take(65536) },
-                                            modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 6,
-                                            label = { Text("لینک اشتراک یا کانفیگ خام (چندخطی)") },
-                                            keyboardOptions = KeyboardOptions(
-                                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
-                                            shape = RoundedCornerShape(15.dp)
-                                        )
-                                        Button(
-                                            onClick = {
-                                                val input = subscription.trim()
-                                                if (input.isNotEmpty()) {
-                                                    when (val parsed = NoraImportRouter.classify(input)) {
-                                                        is NoraImportPayload.Invalid ->
-                                                            Toast.makeText(context, parsed.reason, Toast.LENGTH_LONG).show()
-                                                        else -> {
-                                                            onAction(MainAction.ImportBatchConfig(input))
-                                                            subscription = ""
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            enabled = subscription.isNotBlank() && !loading && !groupBusy,
-                                            shape = RoundedCornerShape(15.dp), modifier = Modifier.fillMaxWidth()
-                                        ) { Text("وارد کردن خودکار", fontWeight = FontWeight.Bold) }
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            OutlinedButton(
-                                                onClick = { onAction(MainAction.ImportQRcode) },
-                                                modifier = Modifier.weight(1f),
-                                                shape = RoundedCornerShape(15.dp)
-                                            ) { Text("اسکن QR", fontSize = 12.sp) }
-                                            OutlinedButton(
-                                                onClick = { galleryPicker.launch("image/*") },
-                                                modifier = Modifier.weight(1f),
-                                                shape = RoundedCornerShape(15.dp)
-                                            ) { Text("QR از گالری", fontSize = 12.sp) }
-                                        }
-                                        Text("هر لینک HTTPS → یک گروه جداگانه · کانفیگ VLESS/VMess/Trojan/SS → Default",
-                                            fontSize = 11.sp, color = muted)
-                                        if (loading) CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                                    }
-                                }
-                            }
                         }
                         NoraTab.Settings -> {
-                            // Old nora_wordmark.jpg was not decoded by Android on some devices.
-                            // Render this banner with Compose text, without risky bitmap decoding.
+                            item { NoraSection("تنظیمات", "") }
                             item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .background(surface, corner)
-                                        .padding(18.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Image(
-                                        painter = originalLogo,
-                                        contentDescription = "نشان رسمی NoraProxy",
-                                        modifier = Modifier.size(76.dp)
-                                            .clip(RoundedCornerShape(17.dp))
-                                    )
-                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("NoraProxy", fontSize = 27.sp,
-                                            fontWeight = FontWeight.ExtraBold, color = cyan)
-                                        Text("اتصال امن، تجربه‌ای ساده",
-                                            color = muted, fontSize = 13.sp)
+                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Row(modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("پینگ اتصال", color = light, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                            Text("اندازه‌گیری خودکار هر ۳۰ ثانیه", color = muted, fontSize = 12.sp)
+                                        }
+                                        Switch(checked = livePingEnabled, onCheckedChange = {
+                                            livePingEnabled = it
+                                            pingPrefs.edit().putBoolean("live_ping", it).apply()
+                                        })
                                     }
                                 }
                             }
-                            item { NoraSection("تنظیمات NoraProxy", "نسخه و به‌روزرسانی امن") }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
-                                    Column(modifier = Modifier.padding(18.dp),
-                                        verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                                        Text("به‌روزرسانی مستقیم", fontWeight = FontWeight.Bold, color = light,
-                                            fontSize = 18.sp)
-                                        Text("APK درون NoraProxy دانلود و پیش از نصب از نظر هش و امضا بررسی می‌شود.",
-                                            color = muted, fontSize = 12.sp, lineHeight = 22.sp)
-                                        Text(updateState.message, color = cyan, fontSize = 12.sp, lineHeight = 20.sp)
-                                        if (updateState.version.isNotEmpty()) {
-                                            Text("نسخه موجود: " + updateState.version, color = light)
-                                        }
-                                        if (updateState.notes.isNotEmpty()) {
-                                            Text(updateState.notes.take(600), color = muted, fontSize = 12.sp)
-                                        }
+                                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        Text("به‌روزرسانی برنامه", color = light, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        Text("نسخه " + com.v2ray.ang.BuildConfig.VERSION_NAME, color = muted, fontSize = 12.sp)
+                                        Text(updateState.message, color = cyan, fontSize = 12.sp, maxLines = 2)
                                         if (updateState.busy) {
-                                            CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                                            Text("دانلود: " + updateState.progress + "%", color = light)
+                                            CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                                            Text("دانلود: " + updateState.progress + "٪", color = light, fontSize = 12.sp)
                                         }
                                         Button(onClick = {
                                             if (updateState.downloaded) updater.install()
@@ -589,32 +580,12 @@ fun MainScreen(
                                             else updater.check()
                                         }, enabled = !updateState.busy, modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(16.dp)) {
-                                            Text(if (updateState.downloaded) "نصب نسخه دانلودشده"
-                                            else if (updateState.available) "دانلود داخل برنامه"
-                                            else "بررسی نسخه جدید", fontWeight = FontWeight.Bold)
+                                            Text(if (updateState.downloaded) "نصب نسخه جدید"
+                                                else if (updateState.available) "دانلود نسخه جدید"
+                                                else "بررسی به‌روزرسانی", fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
-                            }
-                            item {
-                                Card(shape = corner,
-                                    colors = CardDefaults.cardColors(containerColor = surface)) {
-                                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("وضعیت تبلیغات", fontWeight = FontWeight.Bold,
-                                            color = light, fontSize = 16.sp)
-                                        Text(adDiagnostics, color = muted,
-                                            fontSize = 12.sp, lineHeight = 21.sp)
-                                        Text("نمایش تبلیغ به موجودی تپسل، شبکه و شرایط دستگاه بستگی دارد. " +
-                                            "در نبود تبلیغ، اتصال VPN بدون توقف انجام می‌شود.",
-                                            color = muted, fontSize = 11.sp, lineHeight = 20.sp)
-                                    }
-                                }
-                            }
-                            item {
-                                Text("نصب نهایی با تأیید خودتان در صفحه نصب‌کننده اندروید انجام می‌شود. " +
-                                    "فایل از مرورگر یا Google Play دانلود نمی‌شود.",
-                                    color = muted, fontSize = 12.sp, lineHeight = 22.sp)
                             }
                         }
                     }
@@ -931,7 +902,7 @@ private fun NoraSubscriptionGroupCard(
 private fun NoraSection(title: String, caption: String) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text(title, color = light, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-        Text(caption, color = muted, fontSize = 12.sp)
+        if (caption.isNotBlank()) Text(caption, color = muted, fontSize = 12.sp)
     }
 }
 
@@ -967,8 +938,8 @@ private fun NoraLocationCard(
             Text(subtitle, fontSize = 11.sp, color = muted,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(if (selected) "✓" else if (delay != null && delay > 0) delay.toString() + " ms" else "›",
-            fontSize = 15.sp, color = cyan)
+        Text(if (delay != null && delay > 0L) persianNumber(delay.toString()) + " ms"
+            else if (selected) "—" else "›", fontSize = 15.sp, color = cyan)
     }
 }
 

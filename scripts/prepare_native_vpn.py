@@ -68,7 +68,7 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
-    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt"):
+    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt", "NoraRouteSelectorTest.kt"):
         test_source = ROOT / "native-vpn/tests" / test_name
         test_target = APP / "src/test/java/com/v2ray/ang/ui/main" / test_name
         test_target.parent.mkdir(parents=True, exist_ok=True)
@@ -119,8 +119,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 211')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.11"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 212')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.12"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -238,7 +238,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.11, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.12, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()

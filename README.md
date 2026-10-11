@@ -117,3 +117,12 @@ writes and debounced for 30 seconds to avoid repeat requests after interstitials
 or permission dialogs. The native view model and the usage/expiry cards are
 reloaded when the cycle finishes. If the device is offline, existing cached
 servers remain available.
+
+## Subscription UX and connected ping (v0.2.12)
+
+The subscription import form is now first. URLs automatically create dedicated
+subscription groups, while raw configs use the local Default group. Empty manual
+group creation has been removed; editing/deleting existing groups still works.
+The home location card displays measured native ping even when selected. While
+connected, native ping measurements are refreshed every 30 seconds when enabled
+in the streamlined Settings page, which retains signed in-app updates.
