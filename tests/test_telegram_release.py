@@ -19,11 +19,50 @@ class NoraTelegramReleaseTests(unittest.TestCase):
         self.assertIn("&lt;UI&gt;", c)
         self.assertIn("SHA-256", c)
         self.assertIn("releases/tag/v0.2.4", c)
-        self.assertLessEqual(len(mod.html.unescape(mod.re.sub(r"<[^>]*>", "", c))), 1024)
+        self.assertLessEqual(mod.caption_units(c), 1024)
 
     def test_long_notes_fit_telegram(self):
         c = mod.compose_caption("1.0.0", "x/repo", ["بلند" * 1000] * 9)
-        self.assertLessEqual(len(mod.html.unescape(mod.re.sub(r"<[^>]*>", "", c))), 1024)
+        self.assertLessEqual(mod.caption_units(c), 1024)
+
+    def test_changes_have_blank_lines_and_right_to_left_marks(self):
+        caption = mod.compose_caption("0.2.14", "hazhanhasani/noraproxy", [
+            "بازطراحی صفحه اصلی", "رفع خطای سرورها", "بهبود سرعت اتصال"
+        ])
+        self.assertIn(
+            "\u200f• بازطراحی صفحه اصلی\n\n\u200f• رفع خطای سرورها\n\n"
+            "\u200f• بهبود سرعت اتصال", caption
+        )
+        self.assertIn("🛠 <b>تغییرات این نسخه</b>\n\n\u200f•", caption)
+        self.assertEqual(caption.count("\u200f• "), 3)
+        self.assertLessEqual(mod.caption_units(caption), 1024)
+
+    def test_mixed_persian_english_html_emoji(self):
+        caption = mod.compose_caption("0.2.14", "hazhanhasani/noraproxy", [
+            "📱 بهبود UI & رفع خطای VPN", "🌍 Germany / آلمان <DE>"
+        ])
+        self.assertIn("\u200f• 📱 بهبود UI &amp; رفع خطای VPN", caption)
+        self.assertIn("\n\n\u200f• 🌍 Germany / آلمان &lt;DE&gt;", caption)
+        self.assertGreater(mod.caption_units("🚀"), len("🚀"))
+        self.assertLessEqual(mod.caption_units(caption), 1024)
+
+    def test_release_note_title_is_not_a_changelog_bullet(self):
+        with tempfile.TemporaryDirectory() as d:
+            original_root = mod.ROOT
+            try:
+                mod.ROOT = Path(d)
+                notes = mod.ROOT / "release-notes"
+                notes.mkdir()
+                (notes / "v0.2.14.fa.txt").write_text(
+                    "🚀 NoraProxy 0.2.14 | قابلیت‌های جدید\n\n"
+                    "🔎 جست‌وجوی سریع کشورها\n"
+                    "⭐ علاقه‌مندی‌های ماندگار\n", encoding="utf-8"
+                )
+                self.assertEqual(mod.notes_from_file("0.2.14"), [
+                    "🔎 جست‌وجوی سریع کشورها", "⭐ علاقه‌مندی‌های ماندگار"
+                ])
+            finally:
+                mod.ROOT = original_root
 
     def test_reject_invalid_version_and_repo(self):
         with self.assertRaises(ValueError):

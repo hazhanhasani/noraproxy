@@ -25,6 +25,16 @@ VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 REPO_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
 ROOT = Path(__file__).resolve().parents[1]
 
+# Telegram paragraphs contain mixed Persian, Latin version numbers and emoji.
+RTL_MARK = "\u200f"
+MAX_CAPTION_UNITS = 1024
+CAPTION_BUDGET = 960  # Reserve space for Telegram HTML/entity processing.
+
+def caption_units(value: str) -> int:
+    """Count rendered text as Telegram does: UTF-16 units after HTML parsing."""
+    visible = html.unescape(re.sub(r"<[^>]*>", "", value))
+    return len(visible.encode("utf-16-le")) // 2
+
 # User-facing fallback headings derived conservatively from conventional commits.
 # Prefer carefully edited release-notes/vX.Y.Z.fa.txt for detailed announcements.
 CATEGORIES = (
@@ -56,6 +66,9 @@ def notes_from_file(version: str) -> list[str]:
         clean = re.sub(r"^[•*+\-\u2022\s]+", "", line.strip())
         clean = "".join(c for c in clean if c.isprintable())
         if not clean or clean.startswith("#"):
+            continue
+        # Version headings are metadata, not a change to repeat in the bullets.
+        if re.search(rf"\bNoraProxy\s*(?:\|\s*)?v?{re.escape(version)}\b", clean, re.I):
             continue
         if clean not in output:
             output.append(clean[:200])
@@ -96,42 +109,42 @@ def get_notes(version: str) -> list[str]:
 def compose_caption(version: str, repo: str, changes: list[str]) -> str:
     check_version(version)
     check_repo(repo)
+    # RLM at each paragraph start fixes mixed RTL/LTR rendering; a blank line
+    # between every change keeps wrapped notes legible on narrow Telegram screens.
     header = (
-        f"🚀 <b>NoraProxy | v{version}</b>\n"
+        f"{RTL_MARK}🚀 <b>NoraProxy | v{version}</b>\n"
         "━━━━━━━━━━━━━━━━\n"
-        "✨ <b>نسخه جدید منتشر شد!</b>\n"
-        "اتصال هوشمند، تجربه‌ای روان‌تر.\n\n"
-        "🛠 <b>تغییرات این نسخه</b>\n"
+        f"{RTL_MARK}✨ <b>نسخه جدید منتشر شد!</b>\n"
+        f"{RTL_MARK}اتصال هوشمند، تجربه‌ای روان‌تر.\n\n"
+        f"{RTL_MARK}🛠 <b>تغییرات این نسخه</b>\n\n"
     )
     footer = (
-        "\n\n"
-        "📦 <b>نسخه رسمی Android</b>\n"
-        "🔐 امضای ثابت و بررسی SHA-256 تأییدشده\n"
-        "♻️ نصب روی نسخه قبلی، بدون حذف اطلاعات\n\n"
-        f'🔗 <a href="https://github.com/{repo}/releases/tag/v{version}">'
+        "\n\n━━━━━━━━━━━━━━━━\n"
+        f"{RTL_MARK}📦 <b>نسخه رسمی Android</b>\n"
+        f"{RTL_MARK}🔐 امضای ثابت و بررسی SHA-256 تأییدشده\n"
+        f"{RTL_MARK}♻️ نصب روی نسخه قبلی، بدون حذف اطلاعات\n\n"
+        f'{RTL_MARK}🔗 <a href="https://github.com/{repo}/releases/tag/v{version}">'
         "مشاهده جزئیات انتشار</a>\n"
-        "━━━━━━━━━━━━━━━━\n"
-        "#NoraProxy #آپدیت"
+        f"{RTL_MARK}#NoraProxy #آپدیت"
     )
-    included = []
+    included: list[str] = []
     for entry in changes:
         cleaned = " ".join(entry.split())
         if not cleaned:
             continue
-        potential = included + [f"• {html.escape(cleaned[:155], quote=False)}"]
-        candidate = header + "\n".join(potential) + footer
-        # Telegram document caption permits at most 1024 characters after parsing.
-        plain = html.unescape(re.sub(r"<[^>]*>", "", candidate))
-        if len(plain) > 940:
-            break
-        included = potential
-        if len(included) == 5:
+        note = f"{RTL_MARK}• {html.escape(cleaned[:145], quote=False)}"
+        possible = included + [note]
+        if caption_units(header + "\n\n".join(possible) + footer) > CAPTION_BUDGET:
+            continue
+        included = possible
+        if len(included) >= 5:
             break
     if not included:
-        included = ["• بهبودهای فنی و اصلاحات این نسخه"]
-    caption = header + "\n".join(included) + footer
-    assert len(html.unescape(re.sub(r"<[^>]*>", "", caption))) <= 1024
-    return caption
+        included = [f"{RTL_MARK}• بهبودهای فنی و اصلاحات این نسخه"]
+    result = header + "\n\n".join(included) + footer
+    if caption_units(result) > MAX_CAPTION_UNITS:
+        raise ValueError("Caption exceeds Telegram's 1024 UTF-16-unit limit")
+    return result
 
 def verified_apk(apk: Path, checksum: Path, version: str) -> str:
     if apk.name != f"NoraProxy-{version}.apk":
@@ -171,7 +184,7 @@ async def send_to_channel(args: argparse.Namespace) -> None:
 
     sha = verified_apk(Path(args.apk), Path(args.checksum), args.version)
     caption = Path(args.caption).read_text(encoding="utf-8")
-    if not caption or len(html.unescape(re.sub(r"<[^>]*>", "", caption))) > 1024:
+    if not caption or caption_units(caption) > MAX_CAPTION_UNITS:
         raise ValueError("Invalid Telegram caption length")
 
     # An ephemeral in-memory MTProto bot session avoids the 50 MB HTTP Bot API limit.
