@@ -64,3 +64,22 @@ DPAPI is tied to the Windows user profile: encrypted files cannot be moved to
 another user/machine as an export without a separately designed opt-in process.
 No Windows-only code or unsigned preview should replace the signed Android APK.
 
+
+## Windows installable setup (v0.1.1)
+
+The Windows-only CI now produces **NoraProxy-Setup-0.1.1-win-x64.exe**
+using Inno Setup. Double-click to install on Windows 10/11 x64. The
+setup contains the self-contained .NET 10 desktop app: no separate .NET
+runtime or administrator permission is required. The installer adds a
+Start Menu shortcut, optional Desktop shortcut and Windows Apps uninstaller.
+
+A Windows runner verifies installing and uninstalling the EXE. Upgrades
+preserve per-user encrypted subscriptions under
+`%LOCALAPPDATA%\\NoraProxy\\profiles.dpapi`, even after uninstall.
+This installer is **unsigned** and **does not provide VPN connectivity yet**.
+No Xray, TUN driver, DNS changes or Windows routing changes are installed.
+Only use files from the official repository; Windows SmartScreen may warn.
+
+To build with Inno Setup 6 on Windows after `dotnet publish`, compile
+`desktop/windows/installer/NoraProxy.iss` using ISCC.exe and point output
+to `out/windows/installer/`.

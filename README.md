@@ -191,3 +191,14 @@ is deliberately disabled until real Windows Xray/TUN integration, leak
 protection and physical device testing. Windows CI produces an **unsigned
 preview ZIP**, not an official signed VPN release, and does not send it to the
 Android Telegram channel. See [Windows roadmap](docs/WINDOWS.md).
+
+## Windows EXE installer (desktop preview)
+
+The [Windows desktop workflow](.github/workflows/windows.yml) builds
+`NoraProxy-Setup-0.1.1-win-x64.exe` using Inno Setup for Windows 10/11.
+It installs per user, adds a Start Menu shortcut and standard uninstall
+entry, and is smoke-tested by the Windows runner.
+
+**Not a connected VPN yet:** Windows Xray/TUN integration is still pending.
+The unsigned EXE is a desktop UI and encrypted subscription manager. Android
+builds/releases and Telegram APK publishing remain unchanged.

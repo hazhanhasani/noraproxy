@@ -20,7 +20,7 @@
         </Border>
         <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
           <TextBlock Text="NoraProxy" FontSize="26" FontWeight="Bold" FlowDirection="LeftToRight"/>
-          <TextBlock Text="نسخه آزمایشی رابط ویندوز — ۰.۱.۰" Style="{StaticResource MutedStyle}" FontSize="12"/>
+          <TextBlock Text="نسخه آزمایشی رابط ویندوز — ۰.۱.۱" Style="{StaticResource MutedStyle}" FontSize="12"/>
         </StackPanel>
       </StackPanel>
       <Border Grid.Column="1" Background="#302A42" CornerRadius="18" Padding="16,9" VerticalAlignment="Center">

@@ -1,4 +1,4 @@
-name: NoraProxy Windows Desktop Preview
+name: NoraProxy Windows Desktop & Installer
 
 on:
   push:
@@ -21,7 +21,7 @@ permissions:
 jobs:
   windows-preview:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Install .NET 10 LTS
@@ -43,13 +43,57 @@ jobs:
             -p:PublishTrimmed=false -o out/windows/win-x64
           if (!(Test-Path 'out/windows/win-x64/NoraProxy.exe')) { throw 'Windows executable not found' }
           @'
-          NoraProxy Windows Preview 0.1.0
+          NoraProxy Windows Preview 0.1.1
           IMPORTANT: This is a Windows desktop shell and encrypted subscription manager.
           It is NOT a working VPN. Connecting is intentionally disabled until the
           native Windows Xray/TUN engine is implemented, security-reviewed and tested.
           '@ | Set-Content -Encoding utf8 'out/windows/win-x64/READ-ME-FIRST.txt'
           Compress-Archive -Path 'out/windows/win-x64/*' -DestinationPath 'out/NoraProxy-Windows-Preview-win-x64.zip'
-      - name: Upload unsigned preview artifact (not official release)
+      - name: Build a Windows per-user installer with Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+          $possible = @(
+            (Join-Path $programFilesX86 'Inno Setup 6\ISCC.exe'),
+            (Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe'),
+            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+          )
+          $iscc = $possible | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Could not install Inno Setup.' }
+            $iscc = $possible | Where-Object { Test-Path $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) { throw 'Inno Setup compiler ISCC.exe missing.' }
+          $output = Join-Path (Get-Location) 'out\windows\installer'
+          New-Item -Path $output -ItemType Directory -Force | Out-Null
+          & $iscc /Q ("/O" + $output) 'desktop/windows/installer/NoraProxy.iss'
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed: $LASTEXITCODE" }
+          $setup = Join-Path $output 'NoraProxy-Setup-0.1.1-win-x64.exe'
+          if (!(Test-Path $setup)) { throw 'Installable setup EXE missing.' }
+      - name: Smoke-test Windows install and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setup = Join-Path (Get-Location) 'out\windows\installer\NoraProxy-Setup-0.1.1-win-x64.exe'
+          $installedDir = Join-Path $env:LOCALAPPDATA 'Programs\NoraProxy'
+          $install = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-') -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Setup returned $($install.ExitCode)" }
+          if (!(Test-Path (Join-Path $installedDir 'NoraProxy.exe'))) { throw 'Installed EXE missing.' }
+          $uninstaller = Join-Path $installedDir 'unins000.exe'
+          if (!(Test-Path $uninstaller)) { throw 'Uninstaller missing.' }
+          $remove = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "Uninstall returned $($remove.ExitCode)" }
+          if (Test-Path (Join-Path $installedDir 'NoraProxy.exe')) { throw 'App still exists after removal.' }
+      - name: Upload NoraProxy installable Setup EXE (unsigned preview)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoraProxy-Setup-0.1.1-win-x64
+          path: out/windows/installer/NoraProxy-Setup-0.1.1-win-x64.exe
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload portable ZIP for comparison
         uses: actions/upload-artifact@v4
         with:
           name: NoraProxy-Windows-Preview-win-x64
