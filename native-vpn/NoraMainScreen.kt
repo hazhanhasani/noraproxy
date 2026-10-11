@@ -223,6 +223,28 @@ fun MainScreen(
     }
     val ranked = remember(nodes) { NoraRouteSelector.rank(nodes) }
     val locations = remember(ranked) { NoraRouteSelector.locations(ranked) }
+    val favoritePrefs = remember(context) {
+        context.getSharedPreferences("nora_location_favorites", android.content.Context.MODE_PRIVATE)
+    }
+    var favoriteCountries by remember {
+        mutableStateOf(favoritePrefs.getStringSet("country_codes", emptySet())?.toSet() ?: emptySet())
+    }
+    var locationQuery by remember { mutableStateOf("") }
+    var favoritesOnly by remember { mutableStateOf(false) }
+    val toggleFavorite: (String) -> Unit = { code ->
+        if (!code.startsWith("UNKNOWN:")) {
+            val next = if (code in favoriteCountries) favoriteCountries - code
+                else favoriteCountries + code
+            favoriteCountries = next
+            favoritePrefs.edit().putStringSet("country_codes", next.toSet()).apply()
+        }
+    }
+    val visibleLocations = remember(locations, locationQuery, favoriteCountries, favoritesOnly) {
+        NoraRouteSelector.searchLocations(locations, locationQuery, favoriteCountries, favoritesOnly)
+    }
+    val prioritizedLocations = remember(locations, favoriteCountries) {
+        NoraRouteSelector.searchLocations(locations, "", favoriteCountries)
+    }
     val identity = remember(nodes) { nodes.joinToString("|") { it.guid } }
     val subscriptions = remember(appState.groups) { mainViewModel.getSubscriptions() }
     var usageByGroup by remember { mutableStateOf<Map<String, NoraSubscriptionUsage>>(emptyMap()) }
@@ -361,7 +383,7 @@ fun MainScreen(
                         locationPing = if (appState.isRunning && !livePingEnabled) null
                             else displayedRoute?.latencyMs,
                         usage = usageByGroup[appState.selectedGroupId],
-                        quickLocations = locations,
+                        quickLocations = prioritizedLocations,
                         selectedCountryCode = selectedCountry,
                         testing = appState.isTesting,
                         hasUpdate = updateState.available,
@@ -385,18 +407,56 @@ fun MainScreen(
                         NoraTab.Home -> Unit
                         NoraTab.Locations -> {
                             item {
-                                NoraSection("انتخاب لوکیشن", "فقط بهترین مسیر هر کشور نمایش داده می‌شود.")
-                                Spacer(Modifier.height(14.dp))
-                                NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب و فعال‌سازی بهترین مسیر شناخته‌شده",
-                                    null, selectedCountry == null) {
-                                    chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                                NoraSection("لوکیشن‌ها", "")
+                                Spacer(Modifier.height(10.dp))
+                                OutlinedTextField(
+                                    value = locationQuery,
+                                    onValueChange = { locationQuery = it.take(80) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text("جست‌وجوی کشور، شهر یا کد کشور") },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { favoritesOnly = !favoritesOnly },
+                                        shape = RoundedCornerShape(14.dp)
+                                    ) {
+                                        Text(if (favoritesOnly) "★ علاقه‌مندی‌ها"
+                                            else "☆ علاقه‌مندی‌ها", fontSize = 12.sp)
+                                    }
+                                    Text(persianNumber(visibleLocations.size.toString()) + " کشور",
+                                        color = muted, fontSize = 12.sp)
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                if (!favoritesOnly && locationQuery.isBlank()) {
+                                    NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب بهترین مسیر شناخته‌شده",
+                                        null, selectedCountry == null) {
+                                        chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                                    }
                                 }
                             }
-                            items(locations, key = { it.countryCode }) { country ->
+                            if (visibleLocations.isEmpty()) {
+                                item {
+                                    Text(if (favoritesOnly && favoriteCountries.isEmpty())
+                                            "برای افزودن کشور به علاقه‌مندی‌ها، روی ستاره کنار آن بزنید."
+                                        else "کشوری مطابق جست‌وجو پیدا نشد.",
+                                        color = muted, fontSize = 12.sp)
+                                }
+                            }
+                            items(visibleLocations, key = { it.countryCode }) { country ->
                                 NoraLocationCard(country.flag, country.countryName,
                                     "مناسب‌ترین سرور این کشور", country.latencyMs,
                                     selectedCountry == country.countryCode &&
-                                        activeRoute?.countryCode == country.countryCode) {
+                                        activeRoute?.countryCode == country.countryCode,
+                                    onFavorite = if (country.countryCode.startsWith("UNKNOWN:")) null
+                                        else { { toggleFavorite(country.countryCode) } },
+                                    favorite = country.countryCode in favoriteCountries) {
                                     chooseRoute(country, country.countryCode)
                                 }
                             }
@@ -1037,7 +1097,10 @@ private fun NoraMetric(label: String, number: String, modifier: Modifier) {
 @Composable
 private fun NoraLocationCard(
     emoji: String, title: String, subtitle: String,
-    delay: Long?, selected: Boolean, compact: Boolean = false, onClick: () -> Unit
+    delay: Long?, selected: Boolean, compact: Boolean = false,
+    onFavorite: (() -> Unit)? = null,
+    favorite: Boolean = false,
+    onClick: () -> Unit
 ) {
     Row(modifier = Modifier.fillMaxWidth()
         .background(if (selected) surface2 else surface, RoundedCornerShape(20.dp))
@@ -1055,8 +1118,14 @@ private fun NoraLocationCard(
             Text(subtitle, fontSize = 11.sp, color = muted,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        if (onFavorite != null) {
+            Text(if (favorite) "★" else "☆",
+                modifier = Modifier.clickable(onClick = onFavorite).padding(6.dp),
+                color = if (favorite) cyan else muted,
+                fontSize = 21.sp)
+        }
         Text(if (delay != null && delay > 0L) persianNumber(delay.toString()) + " ms"
-            else if (selected) "—" else "›", fontSize = 15.sp, color = cyan)
+            else if (selected) "—" else "›", fontSize = 13.sp, color = cyan)
     }
 }
 

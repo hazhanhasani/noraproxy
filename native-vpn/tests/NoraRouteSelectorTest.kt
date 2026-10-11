@@ -36,6 +36,31 @@ class NoraRouteSelectorTest {
         assertEquals("DE", NoraRouteSelector.identify("🇩🇪 USA premium").code)
     }
 
+    @Test fun searchesPersianEnglishAliasesAndIsoCodes() {
+        val germany = NoraNode("de", "DE", "آلمان", "🇩🇪", 50L)
+        val france = NoraNode("fr", "FR", "فرانسه", "🇫🇷", 25L)
+        val canada = NoraNode("ca", "CA", "کانادا", "🇨🇦", 70L)
+        val all = listOf(france, germany, canada)
+        assertEquals(listOf(germany), NoraRouteSelector.searchLocations(all, "germany", emptySet()))
+        assertEquals(listOf(france), NoraRouteSelector.searchLocations(all, "فرانسه", emptySet()))
+        assertEquals(listOf(canada), NoraRouteSelector.searchLocations(all, "CA", emptySet()))
+        assertEquals(listOf(germany), NoraRouteSelector.searchLocations(all, "berlin", emptySet()))
+        assertEquals(emptyList<NoraNode>(), NoraRouteSelector.searchLocations(all, "xyz", emptySet()))
+    }
+
+    @Test fun favoritesAreFirstAndFilterableWithoutChangingPingRank() {
+        val germany = NoraNode("de", "DE", "آلمان", "🇩🇪", 50L)
+        val france = NoraNode("fr", "FR", "فرانسه", "🇫🇷", 25L)
+        val canada = NoraNode("ca", "CA", "کانادا", "🇨🇦", 70L)
+        val all = listOf(france, germany, canada)
+        assertEquals(listOf(canada, france, germany),
+            NoraRouteSelector.searchLocations(all, "", setOf("CA")))
+        assertEquals(listOf(canada),
+            NoraRouteSelector.searchLocations(all, "", setOf("CA"), true))
+        assertEquals(emptyList<NoraNode>(),
+            NoraRouteSelector.searchLocations(all, "Germany", setOf("CA"), true))
+    }
+
     @Test fun unknownLocationsRemainDistinct() {
         assertEquals("UNKNOWN:first", NoraRouteSelector.identify("server alpha", "first").code)
         assertEquals("UNKNOWN:second", NoraRouteSelector.identify("server beta", "second").code)

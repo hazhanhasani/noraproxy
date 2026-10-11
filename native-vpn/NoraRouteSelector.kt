@@ -127,6 +127,34 @@ internal object NoraRouteSelector {
         return NoraCountry("UNKNOWN:" + unknownKey, "کشور نامشخص", "🌐")
     }
 
+    /**
+     * Searches local country labels and ISO aliases. Never fetches the network
+     * or inspects private proxy credentials. Ranking within each section stays stable.
+     */
+    internal fun searchLocations(
+        locations: List<NoraNode>,
+        query: String,
+        favorites: Set<String>,
+        favoritesOnly: Boolean = false
+    ): List<NoraNode> {
+        val term = normalize(query.take(80))
+        return locations.withIndex().asSequence()
+            .filter { (_, node) ->
+                (!favoritesOnly || node.countryCode in favorites) &&
+                    (term.isEmpty() || node.countryCode.lowercase(Locale.ROOT) == term ||
+                        normalize(node.countryName).contains(term) ||
+                        (term.length >= 3 && patterns.any { pattern ->
+                            pattern.country.code == node.countryCode &&
+                                pattern.key.contains(term)
+                        }))
+            }
+            .sortedWith(compareByDescending<IndexedValue<NoraNode>> {
+                it.value.countryCode in favorites
+            }.thenBy { it.index })
+            .map { it.value }
+            .toList()
+    }
+
     fun load(groupId: String): List<NoraNode> = MmkvManager.decodeServerList(groupId)
         .distinct().mapNotNull { guid ->
             val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
