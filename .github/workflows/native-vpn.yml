@@ -174,7 +174,11 @@ jobs:
           ! grep -q 'painterResource(R.drawable.nora_wordmark)' "$MAIN"
           grep -q 'painterResource(R.drawable.nora_brand)' "$MAIN"
           grep -q 'onAction(MainAction.SelectServer(route.guid))' "$MAIN"
-          grep -q 'chooseRoute(country, country.countryCode)' "$MAIN"
+          # Country cards now delegate through the stable smart selector to the real GUID.
+          grep -Fq 'smartEngine.bestRoute(ranked, country.countryCode)' "$MAIN"
+          grep -Fq 'chooseRoute(if (smartMode)' "$MAIN"
+          grep -Fq 'NoraSmartEngine()' "$MAIN"
+          test -f upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraSmartEngine.kt
           grep -q 'preferred_country' "$MAIN"
           ! grep -q 'painterResource(R.drawable.nora_launcher)' "$MAIN"
           # Home must never use a scrollable LazyColumn, even on small phones.
@@ -220,12 +224,15 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon :app:assemblePlaystoreDebug
 
-      - name: Run NoraProxy subscription metadata unit tests
+      - name: Run NoraProxy routing, subscription and refresh unit tests
         working-directory: upstream/V2rayNG
         run: |
           ./gradlew --no-daemon :app:testPlaystoreDebugUnitTest \
             --tests com.v2ray.ang.ui.main.NoraSubscriptionUsageTest \
-            --tests com.v2ray.ang.ui.main.NoraImportRouterTest
+            --tests com.v2ray.ang.ui.main.NoraImportRouterTest \
+            --tests com.v2ray.ang.ui.main.NoraSmartEngineTest \
+            --tests com.v2ray.ang.ui.main.NoraRouteSelectorTest \
+            --tests com.v2ray.ang.ui.main.NoraForegroundRefreshTest
 
       - name: Upload standalone NoraProxy VPN APK
         uses: actions/upload-artifact@v4

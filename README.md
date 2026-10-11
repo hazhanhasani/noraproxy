@@ -155,3 +155,26 @@ Subscription import stays at the top of its tab, but now opens/collapses on tap.
 Existing group cards keep traffic and expiry visible while hiding edit/delete
 buttons under an explicit Manage group control. The existing manual refresh
 button is labeled to reflect its actual selected-group-only behavior.
+
+## Smart Engine (v0.2.15)
+
+The Smart Engine uses native Xray real delay samples, smoothed latency and
+jitter to choose a stable route within the user's chosen country (or across
+countries only in automatic-location mode). Unknown and failed measurements
+cannot win ranking against positive measured latencies.
+
+While the app is foregrounded, it observes non-VPN underlying network
+transitions between Wi-Fi, cellular and Ethernet and schedules native
+all-server remeasurement after network settlement. It also checks health at
+most once every six minutes while connected and visible. No periodic scans
+continue after backgrounding or disconnecting.
+
+Automatic recovery is conservative: it requires two completed real native
+test batches reporting a negative delay on the active GUID, a currently
+positive-delay alternative, and five minutes since manual or automatic
+selection. A manually preferred country is never overridden; switching
+uses the upstream SelectServer action so Android restarts the actual VPN
+service. No synthetic ping, no independent network leak probes, no unknown
+country guessing. Users can toggle Smart Mode and Automatic Recovery in
+Settings; both preferences persist locally. The policy does not claim a
+fully transparent zero-downtime handoff.

@@ -317,12 +317,12 @@ fun MainScreen(
         if (smartMode && appVisible) networkObserver.start()
         onDispose { networkObserver.stop() }
     }
-    LaunchedEffect(networkGeneration, smartMode) {
+    LaunchedEffect(networkGeneration, smartMode, appVisible) {
         if (networkGeneration > lastHandledNetworkGeneration) {
             lastHandledNetworkGeneration = networkGeneration
-            if (smartMode) {
+            if (smartMode && appVisible) {
                 delay(4000) // Let Android finish switching transports.
-                if (mainViewModel.uiState.value.isRunning &&
+                if (appVisible && mainViewModel.uiState.value.isRunning &&
                     !mainViewModel.uiState.value.isTesting &&
                     !mainViewModel.isLoading.value &&
                     !NoraForegroundSubscriptions.running.value) {
