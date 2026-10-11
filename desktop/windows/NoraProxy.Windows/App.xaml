@@ -4,15 +4,18 @@
              StartupUri="MainWindow.xaml">
   <Application.Resources>
     <SolidColorBrush x:Key="CanvasBrush" Color="#0C121B"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#182431"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#223341"/>
     <SolidColorBrush x:Key="CardBrush" Color="#182431"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#A4B1C0"/>
     <SolidColorBrush x:Key="AccentBrush" Color="#76EAD0"/>
+    <SolidColorBrush x:Key="VioletBrush" Color="#9388F6"/>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="#F5F8FC"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
     </Style>
     <Style TargetType="Button">
-      <Setter Property="Padding" Value="14,9"/>
+      <Setter Property="Padding" Value="12,9"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Foreground" Value="#F5F8FC"/>
@@ -20,14 +23,76 @@
       <Setter Property="BorderBrush" Value="#48616B"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="Margin" Value="0,0,0,7"/>
     </Style>
-    <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="HorizontalContentAlignment" Value="Right"/>
-      <Setter Property="Padding" Value="14,14"/>
-      <Setter Property="Background" Value="#223341"/>
-      <Setter Property="BorderBrush" Value="#223341"/>
-      <Setter Property="FontSize" Value="14"/>
+    <Style x:Key="BottomTabStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Padding" Value="5,7"/>
+      <Setter Property="Margin" Value="2,0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="13" Background="{TemplateBinding Background}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="CardButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border CornerRadius="18" Background="{TemplateBinding Background}">
+              <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="FlatLinkStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+    </Style>
+    <Style x:Key="ChipButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource Surface2Brush}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style x:Key="NoraPowerStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Grid>
+              <Ellipse Stroke="#2C6D80" StrokeThickness="1">
+                <Ellipse.Fill>
+                  <RadialGradientBrush>
+                    <GradientStop Color="#173C59" Offset="0"/>
+                    <GradientStop Color="#0D2036" Offset="1"/>
+                  </RadialGradientBrush>
+                </Ellipse.Fill>
+              </Ellipse>
+              <Viewbox Width="53" Height="53" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Canvas Width="24" Height="24">
+                  <Path Data="M12,2 L12,11 M6.1,5.7 A9,9 0 1 0 17.9,5.7"
+                        Stroke="{StaticResource AccentBrush}" StrokeThickness="2.6"
+                        StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                </Canvas>
+              </Viewbox>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style x:Key="InputStyle" TargetType="TextBox">
       <Setter Property="Background" Value="#101A24"/>
@@ -39,8 +104,8 @@
       <Setter Property="FontSize" Value="13"/>
     </Style>
     <Style x:Key="TitleStyle" TargetType="TextBlock">
-      <Setter Property="FontSize" Value="22"/>
-      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="20"/>
+      <Setter Property="FontWeight" Value="ExtraBold"/>
       <Setter Property="Margin" Value="0,0,0,7"/>
     </Style>
     <Style x:Key="MutedStyle" TargetType="TextBlock">

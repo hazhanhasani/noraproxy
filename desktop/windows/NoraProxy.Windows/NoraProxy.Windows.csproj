@@ -10,5 +10,8 @@
     <Version>0.1.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Assets/nora_icon.jpg" />
+  </ItemGroup>
 </Project>
 
