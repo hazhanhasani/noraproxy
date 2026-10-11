@@ -71,6 +71,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.SubscriptionCache
@@ -135,6 +138,7 @@ fun MainScreen(
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var groupBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
+    val syncingGroups by NoraForegroundSubscriptions.running.collectAsStateWithLifecycle()
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             importScope.launch {
@@ -206,12 +210,12 @@ fun MainScreen(
     val subscriptions = remember(appState.groups) { mainViewModel.getSubscriptions() }
     var usageByGroup by remember { mutableStateOf<Map<String, NoraSubscriptionUsage>>(emptyMap()) }
     var usageRefresh by remember { mutableIntStateOf(0) }
-    LaunchedEffect(tab, appState.selectedGroupId, subscriptions, usageRefresh) {
-        val targets = if (tab == NoraTab.Subscription) subscriptions
-            else subscriptions.filter { it.guid == appState.selectedGroupId }
+    // Load fresh quota/expiry for ALL enabled remote groups, not only the selected one.
+    LaunchedEffect(subscriptions, usageRefresh) {
+        val targets = subscriptions.filter { it.subscription.enabled && it.subscription.url.isNotBlank() }
         coroutineScope {
             val limiter = Semaphore(4)
-            val updates = targets.take(16).map { group ->
+            val updates = targets.map { group ->
                 async(Dispatchers.IO) {
                     group.guid to limiter.withPermit {
                         NoraSubscriptionUsageReader.fetch(group.subscription.url)
@@ -219,9 +223,27 @@ fun MainScreen(
                 }
             }.awaitAll().mapNotNull { (id, info) -> info?.let { id to it } }.toMap()
             usageByGroup = usageByGroup.filterKeys { id ->
-                subscriptions.any { it.guid == id }
+                targets.any { it.guid == id }
             } + updates
         }
+    }
+    // Re-sync every enabled remote subscription whenever the app enters foreground.
+    // The refresh runs off the UI thread, with a short debounce for ad/activity returns.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, mainViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                importScope.launch {
+                    NoraForegroundSubscriptions.refresh {
+                        mainViewModel.setupGroupTab(forceRefresh = true).join()
+                        usageRefresh++
+                        refreshTick++
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     // The active Xray GUID must belong to the visible group, not the previous one.
     LaunchedEffect(appState.selectedGroupId, identity) {
@@ -394,6 +416,10 @@ fun MainScreen(
                         NoraTab.Subscription -> {
                             item {
                                 NoraSection("گروه‌های اشتراک", "هر گروه سرورها و مسیر اتصال مستقل دارد.")
+                                if (syncingGroups) {
+                                    Text("در حال به‌روزرسانی خودکار گروه‌های فعال…",
+                                        color = cyan, fontSize = 12.sp)
+                                }
                                 Spacer(Modifier.height(12.dp))
                                 Button(
                                     onClick = { editingGroup = null; editorVisible = true },
@@ -451,7 +477,7 @@ fun MainScreen(
                                         onAction(MainAction.UpdateSubscriptions)
                                         usageRefresh++
                                     },
-                                    enabled = !loading && appState.selectedGroupId.isNotBlank(),
+                                    enabled = !loading && !syncingGroups && appState.selectedGroupId.isNotBlank(),
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(15.dp)
                                 ) { Text("به‌روزرسانی سرورها، حجم و اعتبار") }

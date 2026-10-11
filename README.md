@@ -104,3 +104,16 @@ Tapsell interstitials are prefetched and now use bounded retries, timeout
 handling and an ad status indicator on Settings. Missing inventory or an SDK
 error must never delay VPN connection or disconnection. Ad impressions cannot
 be guaranteed on all carriers, devices, networks or countries.
+
+## Foreground subscription refresh (v0.2.11)
+
+Whenever the Android app enters the foreground, it immediately starts a non-blocking
+refresh of **every enabled URL-backed subscription group** (including groups other
+than the selected one). Disabled groups and the local-only Default/raw group are
+never downloaded or replaced. Subscriptions with autoUpdate disabled are still
+refreshed on foreground if the group itself is enabled; the periodic background
+schedule is unchanged. Refreshes are serialized to protect native MMKV profile
+writes and debounced for 30 seconds to avoid repeat requests after interstitials
+or permission dialogs. The native view model and the usage/expiry cards are
+reloaded when the cycle finishes. If the device is offline, existing cached
+servers remain available.
