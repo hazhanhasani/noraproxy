@@ -126,3 +126,18 @@ group creation has been removed; editing/deleting existing groups still works.
 The home location card displays measured native ping even when selected. While
 connected, native ping measurements are refreshed every 30 seconds when enabled
 in the streamlined Settings page, which retains signed in-app updates.
+
+## NoraProxy UI 3.0 — first delivery (v0.2.13)
+
+The Home dashboard now combines connected status, a native connection control,
+backend-selected location, measured latency (when available), provider-reported
+remaining quota and validity, and a horizontal country quick picker. Quick picks
+use the same native SelectServer action and stored country preference as the
+Locations tab; selection never changes only the visual highlight. The layout
+adapts power-button size and spacing to compact displays, with no Home scrolling.
+
+The former 15-second unconditional MMKV profile polling was removed. Instead,
+changes to native UI state, subscription updates and active ping measurements
+invalidate the cached routes. A connected device refreshes the last native ping
+result after triggering a measurement and then repeats on a 30-second cadence.
+Unavailable ping/quota data remains unknown, rather than showing invented values.
