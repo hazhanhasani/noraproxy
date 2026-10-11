@@ -83,3 +83,28 @@ Only use files from the official repository; Windows SmartScreen may warn.
 To build with Inno Setup 6 on Windows after `dotnet publish`, compile
 `desktop/windows/installer/NoraProxy.iss` using ISCC.exe and point output
 to `out/windows/installer/`.
+
+## Windows UI 3.0 and integrated installer updater (v0.1.2)
+
+The Windows Preview `0.1.2` uses the same graphite/mint visual identity
+as Android UI 3.0, and organizes Home, Locations, Subscriptions and Settings
+in a cohesive RTL WPF desktop shell. Home shows actual local subscription count;
+ping, country, quota and connection status are never fabricated. The Windows
+VPN toggle and location search remain disabled until the independently verified
+native Windows tunnel, server discovery and latency engine exist.
+
+In Settings, users can **check for newer Windows preview releases, download
+the Inno Setup per-user installer, verify its exact-name SHA-256 manifest, and
+explicitly approve opening the installer**. The updater accepts only newer
+`windows-preview-vX.Y.Z` tags and the matching assets from the official
+`hazhanhasani/noraproxy` GitHub repository. Android APK releases are ignored.
+Incomplete, oversize and hash-mismatched downloads are rejected; the app
+never silently executes a downloaded installer. The old app exits after
+starting the installer so Inno Setup can replace files. The same per-user
+Inno Setup AppId and installation path preserve encrypted profiles.
+
+**Security boundary:** Release-provided SHA-256 checks detect incomplete or
+altered bytes but are *not* equivalent to code signing. The Windows Preview
+installer is currently unsigned; Microsoft SmartScreen may warn, and it is
+not yet a fully publisher-authenticated automatic update system.
+

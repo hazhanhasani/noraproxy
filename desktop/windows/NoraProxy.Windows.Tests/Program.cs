@@ -51,5 +51,46 @@ finally
 {
     if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
 }
-Console.WriteLine("NoraProxy Windows bootstrap: ALL 13 assertions/groups PASSED.");
+// Installer updates must come only from the Windows preview release namespace.
+// Android releases and unexpected third-party download URLs are ignored.
+string Fixture(string tag, bool withInstaller = true, bool withHash = true, bool tampered = false)
+{
+    var file = $"NoraProxy-Setup-{tag.Replace("windows-preview-v", "")}-win-x64.exe";
+    var origin = $"https://github.com/hazhanhasani/noraproxy/releases/download/{tag}/";
+    var assets = new List<object>();
+    if (withInstaller)
+        assets.Add(new { name = file, browser_download_url =
+            (tampered ? "https://untrusted.example/installer.exe" : origin + file) });
+    if (withHash)
+        assets.Add(new { name = file + ".sha256", browser_download_url = origin + file + ".sha256" });
+    return System.Text.Json.JsonSerializer.Serialize(new[]
+    {
+        new { tag_name = tag, draft = false, prerelease = true, assets }
+    });
+}
+var installed = WindowsUpdateService.CurrentVersion;
+Assert(installed == new Version(0, 1, 2), "Windows updater and application version must match.");
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.3"), installed)?.Version
+    == new Version(0, 1, 3), "Discover a newer Windows-only release.");
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.1"), installed) is null,
+    "Never downgrade.");
+Assert(WindowsUpdateService.FindLatest(Fixture("v1.0.0"), installed) is null,
+    "Never install an Android APK as a Windows update.");
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.3", tampered: true), installed) is null,
+    "Reject a release asset that points away from the official GitHub repository.");
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.3", withHash: false), installed) is null,
+    "Reject a release without an integrity manifest.");
+var official = WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.3"), installed)!;
+Assert(WindowsUpdateService.IsOfficialDownload(official), "Official release download locator.");
+var sha = new string('a', 64);
+Assert(WindowsUpdateService.ParseChecksum(sha + "  " + official.FileName + "\n",
+    official.FileName) == sha, "Parse official SHA-256 manifest.");
+Assert(WindowsUpdateService.MatchesChecksum(sha, sha.ToUpperInvariant()), "Equal hashes compare.");
+Assert(!WindowsUpdateService.MatchesChecksum(sha, new string('b', 64)), "Different hashes rejected.");
+var malformedRejected = false;
+try { WindowsUpdateService.ParseChecksum(sha + "  other-installer.exe\n", official.FileName); }
+catch (InvalidDataException) { malformedRejected = true; }
+Assert(malformedRejected, "Do not verify a different installer file.");
+Console.WriteLine("NoraProxy Windows UI/update and DPAPI/import integration tests passed.");
+
 

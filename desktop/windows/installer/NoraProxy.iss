@@ -1,7 +1,7 @@
 ; Self-contained NoraProxy WPF desktop PREVIEW installer, not a working VPN.
 ; Per-user install/upgrade: no elevation, no drivers, DPAPI account store retained.
 #define MyAppName "NoraProxy"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.1.2"
 #define MyAppExe "NoraProxy.exe"
 
 [Setup]
