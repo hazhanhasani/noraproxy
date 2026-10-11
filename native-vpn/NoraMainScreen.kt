@@ -1,6 +1,7 @@
 package com.v2ray.ang.ui.main
 
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -141,6 +142,18 @@ fun MainScreen(
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var groupBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
+    val smartPreferences = remember(context) {
+        context.getSharedPreferences("nora_smart_engine", android.content.Context.MODE_PRIVATE)
+    }
+    var smartMode by remember { mutableStateOf(smartPreferences.getBoolean("smart_mode", true)) }
+    var automaticRecovery by remember {
+        mutableStateOf(smartPreferences.getBoolean("auto_recovery", true))
+    }
+    val smartEngine = remember { NoraSmartEngine() }
+    var appVisible by remember { mutableStateOf(false) }
+    var networkGeneration by remember { mutableIntStateOf(0) }
+    var lastHandledNetworkGeneration by remember { mutableIntStateOf(0) }
+    var fullProbeStartedGroup by remember { mutableStateOf<String?>(null) }
     val pingPrefs = remember(context) { context.getSharedPreferences("nora_ui", android.content.Context.MODE_PRIVATE) }
     var livePingEnabled by remember { mutableStateOf(pingPrefs.getBoolean("live_ping", true)) }
     val syncingGroups by NoraForegroundSubscriptions.running.collectAsStateWithLifecycle()
@@ -271,8 +284,10 @@ fun MainScreen(
     // The refresh runs off the UI thread, with a short debounce for ad/activity returns.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, mainViewModel) {
+        appVisible = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
+                appVisible = true
                 importScope.launch {
                     NoraForegroundSubscriptions.refresh {
                         mainViewModel.setupGroupTab(forceRefresh = true).join()
@@ -280,10 +295,87 @@ fun MainScreen(
                         refreshTick++
                     }
                 }
+            } else if (event == Lifecycle.Event.ON_STOP) {
+                appVisible = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            appVisible = false
+        }
+    }
+    // Register network callbacks only while the user can see NoraProxy.
+    // A transport change requests fresh measurements, never a blind reconnect.
+    val networkObserver = remember(context.applicationContext) {
+        NoraNetworkObserver(context.applicationContext) {
+            smartEngine.networkChanged()
+            networkGeneration++
+        }
+    }
+    DisposableEffect(networkObserver, smartMode, appVisible) {
+        if (smartMode && appVisible) networkObserver.start()
+        onDispose { networkObserver.stop() }
+    }
+    LaunchedEffect(networkGeneration, smartMode) {
+        if (networkGeneration > lastHandledNetworkGeneration) {
+            lastHandledNetworkGeneration = networkGeneration
+            if (smartMode) {
+                delay(4000) // Let Android finish switching transports.
+                if (mainViewModel.uiState.value.isRunning &&
+                    !mainViewModel.uiState.value.isTesting &&
+                    !mainViewModel.isLoading.value &&
+                    !NoraForegroundSubscriptions.running.value) {
+                    onAction(MainAction.TestRealAllServers)
+                }
+            }
+        }
+    }
+    // Low-frequency quality check, foreground-only to protect battery and data.
+    LaunchedEffect(smartMode, appVisible, appState.isRunning, appState.selectedGroupId) {
+        if (smartMode && appVisible && appState.isRunning) {
+            while (true) {
+                delay(360_000)
+                if (mainViewModel.uiState.value.isRunning &&
+                    !mainViewModel.uiState.value.isTesting &&
+                    !mainViewModel.isLoading.value &&
+                    !NoraForegroundSubscriptions.running.value) {
+                    onAction(MainAction.TestRealAllServers)
+                }
+            }
+        }
+    }
+    // Only completed native all-server batches count as independent health probes.
+    // A current-server status label is not sufficient evidence to restart a VPN.
+    LaunchedEffect(appState.isTesting, appState.selectedGroupId) {
+        if (appState.isTesting) {
+            fullProbeStartedGroup = appState.selectedGroupId
+        } else if (fullProbeStartedGroup == appState.selectedGroupId &&
+            fullProbeStartedGroup != null) {
+            fullProbeStartedGroup = null
+            delay(450)
+            val testedNodes = withContext(Dispatchers.IO) {
+                NoraRouteSelector.load(appState.selectedGroupId)
+            }
+            smartEngine.recordCompletedProbe(testedNodes)
+            refreshTick++
+            if (smartMode && automaticRecovery && appVisible &&
+                mainViewModel.uiState.value.isRunning && !powerPending &&
+                !adShowing && !NoraForegroundSubscriptions.running.value) {
+                val replacement = smartEngine.failoverCandidate(
+                    testedNodes,
+                    mainViewModel.uiState.value.selectedGuid,
+                    routePreferences.getString("preferred_country:" + appState.selectedGroupId, null),
+                    SystemClock.elapsedRealtime()
+                )
+                if (replacement != null) {
+                    smartEngine.recordAutomaticSwitch(SystemClock.elapsedRealtime())
+                    onAction(MainAction.SelectServer(replacement.guid))
+                    Toast.makeText(context, "مسیر ناموفق بود؛ سرور جایگزین انتخاب شد",
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
     // The active Xray GUID must belong to the visible group, not the previous one.
     LaunchedEffect(appState.selectedGroupId, identity) {
@@ -291,9 +383,8 @@ fun MainScreen(
             val country = routePreferences.getString(
                 "preferred_country:" + appState.selectedGroupId, null
             )
-            val route = NoraRouteSelector.locations(ranked).firstOrNull {
-                it.countryCode == country
-            } ?: ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.first()
+            val route = smartEngine.bestRoute(ranked, country)
+                ?: smartEngine.bestRoute(ranked, null) ?: ranked.first()
             onAction(MainAction.SelectServer(route.guid))
         }
     }
@@ -303,7 +394,9 @@ fun MainScreen(
             onAction(MainAction.TestRealAllServers)
         }
     }
-    val preferredRoute = if (selectedCountry == null) {
+    val preferredRoute = if (smartMode) {
+        smartEngine.bestRoute(ranked, selectedCountry)
+    } else if (selectedCountry == null) {
         ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull()
     } else locations.firstOrNull { it.countryCode == selectedCountry }
     // When connected, show the backend's actually selected route (not a visual-only choice).
@@ -313,6 +406,7 @@ fun MainScreen(
         ?: "هنوز اشتراکی ندارید"
     val chooseRoute: (NoraNode?, String?) -> Unit = { route, country ->
         if (route != null) {
+            smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
             selectedCountry = country
             routePreferences.edit().apply {
                 val preferenceKey = "preferred_country:" + appState.selectedGroupId
@@ -390,8 +484,14 @@ fun MainScreen(
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
                         onChooseLocation = { tab = NoraTab.Locations },
-                        onSelectCountry = { country -> chooseRoute(country, country.countryCode) },
-                        onSelectSmart = { chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null) },
+                        onSelectCountry = { country ->
+                            chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, country.countryCode)
+                                ?: country else country, country.countryCode)
+                        },
+                        onSelectSmart = {
+                            chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
+                                else ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                        },
                         onOpenUpdate = { tab = NoraTab.Settings }
                     )
                 } else {
@@ -438,7 +538,8 @@ fun MainScreen(
                                 if (!favoritesOnly && locationQuery.isBlank()) {
                                     NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب بهترین مسیر شناخته‌شده",
                                         null, selectedCountry == null) {
-                                        chooseRoute(ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                                        chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
+                                            else ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
                                     }
                                 }
                             }
@@ -458,7 +559,9 @@ fun MainScreen(
                                     onFavorite = if (country.countryCode.startsWith("UNKNOWN:")) null
                                         else { { toggleFavorite(country.countryCode) } },
                                     favorite = country.countryCode in favoriteCountries) {
-                                    chooseRoute(country, country.countryCode)
+                                    chooseRoute(if (smartMode)
+                                        smartEngine.bestRoute(ranked, country.countryCode) ?: country
+                                        else country, country.countryCode)
                                 }
                             }
                             item {
@@ -596,11 +699,14 @@ fun MainScreen(
                                                 "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
                                                 Toast.LENGTH_LONG).show()
                                         } else {
+                                            smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
                                             selectedCountry = savedCountry
                                             onAction(MainAction.SelectGroup(group.guid))
-                                            val selected = NoraRouteSelector.locations(routes).firstOrNull {
-                                                it.countryCode == savedCountry
-                                            } ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
+                                            val selected = (if (smartMode)
+                                                smartEngine.bestRoute(routes, savedCountry)
+                                                else NoraRouteSelector.locations(routes).firstOrNull {
+                                                    it.countryCode == savedCountry
+                                                }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
                                             if (selected != null && selected.guid != appState.selectedGuid) {
                                                 onAction(MainAction.SelectServer(selected.guid))
                                             }
@@ -622,6 +728,44 @@ fun MainScreen(
                         }
                         NoraTab.Settings -> {
                             item { NoraSection("تنظیمات", "") }
+                            item {
+                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(17.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("اتصال هوشمند", color = light,
+                                                    fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                                Text("اولویت پینگ پایدار و بررسی تغییر شبکه",
+                                                    color = muted, fontSize = 11.sp)
+                                            }
+                                            Switch(checked = smartMode, onCheckedChange = {
+                                                smartMode = it
+                                                smartPreferences.edit().putBoolean("smart_mode", it).apply()
+                                            })
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("بازیابی خودکار اتصال", color = light,
+                                                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                                Text("فقط پس از دو تست ناموفق و با فاصله ایمن",
+                                                    color = muted, fontSize = 11.sp)
+                                            }
+                                            Switch(
+                                                checked = automaticRecovery,
+                                                enabled = smartMode,
+                                                onCheckedChange = {
+                                                    automaticRecovery = it
+                                                    smartPreferences.edit()
+                                                        .putBoolean("auto_recovery", it).apply()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
                                     Row(modifier = Modifier.fillMaxWidth().padding(18.dp),
