@@ -173,7 +173,12 @@ jobs:
           grep -q 'WindowInsets.safeDrawing' "$MAIN"
           ! grep -q 'painterResource(R.drawable.nora_wordmark)' "$MAIN"
           grep -q 'painterResource(R.drawable.nora_brand)' "$MAIN"
-          grep -q 'onAction(MainAction.SelectServer(route.guid))' "$MAIN"
+          # Offline selection must persist the GUID WITHOUT restarting Xray.
+          grep -Fq 'mainViewModel.updateSelectedGuid(guid)' "$MAIN"
+          grep -Fq 'NoraSelectionPolicy.mustRestart(state.isRunning)' "$MAIN"
+          grep -Fq 'onAction(MainAction.SelectServer(guid))' "$MAIN"
+          grep -Fq '!appState.isRunning && !syncingGroups' "$MAIN"
+          test -f upstream/V2rayNG/app/src/main/java/com/v2ray/ang/ui/main/NoraSelectionPolicy.kt
           # Country cards now delegate through the stable smart selector to the real GUID.
           grep -Fq 'smartEngine.bestRoute(ranked, country.countryCode)' "$MAIN"
           grep -Fq 'chooseRoute(if (smartMode)' "$MAIN"
