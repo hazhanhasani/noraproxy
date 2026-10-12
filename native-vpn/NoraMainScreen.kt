@@ -190,6 +190,18 @@ fun MainScreen(
     var selectedCountry by remember {
         mutableStateOf(routePreferences.getString("preferred_country:" + appState.selectedGroupId, null))
     }
+    // Upstream SelectServer always calls restartService, even if disconnected.
+    // Keep the selected GUID persisted without starting the VPN prematurely.
+    val selectActualServer: (String) -> Unit = { guid ->
+        val state = mainViewModel.uiState.value
+        if (NoraSelectionPolicy.shouldChange(state.selectedGuid, guid)) {
+            if (NoraSelectionPolicy.mustRestart(state.isRunning)) {
+                onAction(MainAction.SelectServer(guid))
+            } else {
+                mainViewModel.updateSelectedGuid(guid)
+            }
+        }
+    }
     LaunchedEffect(appState.selectedGroupId) {
         selectedCountry = routePreferences.getString(
             "preferred_country:" + appState.selectedGroupId, null
@@ -221,14 +233,21 @@ fun MainScreen(
     // Native state updates and completed measurements invalidate cached profiles.
     // Avoid a perpetual 15s full-MMKV poll, particularly while the VPN is idle.
     // Measure native Xray delay for the connected server, never a fake latency.
-    LaunchedEffect(appState.isRunning, appState.selectedGuid, livePingEnabled) {
-        if (appState.isRunning && !appState.selectedGuid.isNullOrBlank() && livePingEnabled) {
+    LaunchedEffect(appVisible, appState.isRunning, appState.selectedGuid, livePingEnabled) {
+        if (appVisible && appState.isRunning &&
+            !appState.selectedGuid.isNullOrBlank() && livePingEnabled) {
             delay(2500)
-            while (true) {
-                onAction(MainAction.TestCurrentServer)
-                delay(2000) // Fetch the stored result after the native measurement.
-                refreshTick++
-                delay(28_000)
+            while (appVisible && mainViewModel.uiState.value.isRunning) {
+                if (!mainViewModel.uiState.value.isTesting &&
+                    !mainViewModel.isLoading.value &&
+                    !NoraForegroundSubscriptions.running.value) {
+                    onAction(MainAction.TestCurrentServer)
+                    delay(2000) // Refresh after a completed native measurement.
+                    refreshTick++
+                    delay(28_000)
+                } else {
+                    delay(3000) // Don't compete with full-group tests or sync writes.
+                }
             }
         }
     }
@@ -379,13 +398,14 @@ fun MainScreen(
     }
     // The active Xray GUID must belong to the visible group, not the previous one.
     LaunchedEffect(appState.selectedGroupId, identity) {
-        if (ranked.isNotEmpty() && ranked.none { it.guid == appState.selectedGuid }) {
+        if (!appState.isRunning && !syncingGroups &&
+            ranked.isNotEmpty() && ranked.none { it.guid == appState.selectedGuid }) {
             val country = routePreferences.getString(
                 "preferred_country:" + appState.selectedGroupId, null
             )
             val route = smartEngine.bestRoute(ranked, country)
                 ?: smartEngine.bestRoute(ranked, null) ?: ranked.first()
-            onAction(MainAction.SelectServer(route.guid))
+            selectActualServer(route.guid)
         }
     }
     LaunchedEffect(identity, loading) {
@@ -415,9 +435,7 @@ fun MainScreen(
             }.apply()
             // This goes through MainActivity.setSelectServer -> ViewModel/MMKV.
             // The activity restarts the native service if already running.
-            if (appState.selectedGuid != route.guid) {
-                onAction(MainAction.SelectServer(route.guid))
-            }
+            selectActualServer(route.guid)
             tab = NoraTab.Home
         }
     }
@@ -438,9 +456,7 @@ fun MainScreen(
                 preferredRoute?.let { route ->
                     powerPending = true
                     expectedPowerState = true
-                    if (appState.selectedGuid != route.guid) {
-                        onAction(MainAction.SelectServer(route.guid))
-                    }
+                    selectActualServer(route.guid)
                     // The upstream MainActivity handles VPN permission and starts Xray.
                     onAction(MainAction.ToggleService)
                 }
@@ -708,7 +724,7 @@ fun MainScreen(
                                                     it.countryCode == savedCountry
                                                 }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
                                             if (selected != null && selected.guid != appState.selectedGuid) {
-                                                onAction(MainAction.SelectServer(selected.guid))
+                                                selectActualServer(selected.guid)
                                             }
                                         }
                                     }

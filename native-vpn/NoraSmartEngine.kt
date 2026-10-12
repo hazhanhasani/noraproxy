@@ -107,6 +107,15 @@ internal class NoraSmartEngine {
  * Network changes only request a new real server test; they never directly
  * restart the VPN. Observe Wi-Fi/cellular outside the VPN tunnel while visible.
  */
+/**
+ * registerNetworkCallback reports ALL matching underlying networks concurrently.
+ * A late mobile-data callback must not override already available Wi-Fi.
+ */
+internal object NoraTransportSelection {
+    fun preferred(transports: Collection<String>): String? =
+        listOf("ethernet", "wifi", "cellular").firstOrNull { it in transports }
+}
+
 internal class NoraNetworkObserver(
     context: Context,
     private val onTransportChanged: () -> Unit
@@ -115,24 +124,50 @@ internal class NoraNetworkObserver(
     private val main = Handler(Looper.getMainLooper())
     private var previousTransport: String? = null
     private var registered = false
+    private var epoch = 0
+    // Updated exclusively on the main Handler. Android may report several
+    // physical networks, even when the app has only one effective route.
+    private val networkTransports = mutableMapOf<Network, String>()
+
+    private fun dispatchIfEffectiveNetworkChanged() {
+        val next = NoraTransportSelection.preferred(networkTransports.values)
+        val previous = previousTransport
+        previousTransport = next
+        if (previous != null && next != null && previous != next) onTransportChanged()
+    }
+
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
             val transport = when {
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
                 capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
-                else -> return
+                else -> null
             }
+            val capturedEpoch = epoch
             main.post {
-                val old = previousTransport
-                previousTransport = transport
-                if (old != null && old != transport) onTransportChanged()
+                if (!registered || capturedEpoch != epoch) return@post
+                if (transport == null) networkTransports.remove(network)
+                else networkTransports[network] = transport
+                dispatchIfEffectiveNetworkChanged()
+            }
+        }
+
+        override fun onLost(network: Network) {
+            val capturedEpoch = epoch
+            main.post {
+                if (!registered || capturedEpoch != epoch) return@post
+                networkTransports.remove(network)
+                dispatchIfEffectiveNetworkChanged()
             }
         }
     }
 
     fun start() {
         if (registered) return
+        epoch++
+        networkTransports.clear()
+        previousTransport = null
         runCatching {
             val request = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -144,10 +179,12 @@ internal class NoraNetworkObserver(
     }
 
     fun stop() {
+        epoch++ // Drop callbacks already queued before unregistration.
         if (registered) {
             runCatching { connectivity.unregisterNetworkCallback(callback) }
             registered = false
         }
+        networkTransports.clear()
         previousTransport = null
     }
 }

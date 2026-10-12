@@ -48,6 +48,8 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraForegroundRefresh.kt"),
         ("native-vpn/NoraSmartEngine.kt",
          "java/com/v2ray/ang/ui/main/NoraSmartEngine.kt"),
+        ("native-vpn/NoraSelectionPolicy.kt",
+         "java/com/v2ray/ang/ui/main/NoraSelectionPolicy.kt"),
         ("native-vpn/NoraUpdater.kt",
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
         ("native-vpn/NoraTapsellAds.kt",
@@ -70,7 +72,7 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
-    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt", "NoraRouteSelectorTest.kt", "NoraSmartEngineTest.kt"):
+    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt", "NoraRouteSelectorTest.kt", "NoraSmartEngineTest.kt", "NoraSelectionPolicyTest.kt"):
         test_source = ROOT / "native-vpn/tests" / test_name
         test_target = APP / "src/test/java/com/v2ray/ang/ui/main" / test_name
         test_target.parent.mkdir(parents=True, exist_ok=True)
@@ -121,8 +123,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 215')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.15"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 216')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.16"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -240,7 +242,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.15, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.16, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()

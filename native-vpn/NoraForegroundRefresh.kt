@@ -4,6 +4,7 @@ import android.os.SystemClock
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,7 +59,13 @@ internal object NoraForegroundSubscriptions {
                 ids.forEach { id ->
                     val current = MmkvManager.decodeSubscription(id) ?: return@forEach
                     if (!current.enabled || current.url.isBlank()) return@forEach
-                    AngConfigManager.updateConfigViaSub(SubscriptionCache(id, current))
+                    try {
+                        AngConfigManager.updateConfigViaSub(SubscriptionCache(id, current))
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {
+                        // Continue with remaining groups even if one URL fails.
+                    }
                 }
             }
             // The UI and quota metadata must reflect the new server lists.

@@ -58,6 +58,14 @@ class NoraSmartEngineTest {
         assertNull(smart.failoverCandidate(tested, "bad", null, 402_000))
     }
 
+    @Test fun concurrentCellularAndWifiCallbacksDoNotMasqueradeAsHandoffs() {
+        assertEquals("wifi", NoraTransportSelection.preferred(listOf("cellular", "wifi")))
+        assertEquals("wifi", NoraTransportSelection.preferred(listOf("wifi", "cellular")))
+        assertEquals("ethernet", NoraTransportSelection.preferred(listOf("cellular", "ethernet")))
+        assertEquals("cellular", NoraTransportSelection.preferred(listOf("cellular")))
+        assertNull(NoraTransportSelection.preferred(emptyList()))
+    }
+
     @Test fun networkChangeRequiresFreshFailureEvidence() {
         val smart = NoraSmartEngine()
         val tested = listOf(node("bad", "DE", -1), node("backup", "DE", 42))

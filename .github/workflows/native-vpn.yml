@@ -231,6 +231,7 @@ jobs:
             --tests com.v2ray.ang.ui.main.NoraSubscriptionUsageTest \
             --tests com.v2ray.ang.ui.main.NoraImportRouterTest \
             --tests com.v2ray.ang.ui.main.NoraSmartEngineTest \
+            --tests com.v2ray.ang.ui.main.NoraSelectionPolicyTest \
             --tests com.v2ray.ang.ui.main.NoraRouteSelectorTest \
             --tests com.v2ray.ang.ui.main.NoraForegroundRefreshTest
 
