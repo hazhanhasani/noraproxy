@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -68,6 +70,9 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -102,6 +107,8 @@ private val blue = Color(0xFF9388F6)
 private val light = Color(0xFFF5F8FC)
 private val muted = Color(0xFFA4B1C0)
 private val green = Color(0xFF76EAD0)
+private val amber = Color(0xFFF2CD8F)
+private val edge = Color(0xFF355565)
 private val corner = RoundedCornerShape(24.dp)
 
 private enum class NoraTab(val title: String, val iconRes: Int) {
@@ -922,7 +929,9 @@ private fun NoraHomeContent(
 ) {
     BoxWithConstraints(
         modifier = modifier.background(
-            Brush.verticalGradient(listOf(ink, Color(0xFF141E2A), ink))
+            Brush.verticalGradient(listOf(
+                Color(0xFF0B121C), Color(0xFF14232C), Color(0xFF0D1621)
+            ))
         ).padding(horizontal = 16.dp)
     ) {
         val compact = maxHeight < 665.dp
@@ -938,18 +947,23 @@ private fun NoraHomeContent(
             NoraHeader(logo, seller, connected)
             Spacer(Modifier.weight(0.45f))
             Row(
-                modifier = Modifier.clip(RoundedCornerShape(40.dp))
-                    .background(if (connected) Color(0xFF1B3D39) else surface2)
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(if (connected) Color(0xFF163832) else Color(0xFF263440))
+                    .border(1.dp, if (connected) green.copy(alpha = .32f)
+                        else edge.copy(alpha = .8f), RoundedCornerShape(40.dp))
+                    .padding(horizontal = 15.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(7.dp).background(if (connected) green else muted, CircleShape))
+                Box(Modifier.size(7.dp)
+                    .background(if (waiting) amber else if (connected) green else muted,
+                        CircleShape))
                 Text(
                     if (waiting) "در حال تغییر اتصال"
                     else if (connected) "تونل VPN فعال است" else "آماده اتصال",
-                    color = if (connected) green else light,
-                    fontSize = 12.sp, fontWeight = FontWeight.Medium
+                    color = if (waiting) amber else if (connected) green else light,
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                 )
             }
             Spacer(Modifier.height(if (compact) 6.dp else 12.dp))
@@ -978,10 +992,12 @@ private fun NoraHomeContent(
             if (hasUpdate) {
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF2A2C46))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.horizontalGradient(listOf(
+                            Color(0xFF34304E), Color(0xFF253745))))
+                        .border(1.dp, blue.copy(alpha = .33f), RoundedCornerShape(14.dp))
                         .clickable(onClick = onOpenUpdate)
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                        .padding(horizontal = 13.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("نسخه جدید آماده است", modifier = Modifier.weight(1f),
@@ -999,14 +1015,19 @@ private fun NoraHomeContent(
             }
             Spacer(Modifier.height(6.dp))
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                    .background(surface)
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.horizontalGradient(listOf(
+                        Color(0xFF203744), Color(0xFF192935))))
+                    .border(1.dp, edge.copy(alpha = .75f), RoundedCornerShape(20.dp))
                     .clickable(onClick = onChooseLocation)
                     .padding(horizontal = 13.dp, vertical = if (compact) 9.dp else 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(39.dp).background(surface2, RoundedCornerShape(12.dp)),
+                Box(Modifier.size(42.dp)
+                    .background(Color(0xFF2B4853), RoundedCornerShape(14.dp))
+                    .border(1.dp, cyan.copy(alpha = .18f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center) {
                     Text(locationFlag, fontSize = 25.sp)
                 }
@@ -1016,21 +1037,33 @@ private fun NoraHomeContent(
                     Text(if (connected) "مسیر متصل" else "مسیر انتخاب‌شده", color = muted,
                         fontSize = 10.sp)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        if (locationPing != null && locationPing > 0L)
-                            persianNumber(locationPing.toString()) + " ms"
-                        else if (testing) "در حال سنجش" else "پینگ نامشخص",
-                        color = if (locationPing != null && locationPing > 0L) green else muted,
-                        fontWeight = FontWeight.SemiBold, fontSize = 12.sp
-                    )
-                    if (!tiny) Text("پینگ واقعی", color = muted, fontSize = 10.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(if (locationPing != null && locationPing > 0L)
+                                Color(0xFF21443E) else surface2)
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            if (locationPing != null && locationPing > 0L)
+                                persianNumber(locationPing.toString()) + " ms"
+                            else if (testing) "در حال سنجش" else "—",
+                            color = if (locationPing != null && locationPing > 0L) green else muted,
+                            fontWeight = FontWeight.Bold, fontSize = 12.sp
+                        )
+                    }
+                    if (!tiny) Text("پینگ واقعی", color = muted,
+                        fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
                 }
             }
             Spacer(Modifier.height(if (compact) 7.dp else 11.dp))
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                    .background(surface).padding(horizontal = 12.dp, vertical = if (compact) 10.dp else 13.dp),
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF192935))
+                    .border(1.dp, edge.copy(alpha = .35f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 NoraDashboardMetric(
@@ -1064,7 +1097,7 @@ private fun NoraHomeContent(
                 Row(
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
                         .background(surface).clickable(onClick = onChooseLocation)
-                        .padding(12.dp),
+                        .heightIn(min = 48.dp).padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1095,9 +1128,9 @@ private fun NoraHomeContent(
 
 @Composable
 private fun NoraDashboardMetric(title: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, color = muted, fontSize = 10.sp, maxLines = 1)
-        Text(value, color = light, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = muted, fontSize = 11.sp, maxLines = 1)
+        Text(value, color = light, fontSize = 13.sp, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1110,21 +1143,25 @@ private fun NoraQuickCountryCard(
     compact: Boolean,
     onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(17.dp)
     Column(
-        modifier = Modifier.width(if (compact) 100.dp else 112.dp)
+        modifier = Modifier
+            .width(if (compact) 100.dp else 112.dp)
+            .heightIn(min = if (compact) 56.dp else 72.dp)
             .clip(shape)
-            .background(if (selected) surface2 else surface)
-            .then(if (selected) Modifier.border(1.dp, cyan.copy(alpha = 0.75f), shape)
-                else Modifier)
-            .clickable(onClick = onClick)
-            .padding(vertical = if (compact) 7.dp else 11.dp, horizontal = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp),
+            .background(if (selected)
+                Brush.verticalGradient(listOf(Color(0xFF294D50), Color(0xFF213541)))
+                else Brush.verticalGradient(listOf(Color(0xFF1C2C39), surface)))
+            .border(1.dp, if (selected) cyan.copy(alpha = .78f)
+                else edge.copy(alpha = .34f), shape)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = if (compact) 7.dp else 10.dp, horizontal = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(flag, fontSize = if (compact) 21.sp else 26.sp, maxLines = 1)
+        Text(flag, fontSize = if (compact) 21.sp else 25.sp, maxLines = 1)
         Text(label, color = if (selected) cyan else light,
-            fontSize = 11.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1156,18 +1193,26 @@ private fun NoraPowerButton(
     onClick: () -> Unit
 ) {
     val ring by animateColorAsState(if (connected) green else cyan, label = "ring")
-    val glow by animateFloatAsState(if (connected) 1f else .6f, label = "glow")
+    val glow by animateFloatAsState(if (connected) 1f else .65f, label = "glow")
     Box(modifier = Modifier.size(diameter), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val radius = size.minDimension / 2
-            drawCircle(ring.copy(alpha = .09f * glow), radius = radius)
-            drawCircle(ring.copy(alpha = .16f), radius = radius * .87f,
-                style = Stroke(width = 2.dp.toPx()))
             drawCircle(
-                brush = Brush.sweepGradient(listOf(blue, cyan, blue)),
-                radius = radius * .76f,
-                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                brush = Brush.radialGradient(listOf(
+                    ring.copy(alpha = .17f * glow),
+                    blue.copy(alpha = .07f * glow), Color.Transparent
+                )),
+                radius = radius
             )
+            drawCircle(ring.copy(alpha = .14f), radius = radius * .89f,
+                style = Stroke(width = 1.5.dp.toPx()))
+            drawCircle(
+                brush = Brush.sweepGradient(listOf(blue, cyan, green, blue)),
+                radius = radius * .76f,
+                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+            )
+            drawCircle(ring.copy(alpha = .13f), radius = radius * .62f,
+                style = Stroke(width = 1.dp.toPx()))
         }
         Box(modifier = Modifier.size(diameter * .67f)
             .clip(CircleShape) // Prevent square ripple artifacts on tap.
@@ -1175,7 +1220,12 @@ private fun NoraPowerButton(
                 Brush.radialGradient(listOf(Color(0xFF173C59), Color(0xFF0D2036))),
                 CircleShape
             )
-            .border(1.dp, Color(0xFF2C6D80), CircleShape)
+            .border(1.dp, Color(0xFF3D7784), CircleShape)
+            .semantics {
+                contentDescription = if (!enabled) "اتصال در دسترس نیست"
+                    else if (connected) "قطع اتصال NoraProxy"
+                    else "اتصال NoraProxy"
+            }
             .clickable(enabled = enabled, onClick = onClick),
             contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.size(diameter * .27f)) {
@@ -1206,8 +1256,11 @@ private fun NoraSubscriptionGroupCard(
     Column(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
-            .background(if (active) surface2 else surface)
-            .then(if (active) Modifier.border(1.dp, cyan.copy(alpha = .6f), shape) else Modifier)
+            .background(if (active)
+                Brush.horizontalGradient(listOf(Color(0xFF243C46), surface2))
+                else Brush.horizontalGradient(listOf(surface, surface)))
+            .border(1.dp, if (active) cyan.copy(alpha = .55f)
+                else edge.copy(alpha = .28f), shape)
             .clickable(onClick = onSelect)
             .padding(17.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
@@ -1306,10 +1359,19 @@ private fun NoraLocationCard(
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (onFavorite != null) {
-            Text(if (favorite) "★" else "☆",
-                modifier = Modifier.clickable(onClick = onFavorite).padding(6.dp),
-                color = if (favorite) cyan else muted,
-                fontSize = 21.sp)
+            Box(
+                modifier = Modifier.size(48.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onFavorite)
+                    .semantics {
+                        contentDescription = if (favorite)
+                            "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (favorite) "★" else "☆",
+                    color = if (favorite) amber else muted, fontSize = 23.sp)
+            }
         }
         Text(if (delay != null && delay > 0L) persianNumber(delay.toString()) + " ms"
             else if (selected) "—" else "›", fontSize = 13.sp, color = cyan)
@@ -1322,25 +1384,40 @@ private fun NoraBottomBar(
     onSelect: (NoraTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier = modifier.fillMaxWidth().background(surface).padding(
-        horizontal = 8.dp, vertical = 11.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(
+                Color(0xFF1C2D3A), Color(0xFF14212D))))
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         NoraTab.entries.forEach { tab ->
-            Column(modifier = Modifier.weight(1f)
-                .clip(RoundedCornerShape(15.dp))
-                .clickable { onSelect(tab) }
-                .background(if (active == tab) Color(0xFF293A41) else Color.Transparent)
-                .padding(vertical = 8.dp),
+            val isActive = active == tab
+            Column(
+                modifier = Modifier.weight(1f)
+                    .heightIn(min = 59.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(if (isActive)
+                        Brush.verticalGradient(listOf(
+                            Color(0xFF31545B), Color(0xFF233A46)))
+                        else Brush.verticalGradient(listOf(
+                            Color.Transparent, Color.Transparent)))
+                    .selectable(selected = isActive, role = Role.Tab,
+                        onClick = { onSelect(tab) })
+                    .padding(vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Icon(
                     painter = painterResource(tab.iconRes),
-                    contentDescription = tab.title,
-                    modifier = Modifier.size(24.dp),
-                    tint = if (active == tab) cyan else muted
+                    contentDescription = null, // Tab label is announced once.
+                    modifier = Modifier.size(23.dp),
+                    tint = if (isActive) cyan else muted
                 )
-                Text(tab.title, color = if (active == tab) light else muted, fontSize = 10.sp,
-                    fontWeight = if (active == tab) FontWeight.Bold else FontWeight.Normal)
+                Text(tab.title, color = if (isActive) light else muted,
+                    fontSize = 11.sp, maxLines = 1,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium)
             }
         }
     }
