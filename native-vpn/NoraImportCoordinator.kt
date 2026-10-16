@@ -60,8 +60,12 @@ internal object NoraImportCoordinator {
                                     val result = AngConfigManager.updateConfigViaSub(
                                         SubscriptionCache(resolved.guid, current)
                                     )
-                                    if (result.successCount > 0) updated++ else failed++
-                                    lastId = resolved.guid
+                                    if (result.successCount > 0) {
+                                        updated++
+                                        lastId = resolved.guid
+                                    } else {
+                                        failed++
+                                    }
                                 }
                             } catch (_: Exception) {
                                 failed++
