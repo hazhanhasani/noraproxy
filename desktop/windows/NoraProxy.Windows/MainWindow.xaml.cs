@@ -58,17 +58,17 @@ public partial class MainWindow : Window
     private void SetNavigationState()
     {
         HomeNavButton.Background = HomePage.IsVisible
-            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
-            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+            ? new SolidColorBrush(Color.FromRgb(42, 78, 118))
+            : new SolidColorBrush(Color.FromRgb(22, 40, 62));
         LocationsNavButton.Background = LocationsPage.IsVisible
-            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
-            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+            ? new SolidColorBrush(Color.FromRgb(42, 78, 118))
+            : new SolidColorBrush(Color.FromRgb(22, 40, 62));
         SubscriptionsNavButton.Background = SubscriptionsPage.IsVisible
-            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
-            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+            ? new SolidColorBrush(Color.FromRgb(42, 78, 118))
+            : new SolidColorBrush(Color.FromRgb(22, 40, 62));
         SettingsNavButton.Background = SettingsPage.IsVisible
-            ? new SolidColorBrush(Color.FromRgb(42, 75, 70))
-            : new SolidColorBrush(Color.FromRgb(34, 51, 65));
+            ? new SolidColorBrush(Color.FromRgb(42, 78, 118))
+            : new SolidColorBrush(Color.FromRgb(22, 40, 62));
     }
 
     private void Home_Click(object sender, RoutedEventArgs e) => ShowPage(HomePage);
