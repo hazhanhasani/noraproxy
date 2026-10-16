@@ -3,24 +3,24 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
   <Application.Resources>
-    <SolidColorBrush x:Key="CanvasBrush" Color="#0C121B"/>
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#182431"/>
-    <SolidColorBrush x:Key="Surface2Brush" Color="#223341"/>
-    <SolidColorBrush x:Key="CardBrush" Color="#182431"/>
-    <SolidColorBrush x:Key="MutedBrush" Color="#A4B1C0"/>
-    <SolidColorBrush x:Key="AccentBrush" Color="#76EAD0"/>
-    <SolidColorBrush x:Key="VioletBrush" Color="#9388F6"/>
+    <SolidColorBrush x:Key="CanvasBrush" Color="#090E1B"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#121F32"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#20364E"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#121F32"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#AABBD1"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#78B8FF"/>
+    <SolidColorBrush x:Key="VioletBrush" Color="#FFAF85"/>
     <Style TargetType="TextBlock">
-      <Setter Property="Foreground" Value="#F5F8FC"/>
+      <Setter Property="Foreground" Value="#F4F8FF"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
     </Style>
     <Style TargetType="Button">
       <Setter Property="Padding" Value="12,9"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
       <Setter Property="FontSize" Value="12"/>
-      <Setter Property="Foreground" Value="#F5F8FC"/>
-      <Setter Property="Background" Value="#2B3E4A"/>
-      <Setter Property="BorderBrush" Value="#48616B"/>
+      <Setter Property="Foreground" Value="#F4F8FF"/>
+      <Setter Property="Background" Value="#1E344F"/>
+      <Setter Property="BorderBrush" Value="#3D5B7A"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Margin" Value="0,0,0,7"/>
@@ -33,9 +33,18 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
-            <Border CornerRadius="13" Background="{TemplateBinding Background}">
+            <Border x:Name="NavPlate" CornerRadius="17" Background="{TemplateBinding Background}"
+                    BorderThickness="1" BorderBrush="#3D5B7A">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#78B8FF"/>
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#FFAF85"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
@@ -74,11 +83,11 @@
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Grid>
-              <Ellipse Stroke="#2C6D80" StrokeThickness="1">
+              <Ellipse Stroke="#5799BD" StrokeThickness="1">
                 <Ellipse.Fill>
                   <RadialGradientBrush>
-                    <GradientStop Color="#173C59" Offset="0"/>
-                    <GradientStop Color="#0D2036" Offset="1"/>
+                    <GradientStop Color="#203F64" Offset="0"/>
+                    <GradientStop Color="#12243D" Offset="1"/>
                   </RadialGradientBrush>
                 </Ellipse.Fill>
               </Ellipse>
@@ -95,11 +104,11 @@
       </Setter>
     </Style>
     <Style x:Key="InputStyle" TargetType="TextBox">
-      <Setter Property="Background" Value="#101A24"/>
-      <Setter Property="Foreground" Value="#F5F8FC"/>
-      <Setter Property="CaretBrush" Value="#76EAD0"/>
+      <Setter Property="Background" Value="#101D31"/>
+      <Setter Property="Foreground" Value="#F4F8FF"/>
+      <Setter Property="CaretBrush" Value="#78B8FF"/>
       <Setter Property="Padding" Value="10"/>
-      <Setter Property="BorderBrush" Value="#3C555F"/>
+      <Setter Property="BorderBrush" Value="#375572"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="FontSize" Value="13"/>
     </Style>
