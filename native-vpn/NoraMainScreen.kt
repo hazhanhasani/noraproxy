@@ -99,16 +99,16 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 // NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
-private val ink = Color(0xFF0C121B)
-private val surface = Color(0xFF182431)
-private val surface2 = Color(0xFF223341)
-private val cyan = Color(0xFF76EAD0)
-private val blue = Color(0xFF9388F6)
-private val light = Color(0xFFF5F8FC)
-private val muted = Color(0xFFA4B1C0)
-private val green = Color(0xFF76EAD0)
-private val amber = Color(0xFFF2CD8F)
-private val edge = Color(0xFF355565)
+private val ink = Color(0xFF090E1B)
+private val surface = Color(0xFF121F32)
+private val surface2 = Color(0xFF20364E)
+private val cyan = Color(0xFF78B8FF)
+private val blue = Color(0xFFFFAF85)
+private val light = Color(0xFFF4F8FF)
+private val muted = Color(0xFFAABBD1)
+private val green = Color(0xFF6CE5C2)
+private val amber = Color(0xFFFFCE88)
+private val edge = Color(0xFF375572)
 private val corner = RoundedCornerShape(24.dp)
 
 private enum class NoraTab(val title: String, val iconRes: Int) {
@@ -520,7 +520,7 @@ fun MainScreen(
                 } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF0B2037), ink)))
+                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF152943), ink)))
                         .padding(inner)
                         .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
@@ -930,10 +930,32 @@ private fun NoraHomeContent(
     BoxWithConstraints(
         modifier = modifier.background(
             Brush.verticalGradient(listOf(
-                Color(0xFF0B121C), Color(0xFF14232C), Color(0xFF0D1621)
+                Color(0xFF090F1E), Color(0xFF13233B), Color(0xFF0B162A)
             ))
         ).padding(horizontal = 16.dp)
     ) {
+        // A quiet, two-color ambient glow gives the home its own brand identity.
+        // It is painted behind content, with no infinite animation or layout cost.
+        Canvas(Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(cyan.copy(alpha = .14f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .87f, size.height * .18f),
+                    radius = size.width * .72f
+                ),
+                radius = size.width * .72f,
+                center = androidx.compose.ui.geometry.Offset(size.width * .87f, size.height * .18f)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(blue.copy(alpha = .08f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(size.width * .10f, size.height * .81f),
+                    radius = size.width * .65f
+                ),
+                radius = size.width * .65f,
+                center = androidx.compose.ui.geometry.Offset(size.width * .10f, size.height * .81f)
+            )
+        }
         val compact = maxHeight < 665.dp
         val tiny = maxHeight < 525.dp
         val powerDiameter = (maxHeight * (if (compact) 0.24f else 0.28f))
@@ -949,7 +971,7 @@ private fun NoraHomeContent(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(40.dp))
-                    .background(if (connected) Color(0xFF163832) else Color(0xFF263440))
+                    .background(if (connected) Color(0xFF173F3D) else Color(0xFF20344C))
                     .border(1.dp, if (connected) green.copy(alpha = .32f)
                         else edge.copy(alpha = .8f), RoundedCornerShape(40.dp))
                     .padding(horizontal = 15.dp, vertical = 8.dp),
@@ -975,14 +997,14 @@ private fun NoraHomeContent(
                 fontSize = if (compact) 17.sp else 20.sp,
                 textAlign = TextAlign.Center, maxLines = 1
             )
-            Spacer(Modifier.height(if (compact) 3.dp else 6.dp))
+            if (!tiny) Spacer(Modifier.height(if (compact) 3.dp else 6.dp))
             NoraPowerButton(
                 connected = connected,
                 enabled = !waiting && (connected || canConnect),
                 diameter = powerDiameter,
                 onClick = onToggle
             )
-            Text(
+            if (!tiny) Text(
                 if (waiting) "در حال تغییر وضعیت اتصال"
                 else if (connected) "برای قطع اتصال لمس کنید"
                 else if (canConnect) "برای اتصال لمس کنید" else "ابتدا یک اشتراک اضافه کنید",
@@ -994,14 +1016,14 @@ private fun NoraHomeContent(
                     modifier = Modifier.fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(Brush.horizontalGradient(listOf(
-                            Color(0xFF34304E), Color(0xFF253745))))
+                            Color(0xFF28385C), Color(0xFF18344E))))
                         .border(1.dp, blue.copy(alpha = .33f), RoundedCornerShape(14.dp))
                         .clickable(onClick = onOpenUpdate)
                         .padding(horizontal = 13.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("نسخه جدید آماده است", modifier = Modifier.weight(1f),
-                        color = Color(0xFFD1C8FF), fontSize = 11.sp)
+                        color = Color(0xFFFFD3B8), fontSize = 11.sp)
                     Text("←", color = light, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(6.dp))
@@ -1018,7 +1040,7 @@ private fun NoraHomeContent(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(Brush.horizontalGradient(listOf(
-                        Color(0xFF203744), Color(0xFF192935))))
+                        Color(0xFF253D5C), Color(0xFF172840))))
                     .border(1.dp, edge.copy(alpha = .75f), RoundedCornerShape(20.dp))
                     .clickable(onClick = onChooseLocation)
                     .padding(horizontal = 13.dp, vertical = if (compact) 9.dp else 12.dp),
@@ -1026,7 +1048,7 @@ private fun NoraHomeContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.size(42.dp)
-                    .background(Color(0xFF2B4853), RoundedCornerShape(14.dp))
+                    .background(Color(0xFF29466A), RoundedCornerShape(14.dp))
                     .border(1.dp, cyan.copy(alpha = .18f), RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center) {
                     Text(locationFlag, fontSize = 25.sp)
@@ -1042,7 +1064,7 @@ private fun NoraHomeContent(
                         modifier = Modifier
                             .clip(RoundedCornerShape(11.dp))
                             .background(if (locationPing != null && locationPing > 0L)
-                                Color(0xFF21443E) else surface2)
+                                Color(0xFF1F524C) else surface2)
                             .padding(horizontal = 9.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -1061,7 +1083,7 @@ private fun NoraHomeContent(
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF192935))
+                    .background(Color(0xFF15253D))
                     .border(1.dp, edge.copy(alpha = .35f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1078,13 +1100,14 @@ private fun NoraHomeContent(
                     Modifier.weight(1f)
                 )
             }
-            usage?.usagePercent()?.let { used ->
+            if (!tiny) usage?.usagePercent()?.let { used ->
                 Spacer(Modifier.height(5.dp))
                 Box(Modifier.fillMaxWidth().height(3.dp)
                     .clip(RoundedCornerShape(6.dp)).background(surface2)) {
                     Box(Modifier.fillMaxWidth(used).height(3.dp).background(cyan))
                 }
             }
+            if (!tiny) {
             Spacer(Modifier.height(if (compact) 8.dp else 13.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("انتخاب سریع کشور", modifier = Modifier.weight(1f),
@@ -1122,6 +1145,7 @@ private fun NoraHomeContent(
                     }
                 }
             }
+            } // Compact devices retain route and quota while omitting the secondary carousel.
         }
     }
 }
@@ -1150,8 +1174,8 @@ private fun NoraQuickCountryCard(
             .heightIn(min = if (compact) 56.dp else 72.dp)
             .clip(shape)
             .background(if (selected)
-                Brush.verticalGradient(listOf(Color(0xFF294D50), Color(0xFF213541)))
-                else Brush.verticalGradient(listOf(Color(0xFF1C2C39), surface)))
+                Brush.verticalGradient(listOf(Color(0xFF294B76), Color(0xFF21354E)))
+                else Brush.verticalGradient(listOf(Color(0xFF16283D), surface)))
             .border(1.dp, if (selected) cyan.copy(alpha = .78f)
                 else edge.copy(alpha = .34f), shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -1173,12 +1197,17 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
         Image(painter = painter, contentDescription = "NoraProxy logo",
             modifier = Modifier.size(59.dp).clip(RoundedCornerShape(18.dp)))
         Column(modifier = Modifier.weight(1f)) {
-            Text("NoraProxy", color = light, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+            Text("NoraProxy", color = light, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold,
+                letterSpacing = .3.sp)
             Text(if (seller.isBlank()) "اتصال سریع و ایمن" else "ارائه‌شده توسط " + seller,
                 color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Box(modifier = Modifier.background(if (connected) Color(0xFF1B3D39) else surface2,
-            RoundedCornerShape(30.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Box(modifier = Modifier
+            .clip(RoundedCornerShape(30.dp))
+            .background(if (connected) Color(0xFF1A4946) else surface2)
+            .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
+                RoundedCornerShape(30.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)) {
             Text(if (connected) "● روشن" else "○ خاموش",
                 color = if (connected) green else muted, fontSize = 11.sp)
         }
@@ -1207,7 +1236,7 @@ private fun NoraPowerButton(
             drawCircle(ring.copy(alpha = .14f), radius = radius * .89f,
                 style = Stroke(width = 1.5.dp.toPx()))
             drawCircle(
-                brush = Brush.sweepGradient(listOf(blue, cyan, green, blue)),
+                brush = Brush.sweepGradient(listOf(cyan, blue, cyan, green, cyan)),
                 radius = radius * .76f,
                 style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
             )
@@ -1217,10 +1246,10 @@ private fun NoraPowerButton(
         Box(modifier = Modifier.size(diameter * .67f)
             .clip(CircleShape) // Prevent square ripple artifacts on tap.
             .background(
-                Brush.radialGradient(listOf(Color(0xFF173C59), Color(0xFF0D2036))),
+                Brush.radialGradient(listOf(Color(0xFF203F64), Color(0xFF12243D))),
                 CircleShape
             )
-            .border(1.dp, Color(0xFF3D7784), CircleShape)
+            .border(1.dp, Color(0xFF5799BD), CircleShape)
             .semantics {
                 contentDescription = if (!enabled) "اتصال در دسترس نیست"
                     else if (connected) "قطع اتصال NoraProxy"
@@ -1257,7 +1286,7 @@ private fun NoraSubscriptionGroupCard(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
             .background(if (active)
-                Brush.horizontalGradient(listOf(Color(0xFF243C46), surface2))
+                Brush.horizontalGradient(listOf(Color(0xFF243E5D), surface2))
                 else Brush.horizontalGradient(listOf(surface, surface)))
             .border(1.dp, if (active) cyan.copy(alpha = .55f)
                 else edge.copy(alpha = .28f), shape)
@@ -1281,7 +1310,7 @@ private fun NoraSubscriptionGroupCard(
         }
         usage?.usagePercent()?.let { percent ->
             Box(Modifier.fillMaxWidth().height(5.dp)
-                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF29435B))) {
+                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF28435E))) {
                 Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
             }
             if (usage.used != null && usage.total != null) {
@@ -1344,14 +1373,14 @@ private fun NoraLocationCard(
 ) {
     Row(modifier = Modifier.fillMaxWidth()
         .background(if (selected) surface2 else surface, RoundedCornerShape(20.dp))
-        .then(if (selected) Modifier.border(1.dp, Color(0xFF1D8EA5),
+        .then(if (selected) Modifier.border(1.dp, Color(0xFF78B8FF),
             RoundedCornerShape(20.dp)) else Modifier)
         .clip(RoundedCornerShape(20.dp))
         .clickable(onClick = onClick)
         .padding(horizontal = 16.dp, vertical = if (compact) 10.dp else 18.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(modifier = Modifier.size(if (compact) 39.dp else 45.dp)
-            .background(Color(0xFF1E3C52), RoundedCornerShape(14.dp)),
+            .background(Color(0xFF243F5F), RoundedCornerShape(14.dp)),
             contentAlignment = Alignment.Center) { Text(emoji, fontSize = 26.sp, color = cyan) }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, fontSize = 15.sp, color = light, fontWeight = FontWeight.Bold)
@@ -1386,9 +1415,12 @@ private fun NoraBottomBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(23.dp))
             .background(Brush.verticalGradient(listOf(
-                Color(0xFF1C2D3A), Color(0xFF14212D))))
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+                Color(0xFF192D48), Color(0xFF102036))))
+            .border(1.dp, edge.copy(alpha = .42f), RoundedCornerShape(23.dp))
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1400,7 +1432,7 @@ private fun NoraBottomBar(
                     .clip(RoundedCornerShape(17.dp))
                     .background(if (isActive)
                         Brush.verticalGradient(listOf(
-                            Color(0xFF31545B), Color(0xFF233A46)))
+                            Color(0xFF315A85), Color(0xFF233954)))
                         else Brush.verticalGradient(listOf(
                             Color.Transparent, Color.Transparent)))
                     .selectable(selected = isActive, role = Role.Tab,
@@ -1418,6 +1450,8 @@ private fun NoraBottomBar(
                 Text(tab.title, color = if (isActive) light else muted,
                     fontSize = 11.sp, maxLines = 1,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium)
+                if (isActive) Box(Modifier.width(20.dp).height(2.dp)
+                    .clip(CircleShape).background(blue))
             }
         }
     }
