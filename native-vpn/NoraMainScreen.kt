@@ -1346,9 +1346,22 @@ private fun NoraSubscriptionGroupCard(
 
 @Composable
 private fun NoraSection(title: String, caption: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(title, color = light, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-        if (caption.isNotBlank()) Text(caption, color = muted, fontSize = 12.sp)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 3.dp, bottom = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.width(3.dp).height(if (caption.isBlank()) 27.dp else 39.dp)
+                .clip(CircleShape)
+                .background(Brush.verticalGradient(listOf(cyan, blue)))
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, color = light, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+            if (caption.isNotBlank()) Text(caption, color = muted, fontSize = 12.sp)
+        }
+        Text("NORA", color = cyan.copy(alpha = .64f),
+            fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
     }
 }
 
@@ -1371,20 +1384,37 @@ private fun NoraLocationCard(
     favorite: Boolean = false,
     onClick: () -> Unit
 ) {
-    Row(modifier = Modifier.fillMaxWidth()
-        .background(if (selected) surface2 else surface, RoundedCornerShape(20.dp))
-        .then(if (selected) Modifier.border(1.dp, Color(0xFF78B8FF),
-            RoundedCornerShape(20.dp)) else Modifier)
-        .clip(RoundedCornerShape(20.dp))
-        .clickable(onClick = onClick)
-        .padding(horizontal = 16.dp, vertical = if (compact) 10.dp else 18.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(modifier = Modifier.size(if (compact) 39.dp else 45.dp)
-            .background(Color(0xFF243F5F), RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center) { Text(emoji, fontSize = 26.sp, color = cyan) }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, fontSize = 15.sp, color = light, fontWeight = FontWeight.Bold)
-            Text(subtitle, fontSize = 11.sp, color = muted,
+    val shape = RoundedCornerShape(21.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    if (selected) listOf(Color(0xFF264A70), Color(0xFF172B46))
+                    else listOf(surface, Color(0xFF16283E))
+                )
+            )
+            .border(1.dp, if (selected) cyan.copy(alpha = .7f)
+                else edge.copy(alpha = .4f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(if (compact) 42.dp else 50.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF243F5F))
+                .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(emoji, fontSize = if (compact) 25.sp else 28.sp)
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, fontSize = 15.sp, color = light, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(if (selected) "●  " + subtitle else subtitle, fontSize = 11.sp,
+                color = if (selected) green else muted,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (onFavorite != null) {
@@ -1402,8 +1432,18 @@ private fun NoraLocationCard(
                     color = if (favorite) amber else muted, fontSize = 23.sp)
             }
         }
-        Text(if (delay != null && delay > 0L) persianNumber(delay.toString()) + " ms"
-            else if (selected) "—" else "›", fontSize = 13.sp, color = cyan)
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (delay != null && delay > 0L) Color(0xFF1C464A) else surface2)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(if (delay != null && delay > 0L) persianNumber(delay.toString()) + " ms"
+                else "—", fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (delay != null && delay > 0L) green else muted)
+        }
     }
 }
 
