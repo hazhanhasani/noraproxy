@@ -109,7 +109,7 @@ installer is currently unsigned; Microsoft SmartScreen may warn, and it is
 not yet a fully publisher-authenticated automatic update system.
 
 
-## UI parity with Android (Windows Preview 0.1.3)
+## UI parity with Android (Windows Preview 0.1.4)
 
 Windows now uses the real **same NoraProxy icon bytes** from the Android
 project, the four Android vector tab icons in a **bottom bar** (not a sidebar),

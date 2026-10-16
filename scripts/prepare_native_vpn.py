@@ -123,8 +123,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 217')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.17"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 218')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.18"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -242,7 +242,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.17, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.18, embedded Xray/VpnService, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()

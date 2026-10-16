@@ -23,7 +23,7 @@ public sealed record WindowsUpdate(Version Version, string FileName, Uri Install
 
 public sealed class WindowsUpdateService : IDisposable
 {
-    public static readonly Version CurrentVersion = new(0, 1, 3);
+    public static readonly Version CurrentVersion = new(0, 1, 4);
     private const string Repository = "hazhanhasani/noraproxy";
     private const string Api = "https://api.github.com/repos/" + Repository + "/releases?per_page=50";
     private const long MaxInstallerBytes = 250L * 1024 * 1024;
@@ -39,7 +39,7 @@ public sealed class WindowsUpdateService : IDisposable
             MaxAutomaticRedirections = 5
         });
         _http.Timeout = TimeSpan.FromMinutes(8);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("NoraProxy-Windows-Updater/0.1.3");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("NoraProxy-Windows-Updater/0.1.4");
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
     }
 

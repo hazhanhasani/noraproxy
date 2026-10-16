@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>NoraProxy</AssemblyName>
     <RootNamespace>NoraProxy.Windows</RootNamespace>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
