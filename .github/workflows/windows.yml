@@ -46,9 +46,11 @@ jobs:
               $main.Contains('NavButtonStyle')) {
             throw 'Windows home and bottom navigation no longer match Android UI.'
           }
-          foreach ($color in @('#0C121B','#182431','#223341','#76EAD0','#9388F6')) {
-            if (!$android.Contains($color.Replace('#','0xFF'))) {
-              throw "Android design token $color is missing."
+          $tokens = @('#090E1B','#121F32','#20364E','#78B8FF','#FFAF85')
+          $theme = Get-Content 'desktop/windows/NoraProxy.Windows/App.xaml' -Raw
+          foreach ($color in $tokens) {
+            if (!$android.Contains($color.Replace('#','0xFF')) -or !$theme.Contains($color)) {
+              throw "Android and Windows design token $color are not aligned."
             }
           }
           Write-Host 'Same NoraProxy brand icon, palette, home and tab hierarchy verified.'
