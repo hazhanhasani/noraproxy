@@ -1,16 +1,16 @@
 /* NoraProxy Official Landing · lightweight RTL-first, zero external runtime dependencies */
 :root {
   color-scheme: dark;
-  --bg: #07111f;
-  --bg-2: #0a192a;
-  --surface: #102238;
-  --surface-soft: #132840;
+  --bg: #090e1b;
+  --bg-2: #121f32;
+  --surface: #121f32;
+  --surface-soft: #20364e;
   --stroke: rgba(179, 208, 234, .14);
-  --text: #f2f9ff;
-  --muted: #9aadc1;
-  --cyan: #42ebdf;
-  --blue: #6d8bff;
-  --peach: #ffbd8f;
+  --text: #f4f8ff;
+  --muted: #aabbd1;
+  --cyan: #78b8ff;
+  --blue: #78b8ff;
+  --peach: #ffaf85;
   --radius: 26px;
   --shadow: 0 22px 100px rgba(0, 0, 0, .3);
   --content: 1160px;
@@ -24,7 +24,7 @@ a, button { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; cursor: pointer; }
 img, svg { display: block; }
 svg { max-width: 100%; }
-::selection { background: #36e5d6; color: #07111f; }
+::selection { background: #78b8ff; color: #07111f; }
 :focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 [hidden] { display: none !important; }
 .container { width: min(calc(100% - 48px), var(--content)); margin-inline: auto; }
@@ -33,7 +33,7 @@ svg { max-width: 100%; }
 .skip-link { position: fixed; z-index: 999; top: -90px; right: 20px; padding: 12px 18px; background: var(--cyan); color: var(--bg); border-radius: 12px; }
 .skip-link:focus { top: 12px; }
 .accent { color: var(--cyan); }
-.gradient-text { background: linear-gradient(115deg, #46f5d9 6%, #47cce9 58%, #8c92ff 105%); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.gradient-text { background: linear-gradient(115deg, #78b8ff 6%, #9ecfff 58%, #ffaf85 105%); background-clip: text; -webkit-background-clip: text; color: transparent; }
 .section-kicker { display: inline-block; color: var(--cyan); font: 700 11px/1.6 "Segoe UI",Arial,sans-serif; direction: ltr; letter-spacing: .19em; }
 .section { padding-block: 108px; }
 h1,h2,h3,p { margin-block: 0; }
@@ -66,7 +66,7 @@ p { color: var(--muted); }
 /* Buttons */
 .btn { min-height: 56px; border-radius: 15px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 11px; padding: 12px 22px; font-size: 14px; font-weight: 800; transition: transform .23s ease, background .23s ease, box-shadow .23s ease, border-color .23s ease; }
 .btn:hover { transform: translateY(-3px); }
-.btn-primary { color: #06202a; background: linear-gradient(105deg, #48ecdd, #69ccf7); box-shadow: 0 12px 35px rgba(44,213,215,.2); }
+.btn-primary { color: #06202a; background: linear-gradient(105deg, #78b8ff, #acd4ff); box-shadow: 0 12px 35px rgba(44,213,215,.2); }
 .btn-primary:hover { box-shadow: 0 14px 40px rgba(44,213,215,.3); }
 .btn-ghost { color: #d9e9f7; background: rgba(255,255,255,.03); border-color: rgba(154,198,226,.21); }
 .btn-ghost:hover { background: rgba(255,255,255,.08); }
@@ -99,7 +99,7 @@ p { color: var(--muted); }
 .phone-ui { height: 100%; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at 50% 47%,#123148 0%,#0a1c30 36%,#061323 88%); border-radius: 28px; padding: 23px 11px 0; overflow: hidden; }
 .phone-top { margin-top: 9px; display: flex; justify-content: space-between; align-items: center; gap: 5px; }
 .phone-user { display: flex; align-items: center; gap: 6px; direction: ltr; }
-.phone-logo { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 9px; background: linear-gradient(140deg,#44eee0,#557aff); color: #051729; font: 900 22px "Segoe UI",sans-serif; }
+.phone-logo { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 9px; background: linear-gradient(140deg,#78b8ff,#ffaf85); color: #051729; font: 900 22px "Segoe UI",sans-serif; }
 .phone-user span:last-child { display: flex; align-items: flex-start; flex-direction: column; }
 .phone-user strong { font: 800 13px "Segoe UI",sans-serif; }
 .phone-user small { font: 10px Tahoma,sans-serif; color: #7e9aaf; }
@@ -108,16 +108,16 @@ p { color: var(--muted); }
 .phone-greeting { text-align: center; font-size: 18px; font-weight: 800; margin-top: 55px; }
 .phone-subline { text-align: center; color: #8ca5b9; font-size: 10px; margin-top: 5px; }
 .power-halo { margin: 26px auto 0; width: 202px; height: 202px; border-radius: 50%; display: grid; place-items: center; background: rgba(76,169,193,.06); box-shadow: 0 0 0 12px rgba(68,158,183,.045), 0 0 65px rgba(27,212,207,.05); }
-.power-outer { width: 179px; height: 179px; border-radius: 50%; padding: 9px; background: conic-gradient(from 15deg,#44f3d9 0%,#46ceec 28%,#556aff 72%,#44f3d9 100%); box-shadow: 0 0 32px rgba(69,223,223,.19); }
+.power-outer { width: 179px; height: 179px; border-radius: 50%; padding: 9px; background: conic-gradient(from 15deg,#78b8ff 0%,#acd4ff 28%,#ffaf85 72%,#78b8ff 100%); box-shadow: 0 0 32px rgba(69,223,223,.19); }
 .power-inner { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle,#0d3348,#081727 75%); }
-.power-inner svg { width: 95px; height: 95px; color: #65e7c4; filter: drop-shadow(0 0 10px rgba(66,235,223,.3)); }
+.power-inner svg { width: 95px; height: 95px; color: #6ce5c2; filter: drop-shadow(0 0 10px rgba(66,235,223,.3)); }
 .phone-tip { text-align: center; color: #91a7b9; font-size: 10px; margin-top: 23px; }
 .phone-dashboard { margin-top: auto; padding-bottom: 12px; }
 .mini-title { display: flex; justify-content: space-between; align-items: center; padding: 0 4px 8px; font-size: 12px; }
 .mini-title span { font-weight: 700; font-family: "Segoe UI",sans-serif; }
 .mini-title small { color: var(--cyan); font-size: 10px; }
 .location-row { display: flex; align-items: center; gap: 9px; padding: 10px; border: 1px solid rgba(65,215,224,.47); background: #122b41; border-radius: 13px; }
-.location-globe { width: 32px; height: 32px; border-radius: 10px; background: #184456; display: grid; place-items: center; font-size: 29px; color: #31dce8; font-family: Arial,sans-serif; }
+.location-globe { width: 32px; height: 32px; border-radius: 10px; background: #184456; display: grid; place-items: center; font-size: 29px; color: #78b8ff; font-family: Arial,sans-serif; }
 .location-row div { display: flex; flex-direction: column; flex: 1; }
 .location-row strong { font-size: 11px; }
 .location-row small { font-size: 9px; color: #94b0c4; }
