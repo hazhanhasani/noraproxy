@@ -4,7 +4,6 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
-import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.util.Utils
 import java.net.URI
 import java.util.Locale
@@ -114,7 +113,8 @@ internal object NoraImportRouter {
             autoUpdate = true
         )
         MmkvManager.encodeSubscription(groupId, item)
-        SubscriptionUpdater.syncOne(subId = groupId)
+        // NoraImportCoordinator fetches this group once after creation.
+        // A second sync here caused duplicate traffic and competing MMKV writes.
         SettingsChangeManager.makeSetupGroupTab()
         NoraResolvedGroup(groupId, true)
     }
