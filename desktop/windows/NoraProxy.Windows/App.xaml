@@ -3,13 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
   <Application.Resources>
-    <SolidColorBrush x:Key="CanvasBrush" Color="#090E1B"/>
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#121F32"/>
-    <SolidColorBrush x:Key="Surface2Brush" Color="#20364E"/>
-    <SolidColorBrush x:Key="CardBrush" Color="#121F32"/>
-    <SolidColorBrush x:Key="MutedBrush" Color="#AABBD1"/>
-    <SolidColorBrush x:Key="AccentBrush" Color="#78B8FF"/>
-    <SolidColorBrush x:Key="VioletBrush" Color="#FFAF85"/>
+    <SolidColorBrush x:Key="CanvasBrush" Color="#081120"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#12223A"/>
+    <SolidColorBrush x:Key="Surface2Brush" Color="#1D3552"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#12223A"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#9BB0C9"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#8FC5FF"/>
+    <SolidColorBrush x:Key="VioletBrush" Color="#FFBC92"/>
     <Style TargetType="TextBlock">
       <Setter Property="Foreground" Value="#F4F8FF"/>
       <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -19,8 +19,8 @@
       <Setter Property="FontFamily" Value="Segoe UI"/>
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="Foreground" Value="#F4F8FF"/>
-      <Setter Property="Background" Value="#1E344F"/>
-      <Setter Property="BorderBrush" Value="#3D5B7A"/>
+      <Setter Property="Background" Value="#203A58"/>
+      <Setter Property="BorderBrush" Value="#365575"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Margin" Value="0,0,0,7"/>
@@ -34,15 +34,15 @@
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="NavPlate" CornerRadius="17" Background="{TemplateBinding Background}"
-                    BorderThickness="1" BorderBrush="#3D5B7A">
+                    BorderThickness="1" BorderBrush="#365575">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#78B8FF"/>
+                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#8FC5FF"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
-                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#FFAF85"/>
+                <Setter TargetName="NavPlate" Property="BorderBrush" Value="#FFBC92"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -86,8 +86,8 @@
               <Ellipse Stroke="#5799BD" StrokeThickness="1">
                 <Ellipse.Fill>
                   <RadialGradientBrush>
-                    <GradientStop Color="#203F64" Offset="0"/>
-                    <GradientStop Color="#12243D" Offset="1"/>
+                    <GradientStop Color="#234568" Offset="0"/>
+                    <GradientStop Color="#10223A" Offset="1"/>
                   </RadialGradientBrush>
                 </Ellipse.Fill>
               </Ellipse>
@@ -106,7 +106,7 @@
     <Style x:Key="InputStyle" TargetType="TextBox">
       <Setter Property="Background" Value="#101D31"/>
       <Setter Property="Foreground" Value="#F4F8FF"/>
-      <Setter Property="CaretBrush" Value="#78B8FF"/>
+      <Setter Property="CaretBrush" Value="#8FC5FF"/>
       <Setter Property="Padding" Value="10"/>
       <Setter Property="BorderBrush" Value="#375572"/>
       <Setter Property="BorderThickness" Value="1"/>
