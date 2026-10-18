@@ -218,18 +218,24 @@ fun MainScreen(
     // Prevent double-taps from dispatching conflicting native start/stop commands.
     var powerPending by remember { mutableStateOf(false) }
     var expectedPowerState by remember { mutableStateOf<Boolean?>(null) }
+    var powerTimedOut by remember { mutableStateOf(false) }
     LaunchedEffect(appState.isRunning, expectedPowerState) {
         if (expectedPowerState != null && appState.isRunning == expectedPowerState) {
             expectedPowerState = null
             powerPending = false
+            powerTimedOut = false
             tapsell.onVpnOperationCompleted()
         }
     }
-    // Re-enable the control if Android VPN permission was declined or startup failed.
+    // Permission prompts and service start may take time on OEM devices.
+    // After the watchdog expires, allow a retry but never infer a connected VPN.
     LaunchedEffect(expectedPowerState) {
-        if (expectedPowerState != null) {
-            delay(8000)
-            if (expectedPowerState != null) {
+        val requestedState = expectedPowerState
+        if (requestedState != null) {
+            delay(15_000)
+            if (expectedPowerState == requestedState &&
+                mainViewModel.uiState.value.isRunning != requestedState) {
+                powerTimedOut = true
                 expectedPowerState = null
                 powerPending = false
             }
@@ -426,6 +432,12 @@ fun MainScreen(
     } else if (selectedCountry == null) {
         ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull()
     } else locations.firstOrNull { it.countryCode == selectedCountry }
+    val connectionPhase = NoraConnectionPhase.resolve(
+        isRunning = appState.isRunning,
+        expectedRunning = expectedPowerState,
+        hasRoute = preferredRoute != null,
+        timedOut = powerTimedOut
+    )
     // When connected, show the backend's actually selected route (not a visual-only choice).
     val activeRoute = ranked.firstOrNull { it.guid == appState.selectedGuid }
     val displayedRoute = if (appState.isRunning) activeRoute ?: preferredRoute else preferredRoute
@@ -455,6 +467,7 @@ fun MainScreen(
 
     val startOrStop: () -> Unit = {
         if (!powerPending && !adShowing) {
+            powerTimedOut = false
             if (appState.isRunning) {
                 powerPending = true
                 expectedPowerState = false
@@ -494,6 +507,8 @@ fun MainScreen(
                         logo = originalLogo,
                         seller = brand,
                         connected = appState.isRunning,
+                        phase = connectionPhase,
+                        lastOperationTimedOut = powerTimedOut,
                         waiting = powerPending || adShowing,
                         canConnect = preferredRoute != null,
                         selectedCountryName = displayedRoute?.countryName ?: "بدون لوکیشن",
@@ -911,6 +926,8 @@ private fun NoraHomeContent(
     logo: Painter,
     seller: String,
     connected: Boolean,
+    phase: NoraConnectionPhase,
+    lastOperationTimedOut: Boolean,
     waiting: Boolean,
     canConnect: Boolean,
     selectedCountryName: String,
@@ -966,7 +983,7 @@ private fun NoraHomeContent(
             modifier = Modifier.fillMaxSize().padding(top = inset, bottom = inset),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            NoraHeader(logo, seller, connected)
+            NoraHeader(logo, seller, connected, phase)
             Spacer(Modifier.weight(0.45f))
             Row(
                 modifier = Modifier
@@ -982,17 +999,16 @@ private fun NoraHomeContent(
                     .background(if (waiting) amber else if (connected) green else muted,
                         CircleShape))
                 Text(
-                    if (waiting) "در حال تغییر اتصال"
-                    else if (connected) "تونل VPN فعال است" else "آماده اتصال",
+                    if (waiting && !phase.isBusy) "نمایش تبلیغ"
+                    else phase.statusLabel,
                     color = if (waiting) amber else if (connected) green else light,
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                 )
             }
             Spacer(Modifier.height(if (compact) 6.dp else 12.dp))
             Text(
-                if (waiting) "در حال پردازش..."
-                else if (connected) "سرویس VPN در حال اجراست"
-                else "با یک لمس متصل شوید",
+                if (waiting && !phase.isBusy) "در حال نمایش تبلیغ"
+                else phase.headline,
                 color = light, fontWeight = FontWeight.Bold,
                 fontSize = if (compact) 17.sp else 20.sp,
                 textAlign = TextAlign.Center, maxLines = 1
@@ -1000,14 +1016,16 @@ private fun NoraHomeContent(
             if (!tiny) Spacer(Modifier.height(if (compact) 3.dp else 6.dp))
             NoraPowerButton(
                 connected = connected,
+                phase = phase,
                 enabled = !waiting && (connected || canConnect),
                 diameter = powerDiameter,
                 onClick = onToggle
             )
             if (!tiny) Text(
-                if (waiting) "در حال تغییر وضعیت اتصال"
-                else if (connected) "برای قطع اتصال لمس کنید"
-                else if (canConnect) "برای اتصال لمس کنید" else "ابتدا یک اشتراک اضافه کنید",
+                if (lastOperationTimedOut && connected)
+                    "قطع اتصال تأیید نشد؛ سرویس هنوز روشن است"
+                else if (waiting && !phase.isBusy) "لطفاً تا پایان نمایش صبر کنید"
+                else phase.actionHint,
                 color = muted, fontSize = 11.sp, maxLines = 1
             )
             Spacer(Modifier.weight(0.7f))
@@ -1191,7 +1209,9 @@ private fun NoraQuickCountryCard(
 }
 
 @Composable
-private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
+private fun NoraHeader(
+    painter: Painter, seller: String, connected: Boolean, phase: NoraConnectionPhase
+) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Image(painter = painter, contentDescription = "NoraProxy logo",
@@ -1208,8 +1228,9 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
             .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
                 RoundedCornerShape(30.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(if (connected) "● روشن" else "○ خاموش",
-                color = if (connected) green else muted, fontSize = 11.sp)
+            Text(phase.statusLabel,
+                color = if (connected) green else if (phase.isBusy) amber else muted,
+                fontSize = 11.sp, maxLines = 1)
         }
     }
 }
@@ -1217,6 +1238,7 @@ private fun NoraHeader(painter: Painter, seller: String, connected: Boolean) {
 @Composable
 private fun NoraPowerButton(
     connected: Boolean,
+    phase: NoraConnectionPhase,
     enabled: Boolean,
     diameter: Dp = 272.dp,
     onClick: () -> Unit
@@ -1251,7 +1273,8 @@ private fun NoraPowerButton(
             )
             .border(1.dp, Color(0xFF5799BD), CircleShape)
             .semantics {
-                contentDescription = if (!enabled) "اتصال در دسترس نیست"
+                contentDescription = if (!enabled && phase.isBusy) phase.statusLabel
+                    else if (!enabled) "اتصال در دسترس نیست"
                     else if (connected) "قطع اتصال NoraProxy"
                     else "اتصال NoraProxy"
             }
