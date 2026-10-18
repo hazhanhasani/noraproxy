@@ -544,7 +544,7 @@ fun MainScreen(
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    item { NoraHeader(originalLogo, brand, appState.isRunning) }
+                    item { NoraHeader(originalLogo, brand, appState.isRunning, connectionPhase) }
                     when (tab) {
                         NoraTab.Home -> Unit
                         NoraTab.Locations -> {
