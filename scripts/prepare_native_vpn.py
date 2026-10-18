@@ -50,6 +50,8 @@ def prepare():
          "java/com/v2ray/ang/ui/main/NoraSmartEngine.kt"),
         ("native-vpn/NoraSelectionPolicy.kt",
          "java/com/v2ray/ang/ui/main/NoraSelectionPolicy.kt"),
+        ("native-vpn/NoraConnectionPhase.kt",
+         "java/com/v2ray/ang/ui/main/NoraConnectionPhase.kt"),
         ("native-vpn/NoraUpdater.kt",
          "java/com/v2ray/ang/ui/main/NoraUpdater.kt"),
         ("native-vpn/NoraTapsellAds.kt",
@@ -72,7 +74,7 @@ def prepare():
         to.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / from_name, to)
 
-    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt", "NoraRouteSelectorTest.kt", "NoraSmartEngineTest.kt", "NoraSelectionPolicyTest.kt"):
+    for test_name in ("NoraSubscriptionUsageTest.kt", "NoraImportRouterTest.kt", "NoraForegroundRefreshTest.kt", "NoraRouteSelectorTest.kt", "NoraSmartEngineTest.kt", "NoraSelectionPolicyTest.kt", "NoraConnectionPhaseTest.kt"):
         test_source = ROOT / "native-vpn/tests" / test_name
         test_target = APP / "src/test/java/com/v2ray/ang/ui/main" / test_name
         test_target.parent.mkdir(parents=True, exist_ok=True)
