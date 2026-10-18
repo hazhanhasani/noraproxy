@@ -69,18 +69,18 @@ string Fixture(string tag, bool withInstaller = true, bool withHash = true, bool
     });
 }
 var installed = WindowsUpdateService.CurrentVersion;
-Assert(installed == new Version(0, 1, 4), "Windows updater and application version must match.");
-Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.5"), installed)?.Version
-    == new Version(0, 1, 5), "Discover a newer Windows-only release.");
+Assert(installed == new Version(0, 1, 5), "Windows updater and application version must match.");
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.6"), installed)?.Version
+    == new Version(0, 1, 6), "Discover a newer Windows-only release.");
 Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.1"), installed) is null,
     "Never downgrade.");
 Assert(WindowsUpdateService.FindLatest(Fixture("v1.0.0"), installed) is null,
     "Never install an Android APK as a Windows update.");
-Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.5", tampered: true), installed) is null,
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.6", tampered: true), installed) is null,
     "Reject a release asset that points away from the official GitHub repository.");
-Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.5", withHash: false), installed) is null,
+Assert(WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.6", withHash: false), installed) is null,
     "Reject a release without an integrity manifest.");
-var official = WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.5"), installed)!;
+var official = WindowsUpdateService.FindLatest(Fixture("windows-preview-v0.1.6"), installed)!;
 Assert(WindowsUpdateService.IsOfficialDownload(official), "Official release download locator.");
 var sha = new string('a', 64);
 Assert(WindowsUpdateService.ParseChecksum(sha + "  " + official.FileName + "\n",
