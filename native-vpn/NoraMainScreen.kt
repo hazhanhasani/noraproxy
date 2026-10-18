@@ -1229,8 +1229,18 @@ private fun NoraHeader(
             .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
                 RoundedCornerShape(30.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(phase.statusLabel,
-                color = if (connected) green else if (phase.isBusy) amber else muted,
+            // The full native phase remains visible in the dashboard below.
+            // Keep the toolbar badge short on 360dp devices and at larger font scales.
+            val compactStatus = when (phase) {
+                NoraConnectionPhase.NO_ROUTE -> "بدون اشتراک"
+                NoraConnectionPhase.READY -> "آماده"
+                NoraConnectionPhase.CONNECTING -> "اتصال..."
+                NoraConnectionPhase.CONNECTED -> "متصل"
+                NoraConnectionPhase.DISCONNECTING -> "قطع..."
+                NoraConnectionPhase.FAILED -> "تأیید نشد"
+            }
+            Text(compactStatus,
+                color = if (connected) green else if (phase.isBusy || phase == NoraConnectionPhase.FAILED) amber else muted,
                 fontSize = 11.sp, maxLines = 1)
         }
     }
