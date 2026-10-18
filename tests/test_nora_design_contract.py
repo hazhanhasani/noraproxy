@@ -14,6 +14,14 @@ class NoraDesignContractTest(unittest.TestCase):
         self.assertIn("selectedCountryName = displayedRoute?.countryName", self.ui)
         self.assertIn("painterResource(R.drawable.nora_brand)", self.ui)
 
+    def test_connected_route_is_backed_by_active_native_guid(self):
+        # Never render a preferred country as the live VPN endpoint.
+        self.assertIn(
+            "if (appState.isRunning) activeRoute else preferredRoute", self.ui
+        )
+        self.assertNotIn("activeRoute ?: preferredRoute", self.ui)
+        self.assertIn('"مسیر فعلی نامشخص"', self.ui)
+
     def test_home_is_responsive_and_not_scrolling(self):
         home = self.ui.split("private fun NoraHomeContent(", 1)[1].split(
             "@Composable\nprivate fun NoraDashboardMetric", 1)[0]

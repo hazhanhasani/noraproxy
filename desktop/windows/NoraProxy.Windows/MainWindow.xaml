@@ -17,7 +17,7 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="62"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <Border Width="60" Height="60" CornerRadius="20" HorizontalAlignment="Right" BorderBrush="#3D5B7A" BorderThickness="1">
+      <Border Width="60" Height="60" CornerRadius="20" HorizontalAlignment="Right" BorderBrush="#365575" BorderThickness="1">
         <Border.Background>
           <ImageBrush ImageSource="/NoraProxy;component/Assets/nora_icon.jpg" Stretch="UniformToFill"/>
         </Border.Background>
@@ -25,10 +25,10 @@
       <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
         <TextBlock Text="NoraProxy" FontSize="25" FontWeight="ExtraBold" FlowDirection="LeftToRight"
                    HorizontalAlignment="Right"/>
-        <TextBlock Text="PRIVATE • SECURE • NORA" Foreground="{StaticResource MutedBrush}" FontSize="11"
+        <TextBlock Text="امنیت ساده، کنترل هوشمند" Foreground="{StaticResource MutedBrush}" FontSize="11"
                    HorizontalAlignment="Right" Margin="0,4,0,0"/>
       </StackPanel>
-      <Border Grid.Column="2" CornerRadius="30" Background="{StaticResource Surface2Brush}" BorderBrush="#3D5B7A" BorderThickness="1"
+      <Border Grid.Column="2" CornerRadius="30" Background="{StaticResource Surface2Brush}" BorderBrush="#365575" BorderThickness="1"
               Padding="12,8" VerticalAlignment="Center">
         <TextBlock x:Name="HeaderStatus" Text="○ خاموش" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
       </Border>
@@ -49,7 +49,7 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="1" Background="#20364E" CornerRadius="35" BorderBrush="#375572" BorderThickness="1"
+        <Border Grid.Row="1" Background="#1D3552" CornerRadius="35" BorderBrush="#365575" BorderThickness="1"
                 Padding="14,7" HorizontalAlignment="Center">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Ellipse Width="7" Height="7" Fill="{StaticResource MutedBrush}" Margin="0,0,8,0"/>
@@ -62,13 +62,13 @@
         <Grid Grid.Row="3" MinHeight="173" VerticalAlignment="Center" HorizontalAlignment="Center">
           <!-- Android's mint/violet sweep-glow power button, inactive honestly. -->
           <Ellipse Width="198" Height="198" Fill="#10243D" Opacity="0.95"/>
-          <Ellipse Width="183" Height="183" Stroke="#3D5B7A" StrokeThickness="1.5"/>
+          <Ellipse Width="183" Height="183" Stroke="#365575" StrokeThickness="1.5"/>
           <Ellipse Width="160" Height="160" StrokeThickness="9">
             <Ellipse.Stroke>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#78B8FF" Offset="0"/>
-                <GradientStop Color="#FFAF85" Offset="0.54"/>
-                <GradientStop Color="#6CE5C2" Offset="1"/>
+                <GradientStop Color="#8FC5FF" Offset="0"/>
+                <GradientStop Color="#FFBC92" Offset="0.54"/>
+                <GradientStop Color="#69E6BF" Offset="1"/>
               </LinearGradientBrush>
             </Ellipse.Stroke>
           </Ellipse>
@@ -104,7 +104,7 @@
             </StackPanel>
           </Grid>
         </Button>
-        <Border Grid.Row="7" Background="{StaticResource SurfaceBrush}" CornerRadius="22" BorderBrush="#375572" BorderThickness="1"
+        <Border Grid.Row="7" Background="{StaticResource SurfaceBrush}" CornerRadius="22" BorderBrush="#365575" BorderThickness="1"
                 Padding="15,13" Margin="0,0,0,10">
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -266,7 +266,7 @@
     </Grid>
 
     <!-- Exact Android tabs and icons, fixed at the bottom (not a Windows sidebar). -->
-    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="24" BorderBrush="#375572" BorderThickness="1"
+    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="24" BorderBrush="#365575" BorderThickness="1"
             Padding="7,8,7,8" Margin="-4,7,-4,3">
       <UniformGrid Columns="4" FlowDirection="RightToLeft">
         <Button x:Name="HomeNavButton" Click="Home_Click" Style="{StaticResource BottomTabStyle}">

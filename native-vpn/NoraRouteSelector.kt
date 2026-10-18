@@ -138,16 +138,19 @@ internal object NoraRouteSelector {
         favoritesOnly: Boolean = false
     ): List<NoraNode> {
         val term = normalize(query.take(80))
+        // Resolve matching aliases once per query instead of re-running every
+        // country regex for every visible server. This matters with large
+        // subscriptions and frequent search-as-you-type recompositions.
+        val matchingCountries = if (term.isEmpty()) emptySet() else patterns.asSequence()
+            .filter { pattern ->
+                pattern.key == term || (term.length >= 3 && pattern.key.contains(term))
+            }.map { it.country.code }.toSet()
         return locations.withIndex().asSequence()
             .filter { (_, node) ->
                 (!favoritesOnly || node.countryCode in favorites) &&
                     (term.isEmpty() || node.countryCode.lowercase(Locale.ROOT) == term ||
                         normalize(node.countryName).contains(term) ||
-                        patterns.any { pattern ->
-                            pattern.country.code == node.countryCode &&
-                                (pattern.key == term ||
-                                    (term.length >= 3 && pattern.key.contains(term)))
-                        })
+                        node.countryCode in matchingCountries)
             }
             .sortedWith(compareByDescending<IndexedValue<NoraNode>> {
                 it.value.countryCode in favorites
