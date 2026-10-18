@@ -441,9 +441,10 @@ fun MainScreen(
     )
     // When connected, show the backend's actually selected route (not a visual-only choice).
     val activeRoute = ranked.firstOrNull { it.guid == appState.selectedGuid }
-    val displayedRoute = if (appState.isRunning) activeRoute ?: preferredRoute else preferredRoute
+    // A preferred route is not proof of the currently active native server.
+    val displayedRoute = if (appState.isRunning) activeRoute else preferredRoute
     val countryTitle = displayedRoute?.let { it.flag + "  " + it.countryName }
-        ?: "هنوز اشتراکی ندارید"
+        ?: if (appState.isRunning) "مسیر متصل نامشخص" else "هنوز اشتراکی ندارید"
     val chooseRoute: (NoraNode?, String?) -> Unit = { route, country ->
         if (route != null) {
             smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
@@ -512,7 +513,8 @@ fun MainScreen(
                         lastOperationTimedOut = powerTimedOut,
                         waiting = powerPending || adShowing,
                         canConnect = preferredRoute != null,
-                        selectedCountryName = displayedRoute?.countryName ?: "بدون لوکیشن",
+                        selectedCountryName = displayedRoute?.countryName ?:
+                            (if (appState.isRunning) "مسیر فعلی نامشخص" else "بدون لوکیشن"),
                         locationFlag = displayedRoute?.flag ?: "🌐",
                         locationPing = if (appState.isRunning && !livePingEnabled) null
                             else displayedRoute?.latencyMs,
