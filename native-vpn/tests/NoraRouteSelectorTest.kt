@@ -50,6 +50,27 @@ class NoraRouteSelectorTest {
         assertEquals(emptyList<NoraNode>(), NoraRouteSelector.searchLocations(all, "xyz", emptySet()))
     }
 
+    @Test fun partialEnglishAliasMatchesEveryLocationWithThatCountry() {
+        val germany = NoraNode("de-a", "DE", "آلمان", "🇩🇪", 50L)
+        val duplicateGermany = NoraNode("de-b", "DE", "آلمان", "🇩🇪", 60L)
+        val netherlands = NoraNode("nl", "NL", "هلند", "🇳🇱", 30L)
+        assertEquals(listOf(germany, duplicateGermany),
+            NoraRouteSelector.searchLocations(
+                listOf(germany, duplicateGermany, netherlands), "germ", emptySet()))
+        assertEquals(listOf(netherlands),
+            NoraRouteSelector.searchLocations(listOf(germany, netherlands), "holland", emptySet()))
+    }
+
+    @Test fun shortPartialAliasDoesNotAccidentallyMatchEveryCountry() {
+        val germany = NoraNode("de", "DE", "آلمان", "🇩🇪", 50L)
+        val netherlands = NoraNode("nl", "NL", "هلند", "🇳🇱", 30L)
+        val nodes = listOf(germany, netherlands)
+        assertEquals(emptyList<NoraNode>(),
+            NoraRouteSelector.searchLocations(nodes, "ge", emptySet()))
+        assertEquals(listOf(germany),
+            NoraRouteSelector.searchLocations(nodes, "DE", emptySet()))
+    }
+
     @Test fun favoritesAreFirstAndFilterableWithoutChangingPingRank() {
         val germany = NoraNode("de", "DE", "آلمان", "🇩🇪", 50L)
         val france = NoraNode("fr", "FR", "فرانسه", "🇫🇷", 25L)
