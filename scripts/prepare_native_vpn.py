@@ -125,8 +125,8 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 219')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.19"')
+    replace(gradle, 'versionCode = 745', 'versionCode = 220')
+    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.20"')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
