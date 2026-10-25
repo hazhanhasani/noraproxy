@@ -1355,38 +1355,15 @@ private fun NoraPowerButton(
     connected: Boolean,
     phase: NoraConnectionPhase,
     enabled: Boolean,
-    diameter: Dp = 272.dp,
+    diameter: Dp = 132.dp,
     onClick: () -> Unit
 ) {
-    val ring by animateColorAsState(if (connected) green else cyan, label = "ring")
-    val glow by animateFloatAsState(if (connected) 1f else .65f, label = "glow")
-    Box(modifier = Modifier.size(diameter), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val radius = size.minDimension / 2
-            drawCircle(
-                brush = Brush.radialGradient(listOf(
-                    ring.copy(alpha = .17f * glow),
-                    blue.copy(alpha = .07f * glow), Color.Transparent
-                )),
-                radius = radius
-            )
-            drawCircle(ring.copy(alpha = .14f), radius = radius * .89f,
-                style = Stroke(width = 1.5.dp.toPx()))
-            drawCircle(
-                brush = Brush.sweepGradient(listOf(cyan, cyan, blue, green, cyan)),
-                radius = radius * .76f,
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
-            drawCircle(ring.copy(alpha = .13f), radius = radius * .62f,
-                style = Stroke(width = 1.dp.toPx()))
-        }
-        Box(modifier = Modifier.size(diameter * .67f)
-            .clip(CircleShape) // Prevent square ripple artifacts on tap.
-            .background(
-                Brush.radialGradient(listOf(Color(0xFF234568), Color(0xFF10223A))),
-                CircleShape
-            )
-            .border(1.dp, Color(0xFF6694BE), CircleShape)
+    val accent by animateColorAsState(if (connected) green else cyan, label = "powerAccent")
+    Box(
+        modifier = Modifier.size(diameter)
+            .clip(CircleShape)
+            .background(Color(0xFF0E2A36))
+            .border(1.dp, accent.copy(alpha = .13f), CircleShape)
             .semantics {
                 contentDescription = if (!enabled && phase.isBusy) phase.statusLabel
                     else if (!enabled) "اتصال در دسترس نیست"
@@ -1394,16 +1371,24 @@ private fun NoraPowerButton(
                     else "اتصال NoraProxy"
             }
             .clickable(enabled = enabled, onClick = onClick),
-            contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.size(diameter * .27f)) {
-                val stroke = 8.dp.toPx()
-                drawArc(ring, startAngle = -42f, sweepAngle = 264f,
-                    useCenter = false, style = Stroke(width = stroke, cap = StrokeCap.Round))
-                drawLine(ring,
-                    start = androidx.compose.ui.geometry.Offset(center.x, center.y - size.height * .37f),
-                    end = androidx.compose.ui.geometry.Offset(center.x, center.y + size.height * .04f),
-                    strokeWidth = stroke, cap = StrokeCap.Round)
-            }
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(diameter * .43f)) {
+            val width = (diameter.value * .065f).dp.toPx()
+            drawArc(
+                color = if (enabled) accent else muted,
+                startAngle = -45f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = width, cap = StrokeCap.Round)
+            )
+            drawLine(
+                color = if (enabled) accent else muted,
+                start = androidx.compose.ui.geometry.Offset(center.x, size.height * .02f),
+                end = androidx.compose.ui.geometry.Offset(center.x, size.height * .48f),
+                strokeWidth = width,
+                cap = StrokeCap.Round
+            )
         }
     }
 }
@@ -1593,13 +1578,9 @@ private fun NoraBottomBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(23.dp))
-            .background(Brush.verticalGradient(listOf(
-                Color(0xFF152A43), Color(0xFF102139))))
-            .border(1.dp, edge.copy(alpha = .42f), RoundedCornerShape(23.dp))
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .background(Color(0xFF15303C))
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         NoraTab.entries.forEach { tab ->
@@ -1607,29 +1588,25 @@ private fun NoraBottomBar(
             Column(
                 modifier = Modifier.weight(1f)
                     .heightIn(min = 59.dp)
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(if (isActive)
-                        Brush.verticalGradient(listOf(
-                            Color(0xFF294F79), Color(0xFF1D3552)))
-                        else Brush.verticalGradient(listOf(
-                            Color.Transparent, Color.Transparent)))
+                    .clip(RoundedCornerShape(12.dp))
                     .selectable(selected = isActive, role = Role.Tab,
                         onClick = { onSelect(tab) })
                     .padding(vertical = 7.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     painter = painterResource(tab.iconRes),
-                    contentDescription = null, // Tab label is announced once.
+                    contentDescription = null,
                     modifier = Modifier.size(23.dp),
-                    tint = if (isActive) cyan else muted
+                    tint = if (isActive) green else muted
                 )
-                Text(tab.title, color = if (isActive) light else muted,
+                Text(
+                    if (tab == NoraTab.Home) "VPN" else tab.title,
+                    color = if (isActive) light else muted,
                     fontSize = 11.sp, maxLines = 1,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium)
-                if (isActive) Box(Modifier.width(20.dp).height(2.dp)
-                    .clip(CircleShape).background(blue))
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+                )
             }
         }
     }
