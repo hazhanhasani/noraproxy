@@ -1361,7 +1361,7 @@ private fun NoraPowerButton(
     val accent by animateColorAsState(if (connected) green else cyan, label = "powerAccent")
     Box(
         modifier = Modifier.size(diameter)
-            .clip(CircleShape)
+            .clip(CircleShape) // Prevent square ripple artifacts on tap.
             .background(Color(0xFF0E2A36))
             .border(1.dp, accent.copy(alpha = .13f), CircleShape)
             .semantics {
