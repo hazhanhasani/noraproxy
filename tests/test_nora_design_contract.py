@@ -32,7 +32,7 @@ class NoraDesignContractTest(unittest.TestCase):
 
     def test_reference_dashboard_uses_real_connection_and_subscription_data(self):
         home = self.ui.split("private fun NoraHomeContent(", 1)[1].split(
-            "@Composable\\nprivate fun NoraDashboardMetric", 1
+            "@Composable\nprivate fun NoraDashboardMetric", 1
         )[0]
         for element in (
             "Connected  |  ", "Selected Location", "Smart Location",
