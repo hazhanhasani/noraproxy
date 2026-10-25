@@ -198,6 +198,9 @@ fun MainScreen(
     var selectedCountry by remember {
         mutableStateOf(routePreferences.getString("preferred_country:" + appState.selectedGroupId, null))
     }
+    var recentCountry by remember {
+        mutableStateOf(routePreferences.getString("recent_country:" + appState.selectedGroupId, null))
+    }
     // Upstream SelectServer always calls restartService, even if disconnected.
     // Keep the selected GUID persisted without starting the VPN prematurely.
     val selectActualServer: (String) -> Unit = { guid ->
@@ -213,6 +216,9 @@ fun MainScreen(
     LaunchedEffect(appState.selectedGroupId) {
         selectedCountry = routePreferences.getString(
             "preferred_country:" + appState.selectedGroupId, null
+        )
+        recentCountry = routePreferences.getString(
+            "recent_country:" + appState.selectedGroupId, null
         )
     }
     var refreshTick by remember { mutableIntStateOf(0) }
@@ -448,6 +454,12 @@ fun MainScreen(
     val chooseRoute: (NoraNode?, String?) -> Unit = { route, country ->
         if (route != null) {
             smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
+            if (selectedCountry != null && selectedCountry != country) {
+                recentCountry = selectedCountry
+                routePreferences.edit().putString(
+                    "recent_country:" + appState.selectedGroupId, selectedCountry
+                ).apply()
+            }
             selectedCountry = country
             routePreferences.edit().apply {
                 val preferenceKey = "preferred_country:" + appState.selectedGroupId
@@ -521,6 +533,9 @@ fun MainScreen(
                         usage = usageByGroup[appState.selectedGroupId],
                         quickLocations = prioritizedLocations,
                         selectedCountryCode = selectedCountry,
+                        recentLocation = prioritizedLocations.firstOrNull {
+                            it.countryCode == recentCountry
+                        },
                         testing = appState.isTesting,
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
@@ -532,6 +547,12 @@ fun MainScreen(
                         onSelectSmart = {
                             chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
                                 else ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
+                        },
+                        onSelectRecent = {
+                            val previous = prioritizedLocations.firstOrNull {
+                                it.countryCode == recentCountry
+                            }
+                            if (previous != null) chooseRoute(previous, previous.countryCode)
                         },
                         onOpenUpdate = { tab = NoraTab.Settings }
                     )
@@ -939,12 +960,14 @@ private fun NoraHomeContent(
     usage: NoraSubscriptionUsage?,
     quickLocations: List<NoraNode>,
     selectedCountryCode: String?,
+    recentLocation: NoraNode?,
     testing: Boolean,
     hasUpdate: Boolean,
     onToggle: () -> Unit,
     onChooseLocation: () -> Unit,
     onSelectCountry: (NoraNode) -> Unit,
     onSelectSmart: () -> Unit,
+    onSelectRecent: () -> Unit,
     onOpenUpdate: () -> Unit
 ) {
     // The timer is explicitly a foreground observation timer, not fabricated
@@ -965,8 +988,6 @@ private fun NoraHomeContent(
         java.util.Locale.US, "%02d:%02d:%02d",
         observedSeconds / 3600, observedSeconds / 60 % 60, observedSeconds % 60
     )
-    val fastest = quickLocations.firstOrNull { it.latencyMs > 0L }
-        ?: quickLocations.firstOrNull()
     BoxWithConstraints(
         modifier = modifier.background(ink).padding(horizontal = 15.dp)
     ) {
@@ -1129,11 +1150,12 @@ private fun NoraHomeContent(
                 NoraRouteShortcut(
                     modifier = Modifier.weight(1f),
                     icon = "◷",
-                    title = "Fastest Location",
-                    subtitle = fastest?.countryName ?: "بدون لوکیشن",
-                    selected = fastest != null && selectedCountryCode == fastest.countryCode,
-                    enabled = fastest != null,
-                    onClick = { fastest?.let(onSelectCountry) }
+                    title = "Recent Location",
+                    subtitle = recentLocation?.countryName ?: "بدون سابقه",
+                    selected = recentLocation != null &&
+                        selectedCountryCode == recentLocation.countryCode,
+                    enabled = recentLocation != null,
+                    onClick = onSelectRecent
                 )
             }
             if (!tiny) {
