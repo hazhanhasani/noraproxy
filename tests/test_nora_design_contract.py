@@ -30,6 +30,30 @@ class NoraDesignContractTest(unittest.TestCase):
         self.assertIn("val tiny = maxHeight < 525.dp", home)
         self.assertNotIn("verticalScroll(", home)
 
+    def test_reference_dashboard_uses_real_connection_and_subscription_data(self):
+        home = self.ui.split("private fun NoraHomeContent(", 1)[1].split(
+            "@Composable\\nprivate fun NoraDashboardMetric", 1
+        )[0]
+        for element in (
+            "Connected  |  ", "Selected Location", "Smart Location",
+            "Fastest Location", "Secure Network", "Remaining Traffic",
+            "Subscription", "usage?.remainingTrafficLabel()",
+            "usage?.remainingTimeLabel()", "locationPing",
+            "onClick = onChooseLocation", "fastest?.let(onSelectCountry)",
+            "val compact = maxHeight < 665.dp",
+            "val tiny = maxHeight < 525.dp",
+        ):
+            self.assertIn(element, home)
+        self.assertNotIn("185.251.", home)
+        self.assertNotIn("VPN IP:", home)
+
+    def test_teal_dashboard_palette_and_real_power_action(self):
+        self.assertIn("private val ink = Color(0xFF041B25)", self.ui)
+        self.assertIn("private val cyan = Color(0xFF18B8A9)", self.ui)
+        self.assertIn("private val green = Color(0xFF29D8B9)", self.ui)
+        self.assertIn("onToggle = startOrStop", self.ui)
+        self.assertIn("onAction(MainAction.ToggleService)", self.ui)
+
     def test_power_button_exposes_accessible_states(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
             "@Composable\nprivate fun NoraSubscriptionGroupCard", 1)[0]
