@@ -36,10 +36,10 @@ class NoraDesignContractTest(unittest.TestCase):
         )[0]
         for element in (
             "Connected  |  ", "Selected Location", "Smart Location",
-            "Fastest Location", "Secure Network", "Remaining Traffic",
+            "Recent Location", "Secure Network", "Remaining Traffic",
             "Subscription", "usage?.remainingTrafficLabel()",
             "usage?.remainingTimeLabel()", "locationPing",
-            "onClick = onChooseLocation", "fastest?.let(onSelectCountry)",
+            "onClick = onChooseLocation", "onSelectRecent",
             "val compact = maxHeight < 665.dp",
             "val tiny = maxHeight < 525.dp",
         ):
