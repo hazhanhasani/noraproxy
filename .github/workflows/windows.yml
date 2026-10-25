@@ -46,7 +46,7 @@ jobs:
               $main.Contains('NavButtonStyle')) {
             throw 'Windows home and bottom navigation no longer match Android UI.'
           }
-          $tokens = @('#081120','#12223A','#1D3552','#8FC5FF','#FFBC92')
+          $tokens = @('#041B25','#102C39','#1C3B47','#18B8A9','#66D9C8')
           $theme = Get-Content 'desktop/windows/NoraProxy.Windows/App.xaml' -Raw
           foreach ($color in $tokens) {
             if (!$android.Contains($color.Replace('#','0xFF')) -or !$theme.Contains($color)) {

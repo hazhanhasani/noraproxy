@@ -17,7 +17,7 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="62"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <Border Width="60" Height="60" CornerRadius="20" HorizontalAlignment="Right" BorderBrush="#365575" BorderThickness="1">
+      <Border Width="60" Height="60" CornerRadius="20" HorizontalAlignment="Right" BorderBrush="#345862" BorderThickness="1">
         <Border.Background>
           <ImageBrush ImageSource="/NoraProxy;component/Assets/nora_icon.jpg" Stretch="UniformToFill"/>
         </Border.Background>
@@ -28,7 +28,7 @@
         <TextBlock Text="امنیت ساده، کنترل هوشمند" Foreground="{StaticResource MutedBrush}" FontSize="11"
                    HorizontalAlignment="Right" Margin="0,4,0,0"/>
       </StackPanel>
-      <Border Grid.Column="2" CornerRadius="30" Background="{StaticResource Surface2Brush}" BorderBrush="#365575" BorderThickness="1"
+      <Border Grid.Column="2" CornerRadius="30" Background="{StaticResource Surface2Brush}" BorderBrush="#345862" BorderThickness="1"
               Padding="12,8" VerticalAlignment="Center">
         <TextBlock x:Name="HeaderStatus" Text="○ خاموش" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
       </Border>
@@ -49,7 +49,7 @@
           <RowDefinition Height="Auto"/>
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Border Grid.Row="1" Background="#1D3552" CornerRadius="35" BorderBrush="#365575" BorderThickness="1"
+        <Border Grid.Row="1" Background="#1C3B47" CornerRadius="35" BorderBrush="#345862" BorderThickness="1"
                 Padding="14,7" HorizontalAlignment="Center">
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Ellipse Width="7" Height="7" Fill="{StaticResource MutedBrush}" Margin="0,0,8,0"/>
@@ -61,14 +61,14 @@
                    Margin="0,13,0,0"/>
         <Grid Grid.Row="3" MinHeight="173" VerticalAlignment="Center" HorizontalAlignment="Center">
           <!-- Android's mint/violet sweep-glow power button, inactive honestly. -->
-          <Ellipse Width="198" Height="198" Fill="#10243D" Opacity="0.95"/>
-          <Ellipse Width="183" Height="183" Stroke="#365575" StrokeThickness="1.5"/>
+          <Ellipse Width="198" Height="198" Fill="#0B343A" Opacity="0.95"/>
+          <Ellipse Width="183" Height="183" Stroke="#345862" StrokeThickness="1.5"/>
           <Ellipse Width="160" Height="160" StrokeThickness="9">
             <Ellipse.Stroke>
               <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Color="#8FC5FF" Offset="0"/>
-                <GradientStop Color="#FFBC92" Offset="0.54"/>
-                <GradientStop Color="#69E6BF" Offset="1"/>
+                <GradientStop Color="#18B8A9" Offset="0"/>
+                <GradientStop Color="#66D9C8" Offset="0.54"/>
+                <GradientStop Color="#29D8B9" Offset="1"/>
               </LinearGradientBrush>
             </Ellipse.Stroke>
           </Ellipse>
@@ -80,7 +80,7 @@
                    HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,12"/>
         <Grid Grid.Row="5" Margin="0,0,0,8">
           <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <TextBlock Text="مسیر اتصال" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <TextBlock Text="Selected Location" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
           <Button Grid.Column="1" Click="Locations_Click" Content="همه لوکیشن‌ها  ←"
                   Style="{StaticResource FlatLinkStyle}"/>
         </Grid>
@@ -104,7 +104,7 @@
             </StackPanel>
           </Grid>
         </Button>
-        <Border Grid.Row="7" Background="{StaticResource SurfaceBrush}" CornerRadius="22" BorderBrush="#365575" BorderThickness="1"
+        <Border Grid.Row="7" Background="{StaticResource SurfaceBrush}" CornerRadius="22" BorderBrush="#345862" BorderThickness="1"
                 Padding="15,13" Margin="0,0,0,10">
           <Grid>
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="1"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -186,7 +186,7 @@
                      Foreground="{StaticResource MutedBrush}"/>
         </StackPanel>
         <ListBox Grid.Row="2" ItemsSource="{Binding Entries}" Background="Transparent"
-                 BorderThickness="0" Foreground="#F4F8FF">
+                 BorderThickness="0" Foreground="#F1FCFC">
           <ListBox.ItemContainerStyle>
             <Style TargetType="ListBoxItem">
               <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -266,7 +266,7 @@
     </Grid>
 
     <!-- Exact Android tabs and icons, fixed at the bottom (not a Windows sidebar). -->
-    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="24" BorderBrush="#365575" BorderThickness="1"
+    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" CornerRadius="24" BorderBrush="#345862" BorderThickness="1"
             Padding="7,8,7,8" Margin="-4,7,-4,3">
       <UniformGrid Columns="4" FlowDirection="RightToLeft">
         <Button x:Name="HomeNavButton" Click="Home_Click" Style="{StaticResource BottomTabStyle}">
