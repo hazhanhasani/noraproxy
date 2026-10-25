@@ -5,7 +5,7 @@
 - New deep-navy/teal connection screen inspired by the supplied reference.
 - Layered circular hero and enlarged power control, with native VPN state as the only authority.
 - Compact Selected Location tile linked to the actual selected server GUID.
-- Smart Location and Fastest Location shortcuts use the existing smart engine and measured nodes.
+- Smart Location and Recent Location shortcuts use the existing smart engine and the last genuinely selected country, persisted per subscription group.
 - Secure Network panel is **decorative**: it never invents a map position, public IP, provider or country.
 - Live ping is shown only when available from native measurements.
 - Remaining traffic and expiry are shown only when returned by the subscription provider.
