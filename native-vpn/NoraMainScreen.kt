@@ -100,16 +100,16 @@ import kotlinx.coroutines.withContext
 
 // NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
 // NoraProxy VNext / semantic tokens shared with the editable Figma design.
-private val ink = Color(0xFF081120)
-private val surface = Color(0xFF12223A)
-private val surface2 = Color(0xFF1D3552)
-private val cyan = Color(0xFF8FC5FF)
-private val blue = Color(0xFFFFBC92)
-private val light = Color(0xFFF4F8FF)
-private val muted = Color(0xFF9BB0C9)
-private val green = Color(0xFF69E6BF)
+private val ink = Color(0xFF041B25)
+private val surface = Color(0xFF102C39)
+private val surface2 = Color(0xFF1C3B47)
+private val cyan = Color(0xFF18B8A9)
+private val blue = Color(0xFF66D9C8)
+private val light = Color(0xFFF1FCFC)
+private val muted = Color(0xFFA5BEC2)
+private val green = Color(0xFF29D8B9)
 private val amber = Color(0xFFFFCE88)
-private val edge = Color(0xFF365575)
+private val edge = Color(0xFF345862)
 private val corner = RoundedCornerShape(24.dp)
 
 private enum class NoraTab(val title: String, val iconRes: Int) {
@@ -947,227 +947,329 @@ private fun NoraHomeContent(
     onSelectSmart: () -> Unit,
     onOpenUpdate: () -> Unit
 ) {
-    BoxWithConstraints(
-        modifier = modifier.background(
-            Brush.verticalGradient(listOf(
-                Color(0xFF081120), Color(0xFF172B46), Color(0xFF081120)
-            ))
-        ).padding(horizontal = 16.dp)
-    ) {
-        // A quiet, two-color ambient glow gives the home its own brand identity.
-        // It is painted behind content, with no infinite animation or layout cost.
-        Canvas(Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(cyan.copy(alpha = .14f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .87f, size.height * .18f),
-                    radius = size.width * .72f
-                ),
-                radius = size.width * .72f,
-                center = androidx.compose.ui.geometry.Offset(size.width * .87f, size.height * .18f)
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(blue.copy(alpha = .08f), Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(size.width * .10f, size.height * .81f),
-                    radius = size.width * .65f
-                ),
-                radius = size.width * .65f,
-                center = androidx.compose.ui.geometry.Offset(size.width * .10f, size.height * .81f)
-            )
+    // The timer is explicitly a foreground observation timer, not fabricated
+    // service uptime. Xray's running state is still the single source of truth.
+    var observedSeconds by remember { mutableIntStateOf(0) }
+    LaunchedEffect(connected) {
+        observedSeconds = 0
+        if (connected) {
+            val started = SystemClock.elapsedRealtime()
+            while (true) {
+                observedSeconds = ((SystemClock.elapsedRealtime() - started) / 1000L)
+                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                delay(1000)
+            }
         }
+    }
+    val observedTime = String.format(
+        java.util.Locale.US, "%02d:%02d:%02d",
+        observedSeconds / 3600, observedSeconds / 60 % 60, observedSeconds % 60
+    )
+    val fastest = quickLocations.firstOrNull { it.latencyMs > 0L }
+        ?: quickLocations.firstOrNull()
+    BoxWithConstraints(
+        modifier = modifier.background(ink).padding(horizontal = 15.dp)
+    ) {
+        // Preserve a completely visible power button on small Android screens.
         val compact = maxHeight < 665.dp
         val tiny = maxHeight < 525.dp
-        val powerDiameter = (maxHeight * (if (compact) 0.24f else 0.28f))
-            .coerceIn(if (tiny) 110.dp else 132.dp, if (compact) 166.dp else 220.dp)
-        val inset = if (compact) 6.dp else 10.dp
-
+        val heroHeight = (maxHeight * (if (tiny) .32f else if (compact) .34f else .37f))
+            .coerceIn(152.dp, 286.dp)
+        val buttonSize = (heroHeight * .53f).coerceIn(100.dp, 148.dp)
+        val sectionGap = if (tiny) 6.dp else if (compact) 8.dp else 11.dp
         Column(
-            modifier = Modifier.fillMaxSize().padding(top = inset, bottom = inset),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(sectionGap)
         ) {
-            NoraHeader(logo, seller, connected, phase)
-            Spacer(Modifier.weight(0.45f))
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(if (connected) Color(0xFF173C38) else Color(0xFF1D3552))
-                    .border(1.dp, if (connected) green.copy(alpha = .32f)
-                        else edge.copy(alpha = .8f), RoundedCornerShape(40.dp))
-                    .padding(horizontal = 15.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(Modifier.size(7.dp)
-                    .background(if (waiting) amber else if (connected) green else muted,
-                        CircleShape))
-                Text(
-                    if (waiting && !phase.isBusy) "نمایش تبلیغ"
-                    else phase.statusLabel,
-                    color = if (waiting) amber else if (connected) green else light,
-                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold
-                )
-            }
-            Spacer(Modifier.height(if (compact) 6.dp else 12.dp))
-            Text(
-                if (waiting && !phase.isBusy) "در حال نمایش تبلیغ"
-                else phase.headline,
-                color = light, fontWeight = FontWeight.Bold,
-                fontSize = if (compact) 17.sp else 20.sp,
-                textAlign = TextAlign.Center, maxLines = 1
-            )
-            if (!tiny) Spacer(Modifier.height(if (compact) 3.dp else 6.dp))
-            NoraPowerButton(
-                connected = connected,
-                phase = phase,
-                enabled = !waiting && (connected || canConnect),
-                diameter = powerDiameter,
-                onClick = onToggle
-            )
-            if (!tiny) Text(
-                if (lastOperationTimedOut && connected)
-                    "قطع اتصال تأیید نشد؛ سرویس هنوز روشن است"
-                else if (waiting && !phase.isBusy) "لطفاً تا پایان نمایش صبر کنید"
-                else phase.actionHint,
-                color = muted, fontSize = 11.sp, maxLines = 1
-            )
-            Spacer(Modifier.weight(0.7f))
-            if (hasUpdate) {
+            Box(Modifier.fillMaxWidth().height(heroHeight)) {
+                // These nested rings are drawn locally and require neither an
+                // external map service nor high-cost infinite animations.
+                Canvas(Modifier.fillMaxSize()) {
+                    val anchor = androidx.compose.ui.geometry.Offset(
+                        center.x, size.height * 1.03f
+                    )
+                    val r = size.width * .95f
+                    drawCircle(Color(0xFF04323A), r, anchor)
+                    drawCircle(Color(0xFF072732), r * .77f, anchor)
+                    drawCircle(Color(0xFF07504F), r * .61f, anchor)
+                    drawCircle(Color(0xFF092934), r * .45f, anchor)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0x5525B6A5), Color.Transparent),
+                            center = anchor,
+                            radius = r * .75f
+                        ),
+                        radius = r * .75f,
+                        center = anchor
+                    )
+                }
                 Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Brush.horizontalGradient(listOf(
-                            Color(0xFF263E5D), Color(0xFF1B324B))))
-                        .border(1.dp, blue.copy(alpha = .33f), RoundedCornerShape(14.dp))
-                        .clickable(onClick = onOpenUpdate)
-                        .padding(horizontal = 13.dp, vertical = 9.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 7.dp, start = 2.dp, end = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("نسخه جدید آماده است", modifier = Modifier.weight(1f),
-                        color = Color(0xFFFFD3B8), fontSize = 11.sp)
-                    Text("←", color = light, fontSize = 14.sp)
-                }
-                Spacer(Modifier.height(6.dp))
-            }
-            // A single route card presents the backend-selected GUID, not a visual-only choice.
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("مسیر اتصال", modifier = Modifier.weight(1f),
-                    color = light, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text("همه لوکیشن‌ها  ←", modifier = Modifier.clickable(onClick = onChooseLocation),
-                    color = cyan, fontSize = 11.sp)
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.horizontalGradient(listOf(
-                        Color(0xFF234568), Color(0xFF12243B))))
-                    .border(1.dp, edge.copy(alpha = .75f), RoundedCornerShape(20.dp))
-                    .clickable(onClick = onChooseLocation)
-                    .padding(horizontal = 13.dp, vertical = if (compact) 9.dp else 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(Modifier.size(42.dp)
-                    .background(Color(0xFF274D72), RoundedCornerShape(14.dp))
-                    .border(1.dp, cyan.copy(alpha = .18f), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center) {
-                    Text(locationFlag, fontSize = 25.sp)
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(selectedCountryName, color = light, fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(if (connected) "مسیر متصل" else "مسیر انتخاب‌شده", color = muted,
-                        fontSize = 10.sp)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(11.dp))
-                            .background(if (locationPing != null && locationPing > 0L)
-                                Color(0xFF195044) else surface2)
-                            .padding(horizontal = 9.dp, vertical = 6.dp)
-                    ) {
+                    Image(
+                        painter = logo, contentDescription = "NoraProxy",
+                        modifier = Modifier.size(if (tiny) 35.dp else 42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text("NoraProxy", color = light, fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1)
                         Text(
-                            if (locationPing != null && locationPing > 0L)
-                                persianNumber(locationPing.toString()) + " ms"
-                            else if (testing) "در حال سنجش" else "—",
-                            color = if (locationPing != null && locationPing > 0L) green else muted,
-                            fontWeight = FontWeight.Bold, fontSize = 12.sp
+                            if (seller.isBlank()) "Secure connection" else seller,
+                            color = muted, fontSize = 10.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }
-                    if (!tiny) Text("پینگ واقعی", color = muted,
-                        fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        when (phase) {
+                            NoraConnectionPhase.CONNECTED -> "● متصل"
+                            NoraConnectionPhase.CONNECTING -> "● در حال اتصال"
+                            NoraConnectionPhase.DISCONNECTING -> "● در حال قطع"
+                            NoraConnectionPhase.FAILED -> "● خطای اتصال"
+                            NoraConnectionPhase.NO_ROUTE -> "● بدون اشتراک"
+                            NoraConnectionPhase.READY -> "● آماده"
+                        },
+                        color = if (connected) green else if (phase.isBusy) amber else muted,
+                        fontSize = 11.sp, maxLines = 1
+                    )
+                }
+                Box(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    NoraPowerButton(
+                        connected = connected,
+                        phase = phase,
+                        enabled = !waiting && (connected || canConnect),
+                        diameter = buttonSize,
+                        onClick = onToggle
+                    )
                 }
             }
-            Spacer(Modifier.height(if (compact) 7.dp else 11.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF12243A))
-                    .border(1.dp, edge.copy(alpha = .35f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                NoraDashboardMetric(
-                    "حجم باقی‌مانده",
-                    usage?.remainingTrafficLabel() ?: "نامشخص",
-                    Modifier.weight(1f)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    when {
+                        waiting && !phase.isBusy -> "نمایش تبلیغ..."
+                        connected -> "Connected  |  " + observedTime
+                        else -> phase.statusLabel
+                    },
+                    color = light,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = if (tiny) 14.sp else 17.sp,
+                    maxLines = 1
                 )
-                Box(Modifier.width(1.dp).height(35.dp).background(surface2))
-                NoraDashboardMetric(
-                    "اعتبار اشتراک",
-                    usage?.remainingTimeLabel() ?: "نامشخص",
-                    Modifier.weight(1f)
-                )
-            }
-            if (!tiny) usage?.usagePercent()?.let { used ->
-                Spacer(Modifier.height(5.dp))
-                Box(Modifier.fillMaxWidth().height(3.dp)
-                    .clip(RoundedCornerShape(6.dp)).background(surface2)) {
-                    Box(Modifier.fillMaxWidth(used).height(3.dp).background(cyan))
+                if (!tiny) {
+                    Text(
+                        when {
+                            connected -> "زمان نمایش اتصال در برنامه"
+                            lastOperationTimedOut -> "تغییر وضعیت تأیید نشد؛ دوباره بررسی کنید"
+                            else -> phase.actionHint
+                        },
+                        color = muted, fontSize = 10.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-            if (!tiny) {
-            Spacer(Modifier.height(if (compact) 8.dp else 13.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("انتخاب سریع کشور", modifier = Modifier.weight(1f),
-                    color = light, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(persianNumber(quickLocations.size.toString()) + " لوکیشن",
-                    color = muted, fontSize = 11.sp)
-            }
-            Spacer(Modifier.height(7.dp))
-            if (quickLocations.isEmpty()) {
+            if (hasUpdate) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp))
-                        .background(surface).clickable(onClick = onChooseLocation)
-                        .heightIn(min = 48.dp).padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF234E4B))
+                        .clickable(onClick = onOpenUpdate)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🌍", fontSize = 18.sp)
-                    Text("برای نمایش کشورها، اشتراک اضافه کنید", color = muted, fontSize = 12.sp)
+                    Text("نسخه جدید NoraProxy آماده است", color = green,
+                        fontSize = 11.sp, modifier = Modifier.weight(1f))
+                    Text("←", color = light)
                 }
-            } else {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 1.dp)
-                ) {
-                    item(key = "smart") {
-                        NoraQuickCountryCard("✦", "هوشمند",
-                            selected = selectedCountryCode == null,
-                            compact = compact, onClick = onSelectSmart)
-                    }
-                    items(quickLocations, key = { it.countryCode }) { route ->
-                        NoraQuickCountryCard(route.flag, route.countryName,
-                            selected = selectedCountryCode == route.countryCode,
-                            compact = compact, onClick = { onSelectCountry(route) })
+            }
+            // A real backend-selected location, never an invented IP or server.
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(surface)
+                    .clickable(onClick = onChooseLocation)
+                    .padding(horizontal = 14.dp, vertical = if (tiny) 9.dp else 11.dp),
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(locationFlag, fontSize = 27.sp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Selected Location", color = muted, fontSize = 11.sp)
+                    Text(selectedCountryName, color = light,
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("←", color = light, fontSize = 22.sp)
+                    if (locationPing != null && locationPing > 0L) {
+                        Text(persianNumber(locationPing.toString()) + " ms",
+                            color = green, fontSize = 11.sp)
+                    } else if (testing) {
+                        Text("سنجش...", color = amber, fontSize = 10.sp)
                     }
                 }
             }
-            } // Compact devices retain route and quota while omitting the secondary carousel.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                NoraRouteShortcut(
+                    modifier = Modifier.weight(1f),
+                    icon = "ϟ",
+                    title = "Smart Location",
+                    subtitle = if (selectedCountryCode == null) "فعال" else "بهترین مسیر",
+                    selected = selectedCountryCode == null,
+                    enabled = quickLocations.isNotEmpty(),
+                    onClick = onSelectSmart
+                )
+                NoraRouteShortcut(
+                    modifier = Modifier.weight(1f),
+                    icon = "◷",
+                    title = "Fastest Location",
+                    subtitle = fastest?.countryName ?: "بدون لوکیشن",
+                    selected = fastest != null && selectedCountryCode == fastest.countryCode,
+                    enabled = fastest != null,
+                    onClick = { fastest?.let(onSelectCountry) }
+                )
+            }
+            if (!tiny) {
+                // Decorative network globe. Does not imply coordinates, ISP or
+                // an external IP: those values are not present in the native state.
+                Box(
+                    Modifier.fillMaxWidth()
+                        .height(if (compact) 91.dp else 112.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(Color(0xFF112C38))
+                ) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val lineColor = Color(0xFF527A80).copy(alpha = .33f)
+                        val middle = androidx.compose.ui.geometry.Offset(
+                            size.width * .34f, size.height * .58f
+                        )
+                        val radius = size.height * .59f
+                        drawCircle(lineColor, radius, middle, style = Stroke(width = 1.dp.toPx()))
+                        drawOval(
+                            color = lineColor,
+                            topLeft = androidx.compose.ui.geometry.Offset(
+                                middle.x - radius * .5f, middle.y - radius
+                            ),
+                            size = androidx.compose.ui.geometry.Size(radius, radius * 2f),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                        for (fraction in listOf(-.48f, 0f, .48f)) {
+                            val y = middle.y + radius * fraction
+                            drawLine(
+                                lineColor,
+                                androidx.compose.ui.geometry.Offset(middle.x - radius * .82f, y),
+                                androidx.compose.ui.geometry.Offset(middle.x + radius * .82f, y),
+                                strokeWidth = 1.dp.toPx()
+                            )
+                        }
+                        drawCircle(
+                            Color(0xFF12B9A8).copy(alpha = .19f),
+                            radius * .24f, middle
+                        )
+                        drawCircle(Color(0xFF16CDB6), 5.dp.toPx(), middle)
+                    }
+                    Column(
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                            .padding(end = 12.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xEE173744))
+                            .padding(horizontal = 13.dp, vertical = 9.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text("Secure Network", color = muted, fontSize = 10.sp)
+                        Text(locationFlag + "  " + selectedCountryName,
+                            color = light, fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis)
+                        Text(
+                            if (connected) "● VPN active"
+                            else if (canConnect) "○ Ready to connect" else "○ No route",
+                            color = if (connected) green else muted, fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                NoraInfoTile(
+                    title = "Remaining Traffic",
+                    value = usage?.remainingTrafficLabel() ?: "نامشخص",
+                    modifier = Modifier.weight(1f)
+                )
+                NoraInfoTile(
+                    title = "Subscription",
+                    value = usage?.remainingTimeLabel() ?: "نامشخص",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (!compact) {
+                Text(
+                    "اطلاعات اتصال و مصرف فقط از سرویس و اشتراک واقعی خوانده می‌شود",
+                    color = muted, fontSize = 9.sp, maxLines = 1
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun NoraRouteShortcut(
+    modifier: Modifier,
+    icon: String,
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(17.dp))
+            .background(if (selected) Color(0xFF1A4549) else surface)
+            .border(1.dp, if (selected) cyan.copy(alpha = .35f)
+                else edge.copy(alpha = .15f), RoundedCornerShape(17.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = light, fontSize = 11.sp,
+                modifier = Modifier.weight(1f), maxLines = 1,
+                overflow = TextOverflow.Ellipsis)
+            Text(icon, color = green, fontSize = 16.sp)
+        }
+        Text(subtitle, color = if (selected) green else muted, fontSize = 11.sp,
+            fontWeight = FontWeight.Medium, maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun NoraInfoTile(
+    title: String,
+    value: String,
+    modifier: Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(17.dp))
+            .background(surface)
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Text(title, color = muted, fontSize = 11.sp, maxLines = 1)
+        Text(value, color = light, fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold, maxLines = 1,
+            overflow = TextOverflow.Ellipsis)
     }
 }
 
