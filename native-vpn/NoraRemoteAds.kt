@@ -89,7 +89,12 @@ internal object NoraPromotionRepository {
     }.getOrNull()
 
     private fun readNetwork(url: String, maxBytes: Int): ByteArray? {
-        val connection = (URL(url).openConnection() as? HttpsURLConnection) ?: return null
+        // DNS failures and offline devices can throw before an HTTP connection exists.
+        val connection = try {
+            URL(url).openConnection() as? HttpsURLConnection ?: return null
+        } catch (_: Exception) {
+            return null
+        }
         return try {
             connection.connectTimeout = 3500
             connection.readTimeout = 4500
@@ -198,9 +203,9 @@ internal object NoraPromotionRepository {
         if (runCatching { descriptors(json) }.isFailure) return cached(context)
         val dir = storage(context)
         val manifest = File(dir, "manifest.json")
-        val previous = runCatching { manifest.takeIf { it.isFile }?.readText(Charsets.UTF_8) }
-            .getOrNull()
-        val refreshed = render(context, json, allowNetwork = true, refreshImages = previous != json)
+        // Revalidate image bytes on each scheduled refresh so changing the
+        // existing GitHub image (without renaming it) updates installed apps.
+        val refreshed = render(context, json, allowNetwork = true, refreshImages = true)
         // Remove outdated image files when campaigns are deleted or renamed.
         val activeFiles = runCatching { descriptors(json).map { it.file }.toSet() }
             .getOrDefault(emptySet())
