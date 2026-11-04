@@ -1,76 +1,104 @@
-"""Static regression contracts for Android-specific design and semantics."""
+"""Regression contracts for the NoraProxy BlueVPN-inspired Android UI.
+
+These checks guard source-of-truth semantics and interaction wiring; device
+rendering, accessibility, and Gradle compilation are verified separately.
+"""
 from pathlib import Path
 import unittest
 
 MAIN = Path(__file__).resolve().parents[1] / "native-vpn" / "NoraMainScreen.kt"
 
+
 class NoraDesignContractTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.ui = MAIN.read_text(encoding="utf-8")
-
-    def test_real_native_connection_state_remains_source(self):
-        self.assertIn("connected = appState.isRunning", self.ui)
-        self.assertIn("selectedCountryName = displayedRoute?.countryName", self.ui)
-        self.assertIn("painterResource(R.drawable.nora_brand)", self.ui)
-
-    def test_connected_route_is_backed_by_active_native_guid(self):
-        # Never render a preferred country as the live VPN endpoint.
-        self.assertIn(
-            "if (appState.isRunning) activeRoute else preferredRoute", self.ui
-        )
-        self.assertNotIn("activeRoute ?: preferredRoute", self.ui)
-        self.assertIn('"مسیر فعلی نامشخص"', self.ui)
-
-    def test_home_is_responsive_and_not_scrolling(self):
-        home = self.ui.split("private fun NoraHomeContent(", 1)[1].split(
-            "@Composable\nprivate fun NoraDashboardMetric", 1)[0]
-        self.assertIn("BoxWithConstraints(", home)
-        self.assertIn("val compact = maxHeight < 665.dp", home)
-        self.assertIn("val tiny = maxHeight < 525.dp", home)
-        self.assertNotIn("verticalScroll(", home)
-
-    def test_reference_dashboard_uses_real_connection_and_subscription_data(self):
-        home = self.ui.split("private fun NoraHomeContent(", 1)[1].split(
-            "@Composable\nprivate fun NoraDashboardMetric", 1
+        cls.home = cls.ui.split("private fun NoraHomeContent(", 1)[1].split(
+            "@Composable\nprivate fun NoraRouteShortcut(", 1
         )[0]
-        for element in (
-            "Connected  |  ", "Selected Location", "Smart Location",
-            "Recent Location", "Secure Network", "Remaining Traffic",
-            "Subscription", "usage?.remainingTrafficLabel()",
-            "usage?.remainingTimeLabel()", "locationPing",
-            "onClick = onChooseLocation", "onSelectRecent",
-            "val compact = maxHeight < 665.dp",
-            "val tiny = maxHeight < 525.dp",
+
+    def test_native_service_stays_authoritative(self):
+        for expected in (
+            "connected = appState.isRunning",
+            "if (appState.isRunning) activeRoute else preferredRoute",
+            "onToggle = startOrStop",
+            "onAction(MainAction.ToggleService)",
+            "onAction(MainAction.SelectServer(guid))",
+            "selectedCountryName = displayedRoute?.countryName",
+            "NoraForegroundSubscriptions.refresh",
+            "NoraImportRouter.classify",
         ):
-            self.assertIn(element, home)
-        self.assertNotIn("185.251.", home)
-        self.assertNotIn("VPN IP:", home)
+            self.assertIn(expected, self.ui)
+        self.assertNotIn("activeRoute ?: preferredRoute", self.ui)
 
-    def test_teal_dashboard_palette_and_real_power_action(self):
-        self.assertIn("private val ink = Color(0xFF041B25)", self.ui)
-        self.assertIn("private val cyan = Color(0xFF18B8A9)", self.ui)
-        self.assertIn("private val green = Color(0xFF29D8B9)", self.ui)
-        self.assertIn("onToggle = startOrStop", self.ui)
-        self.assertIn("onAction(MainAction.ToggleService)", self.ui)
+    def test_bluevpn_palette_keeps_nora_branding(self):
+        for expected in (
+            "private val ink = Color(0xFF08090E)",
+            "private val surface = Color(0xFF121319)",
+            "private val cyan = Color(0xFF4B7DFF)",
+            "private val green = Color(0xFF2ED3A1)",
+            '"NoraProxy"',
+            "painterResource(R.drawable.nora_brand)",
+        ):
+            self.assertIn(expected, self.ui)
 
-    def test_power_button_exposes_accessible_states(self):
+    def test_capsule_connection_screen_is_responsive_and_honest(self):
+        for expected in (
+            "BoxWithConstraints(",
+            "val compact = maxHeight < 650.dp",
+            "val tiny = maxHeight < 535.dp",
+            ".weight(1f)",
+            "RoundedCornerShape(56.dp)",
+            "NoraPowerButton(",
+            "onClick = onToggle",
+            '"زمان مشاهده اتصال"',
+            "SystemClock.elapsedRealtime()",
+            "usage?.remainingTrafficLabel()",
+            "usage?.remainingTimeLabel()",
+            "locationPing",
+            "onClick = onChooseLocation",
+        ):
+            self.assertIn(expected, self.home)
+        for forbidden in ("verticalScroll(", "185.251.", "VPN IP:", "Secure Network"):
+            self.assertNotIn(forbidden, self.home)
+
+    def test_all_home_shortcuts_open_real_destinations(self):
+        for expected in (
+            "onOpenSettings = { tab = NoraTab.Settings }",
+            "onOpenSubscription = { tab = NoraTab.Subscription }",
+            "onOpenUpdate = { tab = NoraTab.Settings }",
+            "onSelectSmart",
+            "onSelectRecent",
+        ):
+            self.assertIn(expected, self.ui)
+
+    def test_bluevpn_location_tabs_and_real_quality_filters(self):
+        for expected in (
+            "NoraLocationTab.entries.forEach",
+            "NoraQualityFilter.entries.toList()",
+            '"همه"), Favorites("علاقه‌مندی"), Recent("اخیر"',
+            '"کیفیت زنده سرورها"',
+            "nodes.count { it.latencyMs > 0L }",
+            "onAction(MainAction.TestRealAllServers)",
+            "NoraRouteSelector.searchLocations",
+            "route.latencyMs in 1L..150L",
+            "route.latencyMs in 151L..350L",
+        ):
+            self.assertIn(expected, self.ui)
+
+    def test_accessibility_and_bottom_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
-            "@Composable\nprivate fun NoraSubscriptionGroupCard", 1)[0]
+            "@Composable\nprivate fun NoraSubscriptionGroupCard", 1
+        )[0]
+        bottom = self.ui.split("private fun NoraBottomBar(", 1)[1]
         for term in ('"اتصال NoraProxy"', '"قطع اتصال NoraProxy"',
                      '"اتصال در دسترس نیست"', ".semantics {"):
             self.assertIn(term, power)
-
-    def test_tabs_and_location_cards_have_selectable_semantics(self):
-        quick = self.ui.split("private fun NoraQuickCountryCard(", 1)[1].split(
-            "@Composable\nprivate fun NoraHeader", 1)[0]
-        bottom = self.ui.split("private fun NoraBottomBar(", 1)[1]
-        self.assertIn("role = Role.RadioButton", quick)
         self.assertIn("role = Role.Tab", bottom)
         self.assertIn(".heightIn(min = 59.dp)", bottom)
         self.assertIn("contentDescription = null", bottom)
-        self.assertIn("Modifier.size(48.dp)", self.ui)
         self.assertIn('"افزودن به علاقه‌مندی‌ها"', self.ui)
+
 
 if __name__ == "__main__":
     unittest.main()
