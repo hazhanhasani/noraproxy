@@ -240,6 +240,7 @@ jobs:
           ./gradlew --no-daemon :app:testPlaystoreDebugUnitTest \
             --tests com.v2ray.ang.ui.main.NoraSubscriptionUsageTest \
             --tests com.v2ray.ang.ui.main.NoraAdvancedValidationTest \
+            --tests com.v2ray.ang.ui.main.NoraRoutingTransferTest \
             --tests com.v2ray.ang.ui.main.NoraThemeTest \
             --tests com.v2ray.ang.ui.main.NoraDiagnosticReaderTest \
             --tests com.v2ray.ang.ui.main.NoraImportRouterTest \
