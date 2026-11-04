@@ -711,9 +711,9 @@ private fun NoraAdvancedNetwork(
                     ).any { it != null }) {
                     Toast.makeText(context, "آدرس DNS نامعتبر است", Toast.LENGTH_LONG).show()
                 } else {
-                    val resolvedRemote = remote.ifBlank { AppConfig.DNS_PROXY }
-                    val resolvedDirect = direct.ifBlank { AppConfig.DNS_DIRECT }
-                    val resolvedVpn = vpn.ifBlank { AppConfig.DNS_VPN }
+                    val resolvedRemote = NoraAdvancedValidation.normalizedDnsCsv(remote).ifBlank { AppConfig.DNS_PROXY }
+                    val resolvedDirect = NoraAdvancedValidation.normalizedDnsCsv(direct).ifBlank { AppConfig.DNS_DIRECT }
+                    val resolvedVpn = NoraAdvancedValidation.normalizedDnsCsv(vpn).ifBlank { AppConfig.DNS_VPN }
                     val changes = listOf(
                         AppConfig.PREF_REMOTE_DNS to resolvedRemote,
                         AppConfig.PREF_DOMESTIC_DNS to resolvedDirect,
