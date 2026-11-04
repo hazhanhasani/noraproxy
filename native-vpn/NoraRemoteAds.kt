@@ -83,7 +83,7 @@ internal object NoraPromotionRepository {
         raw.takeIf {
             uri.scheme.equals("https", ignoreCase = true) &&
                 !uri.host.isNullOrBlank() &&
-                uri.userInfo.isNullOrBlank() &&
+                uri.encodedUserInfo.isNullOrBlank() &&
                 raw.length <= 2048
         }
     }.getOrNull()
@@ -118,7 +118,9 @@ internal object NoraPromotionRepository {
     private fun decodeScaled(bytes: ByteArray): Bitmap? {
         if (bytes.size > MAX_IMAGE_BYTES) return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (runCatching {
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        }.isFailure) return null
         if (bounds.outWidth !in 64..4096 || bounds.outHeight !in 24..2048) return null
         var sample = 1
         while (bounds.outWidth / sample > 1200 || bounds.outHeight / sample > 400) {
@@ -156,7 +158,7 @@ internal object NoraPromotionRepository {
         return definitions.mapNotNull { item ->
             val local = File(cache, item.file)
             val cached = runCatching {
-                if (local.isFile && local.length() in 1..MAX_IMAGE_BYTES)
+                if (local.isFile && local.length() in 1L..MAX_IMAGE_BYTES.toLong())
                     local.readBytes() else null
             }.getOrNull()
             var bitmap = cached?.let(::decodeScaled)
