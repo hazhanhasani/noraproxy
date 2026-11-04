@@ -763,6 +763,14 @@ private fun NoraAdvancedNetwork(
         mutableStateOf(MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false))
     }
     var showDnsEditor by remember { mutableStateOf(false) }
+    var showMtuEditor by remember { mutableStateOf(false) }
+    var vpnMtu by remember {
+        mutableStateOf(
+            MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString())
+                ?: AppConfig.VPN_MTU.toString()
+        )
+    }
+    val vpnMode = SettingsManager.isVpnMode()
     var remoteDns by remember {
         mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY)
     }
@@ -782,6 +790,9 @@ private fun NoraAdvancedNetwork(
                 preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6, false)
                 sniffing = MmkvManager.decodeSettingsBool(AppConfig.PREF_SNIFFING_ENABLED, true)
                 routeOnly = MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false)
+                vpnMtu = MmkvManager.decodeSettingsString(
+                    AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString()
+                ) ?: AppConfig.VPN_MTU.toString()
                 remoteDns = MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY
                 directDns = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT) ?: AppConfig.DNS_DIRECT
                 vpnDns = MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN) ?: AppConfig.DNS_VPN
@@ -844,11 +855,24 @@ private fun NoraAdvancedNetwork(
             }
         }
         item {
+            NoraAdvancedCard(
+                "اندازه بسته‌های VPN (MTU)",
+                "مقدار فعلی: ${vpnMtu.ifBlank { AppConfig.VPN_MTU.toString() }} · پیش‌فرض: ۱۵۰۰"
+            ) {
+                OutlinedButton(
+                    onClick = { showMtuEditor = true },
+                    enabled = vpnMode,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(15.dp)
+                ) { Text(if (vpnMode) "تغییر MTU" else "تنها در حالت VPN در دسترس است") }
+            }
+        }
+        item {
             OutlinedButton(
                 onClick = { onNavigate(MainDestination.Settings) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text("MTU و سایر تنظیمات تخصصی Xray") }
+            ) { Text("تنظیمات تخصصی تونل و شبکه Xray") }
         }
         item {
             Text(
@@ -857,6 +881,25 @@ private fun NoraAdvancedNetwork(
                 color = noraSecondary, fontSize = 11.sp, lineHeight = 20.sp
             )
         }
+    }
+    if (showMtuEditor) {
+        NoraVpnMtuEditor(
+            current = vpnMtu,
+            onDismiss = { showMtuEditor = false },
+            onSave = { value ->
+                if (NoraAdvancedValidation.validateVpnMtu(value) != null || !SettingsManager.isVpnMode()) {
+                    Toast.makeText(context, "مقدار MTU معتبر نیست", Toast.LENGTH_LONG).show()
+                } else if (MmkvManager.encodeSettings(AppConfig.PREF_VPN_MTU, value)) {
+                    vpnMtu = value
+                    SettingsChangeManager.makeRestartService()
+                    showMtuEditor = false
+                    Toast.makeText(context, "MTU ذخیره شد؛ برای اعمال اتصال را مجدداً برقرار کنید",
+                        Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "ذخیره MTU ناموفق بود", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
     }
     if (showDnsEditor) {
         NoraDnsServersEditor(
