@@ -67,7 +67,9 @@ import kotlinx.coroutines.withContext
 internal enum class NoraAdvancedPage(val label: String, val hint: String) {
     Apps("مدیریت برنامه‌ها", "انتخاب برنامه‌های متصل یا مستثنا از VPN"),
     Routing("قوانین مسیر‌یابی", "اولویت قواعد و کنترل مسیر ترافیک"),
-    Network("شبکه و DNS", "تنظیمات اصلی DNS و پشته شبکه")
+    Network("شبکه و DNS", "تنظیمات اصلی DNS و پشته شبکه"),
+    Logs("گزارش اتصال", "نمایش محدود و پالایش‌شده آخرین رویدادها"),
+    Backup("پشتیبان‌گیری", "دسترسی ایمن به پشتیبان‌گیری و بازیابی")
 }
 
 private val noraPanel = Color(0xFF121319)
@@ -122,6 +124,12 @@ internal fun NoraAdvancedScreen(
             NoraAdvancedPage.Apps -> NoraAdvancedApps(vpnRunning)
             NoraAdvancedPage.Routing -> NoraAdvancedRouting(vpnRunning, onNavigate)
             NoraAdvancedPage.Network -> NoraAdvancedNetwork(vpnRunning, onNavigate)
+            NoraAdvancedPage.Logs -> NoraLogsScreen {
+                onNavigate(MainDestination.Logcat)
+            }
+            NoraAdvancedPage.Backup -> NoraBackupHubScreen {
+                onNavigate(MainDestination.BackupRestore)
+            }
         }
     }
 }
