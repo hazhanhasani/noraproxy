@@ -12,6 +12,7 @@ MAIN = ROOT / "native-vpn" / "NoraMainScreen.kt"
 ADS = ROOT / "native-vpn" / "NoraRemoteAds.kt"
 MANIFEST = ROOT / "assets" / "ads" / "manifest.json"
 PREPARE = ROOT / "scripts" / "prepare_native_vpn.py"
+ADVANCED = ROOT / "native-vpn" / "NoraAdvancedScreen.kt"
 
 
 class NoraDesignContractTest(unittest.TestCase):
@@ -156,6 +157,38 @@ class NoraDesignContractTest(unittest.TestCase):
         self.assertIn("delay(rotationSeconds * 1000L)", self.ads)
         self.assertIn("instanceFollowRedirects = false", self.ads)
         self.assertIn("local.length() in 1L..MAX_IMAGE_BYTES.toLong()", self.ads)
+
+    def test_phase_two_advanced_ui_uses_real_xray_settings(self):
+        advanced = ADVANCED.read_text(encoding="utf-8")
+        prepare = PREPARE.read_text(encoding="utf-8")
+        for expected in (
+            "NoraAdvancedScreen(",
+            "NoraAdvancedPage.Apps",
+            "NoraAdvancedPage.Routing",
+            "NoraAdvancedPage.Network",
+            "advancedPage = null",
+            "onNavigate = onNavigate",
+        ):
+            self.assertIn(expected, self.ui)
+        self.assertIn("native-vpn/NoraAdvancedScreen.kt", prepare)
+        for expected in (
+            "AppManagerUtil.loadNetworkAppList",
+            "AppConfig.PREF_PER_APP_PROXY_SET",
+            "AppConfig.PREF_PER_APP_PROXY",
+            "AppConfig.PREF_BYPASS_APPS",
+            "SettingsManager.saveRoutingRuleset",
+            "AppConfig.PREF_ROUTING_DOMAIN_STRATEGY",
+            "AppConfig.PREF_LOCAL_DNS_ENABLED",
+            "AppConfig.PREF_IPV6_ENABLED",
+            "SettingsChangeManager.makeRestartService",
+            "SettingsChangeManager.notifySettingChanged",
+            "BackHandler(onBack = onBack)",
+        ):
+            self.assertIn(expected, advanced)
+        self.assertNotIn("https://github.com/hiddify/", advanced)
+        self.assertNotIn("CoreVpnService", advanced)
+        self.assertIn("'versionCode = 225'", prepare)
+        self.assertIn('"0.2.25"', prepare)
 
     def test_accessibility_and_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
