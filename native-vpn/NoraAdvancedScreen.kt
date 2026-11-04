@@ -533,11 +533,21 @@ private fun NoraAdvancedRouting(
                 onDismiss = { editingIndex = null },
                 onSave = { rule ->
                     try {
-                        SettingsManager.saveRoutingRuleset(position, rule)
-                        rules = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
-                        SettingsChangeManager.makeRestartService()
-                        editingIndex = null
-                        Toast.makeText(context, "قانون ذخیره شد", Toast.LENGTH_SHORT).show()
+                        val latest = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                        if (position >= 0 && (position !in latest.indices ||
+                                latest[position].id != current?.id ||
+                                latest[position].locked == true)) {
+                            rules = latest
+                            editingIndex = null
+                            Toast.makeText(context, "قانون تغییر کرده؛ دوباره آن را باز کنید",
+                                Toast.LENGTH_LONG).show()
+                        } else {
+                            SettingsManager.saveRoutingRuleset(position, rule)
+                            rules = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                            SettingsChangeManager.makeRestartService()
+                            editingIndex = null
+                            Toast.makeText(context, "قانون ذخیره شد", Toast.LENGTH_SHORT).show()
+                        }
                     } catch (_: Exception) {
                         Toast.makeText(context, "ذخیره قانون انجام نشد", Toast.LENGTH_LONG).show()
                     }
@@ -546,7 +556,7 @@ private fun NoraAdvancedRouting(
                     try {
                         val saved = MmkvManager.decodeRoutingRulesets()
                         if (saved != null && position in saved.indices &&
-                            saved[position].locked != true && saved[position].id == current.id) {
+                            saved[position].locked != true && saved[position].id == current?.id) {
                             SettingsManager.removeRoutingRuleset(position)
                             rules = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
                             SettingsChangeManager.makeRestartService()
@@ -572,6 +582,7 @@ private fun NoraAdvancedNetwork(
     vpnRunning: Boolean,
     onNavigate: (MainDestination) -> Unit
 ) {
+    val context = LocalContext.current
     var localDns by remember {
         mutableStateOf(MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false))
     }
