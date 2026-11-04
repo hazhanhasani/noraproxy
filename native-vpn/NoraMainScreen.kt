@@ -98,19 +98,26 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
-// NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
-// NoraProxy VNext / semantic tokens shared with the editable Figma design.
-private val ink = Color(0xFF041B25)
-private val surface = Color(0xFF102C39)
-private val surface2 = Color(0xFF1C3B47)
-private val cyan = Color(0xFF18B8A9)
-private val blue = Color(0xFF66D9C8)
-private val light = Color(0xFFF1FCFC)
-private val muted = Color(0xFFA5BEC2)
-private val green = Color(0xFF29D8B9)
-private val amber = Color(0xFFFFCE88)
-private val edge = Color(0xFF345862)
+// BlueVPN-derived dark visual system adapted to NoraProxy Compose and native VPN lifecycle.
+private val ink = Color(0xFF08090E)
+private val surface = Color(0xFF121319)
+private val surface2 = Color(0xFF181A22)
+private val cyan = Color(0xFF4B7DFF)
+private val blue = Color(0xFF725BFF)
+private val light = Color(0xFFF6F7FB)
+private val muted = Color(0xFFB9BCC7)
+private val green = Color(0xFF2ED3A1)
+private val amber = Color(0xFFFFB454)
+private val edge = Color(0xFF2A2D38)
 private val corner = RoundedCornerShape(24.dp)
+
+private enum class NoraLocationTab(val label: String) {
+    All("همه"), Favorites("علاقه‌مندی"), Recent("اخیر")
+}
+
+private enum class NoraQualityFilter(val label: String) {
+    All("همه"), Fast("سریع"), Usable("پایدار"), Unmeasured("کند / بدون تست")
+}
 
 private enum class NoraTab(val title: String, val iconRes: Int) {
     Home("خانه", R.drawable.nora_tab_home),
@@ -283,7 +290,8 @@ fun MainScreen(
         mutableStateOf(favoritePrefs.getStringSet("country_codes", emptySet())?.toSet() ?: emptySet())
     }
     var locationQuery by remember { mutableStateOf("") }
-    var favoritesOnly by remember { mutableStateOf(false) }
+    var locationTab by remember { mutableStateOf(NoraLocationTab.All) }
+    var qualityFilter by remember { mutableStateOf(NoraQualityFilter.All) }
     val toggleFavorite: (String) -> Unit = { code ->
         if (!code.startsWith("UNKNOWN:")) {
             val next = if (code in favoriteCountries) favoriteCountries - code
@@ -292,8 +300,22 @@ fun MainScreen(
             favoritePrefs.edit().putStringSet("country_codes", next.toSet()).apply()
         }
     }
-    val visibleLocations = remember(locations, locationQuery, favoriteCountries, favoritesOnly) {
-        NoraRouteSelector.searchLocations(locations, locationQuery, favoriteCountries, favoritesOnly)
+    val visibleLocations = remember(
+        locations, locationQuery, favoriteCountries, locationTab, qualityFilter, recentCountry
+    ) {
+        NoraRouteSelector.searchLocations(
+            locations, locationQuery, favoriteCountries, locationTab == NoraLocationTab.Favorites
+        ).filter { route ->
+            val matchesTab = locationTab != NoraLocationTab.Recent ||
+                route.countryCode == recentCountry
+            val matchesQuality = when (qualityFilter) {
+                NoraQualityFilter.All -> true
+                NoraQualityFilter.Fast -> route.latencyMs in 1L..150L
+                NoraQualityFilter.Usable -> route.latencyMs in 151L..350L
+                NoraQualityFilter.Unmeasured -> route.latencyMs <= 0L || route.latencyMs > 350L
+            }
+            matchesTab && matchesQuality
+        }
     }
     val prioritizedLocations = remember(locations, favoriteCountries) {
         NoraRouteSelector.searchLocations(locations, "", favoriteCountries)
@@ -559,7 +581,7 @@ fun MainScreen(
                 } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF152943), ink)))
+                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF12192B), ink)))
                         .padding(inner)
                         .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
@@ -582,22 +604,93 @@ fun MainScreen(
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(surface2)
+                                        .padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    OutlinedButton(
-                                        onClick = { favoritesOnly = !favoritesOnly },
-                                        shape = RoundedCornerShape(14.dp)
-                                    ) {
-                                        Text(if (favoritesOnly) "★ علاقه‌مندی‌ها"
-                                            else "☆ علاقه‌مندی‌ها", fontSize = 12.sp)
+                                    NoraLocationTab.entries.forEach { filter ->
+                                        Box(
+                                            modifier = Modifier.weight(1f)
+                                                .clip(RoundedCornerShape(13.dp))
+                                                .background(if (locationTab == filter) cyan
+                                                    else Color.Transparent)
+                                                .selectable(
+                                                    selected = locationTab == filter,
+                                                    role = Role.Tab,
+                                                    onClick = { locationTab = filter }
+                                                )
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(filter.label,
+                                                color = if (locationTab == filter) Color.White else muted,
+                                                fontWeight = if (locationTab == filter)
+                                                    FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 12.sp, maxLines = 1)
+                                        }
                                     }
-                                    Text(persianNumber(visibleLocations.size.toString()) + " کشور",
-                                        color = muted, fontSize = 12.sp)
                                 }
+                                Spacer(Modifier.height(10.dp))
+                                Card(shape = RoundedCornerShape(19.dp),
+                                    colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(Modifier.fillMaxWidth().padding(13.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text("کیفیت زنده سرورها", color = light,
+                                                    fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    persianNumber(nodes.count { it.latencyMs > 0L }.toString()) +
+                                                        " از " + persianNumber(nodes.size.toString()) +
+                                                        " سرور با پینگ موفق",
+                                                    color = muted, fontSize = 11.sp)
+                                            }
+                                            Button(
+                                                onClick = { onAction(MainAction.TestRealAllServers) },
+                                                enabled = !appState.isTesting && nodes.isNotEmpty(),
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(horizontal = 13.dp, vertical = 8.dp)
+                                            ) {
+                                                Text(if (appState.isTesting) "سنجش..." else "تست همه",
+                                                    fontSize = 11.sp)
+                                            }
+                                        }
+                                        val progress = if (nodes.isEmpty()) 0f else
+                                            nodes.count { it.latencyMs > 0L }.toFloat() / nodes.size
+                                        Box(Modifier.fillMaxWidth().height(5.dp)
+                                            .clip(CircleShape).background(surface2)) {
+                                            Box(Modifier.fillMaxWidth(progress)
+                                                .height(5.dp).background(cyan))
+                                        }
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                            items(NoraQualityFilter.entries.toList()) { option ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(if (qualityFilter == option)
+                                                            cyan.copy(alpha = .22f) else surface2)
+                                                        .border(1.dp,
+                                                            if (qualityFilter == option) cyan else edge,
+                                                            RoundedCornerShape(12.dp))
+                                                        .clickable { qualityFilter = option }
+                                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                ) {
+                                                    Text(option.label, color = if (qualityFilter == option)
+                                                        light else muted, fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Text(persianNumber(visibleLocations.size.toString()) +
+                                    " لوکیشن", color = muted, fontSize = 11.sp)
                                 Spacer(Modifier.height(8.dp))
-                                if (!favoritesOnly && locationQuery.isBlank()) {
+                                if (locationTab == NoraLocationTab.All &&
+                                    qualityFilter == NoraQualityFilter.All &&
+                                    locationQuery.isBlank()) {
                                     NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب بهترین مسیر شناخته‌شده",
                                         null, selectedCountry == null) {
                                         chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
@@ -607,9 +700,11 @@ fun MainScreen(
                             }
                             if (visibleLocations.isEmpty()) {
                                 item {
-                                    Text(if (favoritesOnly && favoriteCountries.isEmpty())
+                                    Text(if (locationTab == NoraLocationTab.Favorites && favoriteCountries.isEmpty())
                                             "برای افزودن کشور به علاقه‌مندی‌ها، روی ستاره کنار آن بزنید."
-                                        else "کشوری مطابق جست‌وجو پیدا نشد.",
+                                        else if (locationTab == NoraLocationTab.Recent && recentCountry == null)
+                                            "هنوز لوکیشن قبلی ثبت نشده است."
+                                        else "لوکیشنی مطابق فیلتر پیدا نشد.",
                                         color = muted, fontSize = 12.sp)
                                 }
                             }
@@ -1256,7 +1351,7 @@ private fun NoraRouteShortcut(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(17.dp))
-            .background(if (selected) Color(0xFF1A4549) else surface)
+            .background(if (selected) Color(0xFF1A2847) else surface)
             .border(1.dp, if (selected) cyan.copy(alpha = .35f)
                 else edge.copy(alpha = .15f), RoundedCornerShape(17.dp))
             .clickable(enabled = enabled, onClick = onClick)
@@ -1319,8 +1414,8 @@ private fun NoraQuickCountryCard(
             .heightIn(min = if (compact) 56.dp else 72.dp)
             .clip(shape)
             .background(if (selected)
-                Brush.verticalGradient(listOf(Color(0xFF294B76), Color(0xFF21354E)))
-                else Brush.verticalGradient(listOf(Color(0xFF16283D), surface)))
+                Brush.verticalGradient(listOf(Color(0xFF233D78), Color(0xFF18264E)))
+                else Brush.verticalGradient(listOf(Color(0xFF141824), surface)))
             .border(1.dp, if (selected) cyan.copy(alpha = .78f)
                 else edge.copy(alpha = .34f), shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -1351,7 +1446,7 @@ private fun NoraHeader(
         }
         Box(modifier = Modifier
             .clip(RoundedCornerShape(30.dp))
-            .background(if (connected) Color(0xFF1A4946) else surface2)
+            .background(if (connected) Color(0xFF17362F) else surface2)
             .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
                 RoundedCornerShape(30.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -1384,7 +1479,7 @@ private fun NoraPowerButton(
     Box(
         modifier = Modifier.size(diameter)
             .clip(CircleShape) // Prevent square ripple artifacts on tap.
-            .background(Color(0xFF0E2A36))
+            .background(Color(0xFF151C34))
             .border(1.dp, accent.copy(alpha = .13f), CircleShape)
             .semantics {
                 contentDescription = if (!enabled && phase.isBusy) phase.statusLabel
@@ -1431,7 +1526,7 @@ private fun NoraSubscriptionGroupCard(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
             .background(if (active)
-                Brush.horizontalGradient(listOf(Color(0xFF243E5D), surface2))
+                Brush.horizontalGradient(listOf(Color(0xFF222C48), surface2))
                 else Brush.horizontalGradient(listOf(surface, surface)))
             .border(1.dp, if (active) cyan.copy(alpha = .55f)
                 else edge.copy(alpha = .28f), shape)
@@ -1455,7 +1550,7 @@ private fun NoraSubscriptionGroupCard(
         }
         usage?.usagePercent()?.let { percent ->
             Box(Modifier.fillMaxWidth().height(5.dp)
-                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF28435E))) {
+                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF25375F))) {
                 Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
             }
             if (usage.used != null && usage.total != null) {
@@ -1535,8 +1630,8 @@ private fun NoraLocationCard(
             .clip(shape)
             .background(
                 Brush.horizontalGradient(
-                    if (selected) listOf(Color(0xFF264A70), Color(0xFF172B46))
-                    else listOf(surface, Color(0xFF16283E))
+                    if (selected) listOf(Color(0xFF203B7A), Color(0xFF171E3D))
+                    else listOf(surface, Color(0xFF131A2D))
                 )
             )
             .border(1.dp, if (selected) cyan.copy(alpha = .7f)
@@ -1549,7 +1644,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier.size(if (compact) 42.dp else 50.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF243F5F))
+                .background(Color(0xFF202A49))
                 .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1580,7 +1675,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (delay != null && delay > 0L) Color(0xFF1C464A) else surface2)
+                .background(if (delay != null && delay > 0L) Color(0xFF193A30) else surface2)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1600,7 +1695,7 @@ private fun NoraBottomBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth()
-            .background(Color(0xFF15303C))
+            .background(ink)
             .padding(horizontal = 9.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1610,7 +1705,10 @@ private fun NoraBottomBar(
             Column(
                 modifier = Modifier.weight(1f)
                     .heightIn(min = 59.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(if (isActive) cyan.copy(alpha = .17f) else Color.Transparent)
+                    .border(1.dp, if (isActive) cyan.copy(alpha = .42f)
+                        else Color.Transparent, RoundedCornerShape(15.dp))
                     .selectable(selected = isActive, role = Role.Tab,
                         onClick = { onSelect(tab) })
                     .padding(vertical = 7.dp),
@@ -1621,10 +1719,10 @@ private fun NoraBottomBar(
                     painter = painterResource(tab.iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(23.dp),
-                    tint = if (isActive) green else muted
+                    tint = if (isActive) cyan else muted
                 )
                 Text(
-                    if (tab == NoraTab.Home) "VPN" else tab.title,
+                    tab.title,
                     color = if (isActive) light else muted,
                     fontSize = 11.sp, maxLines = 1,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
