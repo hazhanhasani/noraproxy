@@ -152,6 +152,7 @@ fun MainScreen(
     DisposableEffect(updater) { onDispose { updater.dispose() } }
     LaunchedEffect(updater) { updater.check() }
     var tab by remember { mutableStateOf(NoraTab.Home) }
+    var advancedPage by remember { mutableStateOf<NoraAdvancedPage?>(null) }
     var subscription by remember { mutableStateOf("") }
     var importExpanded by remember { mutableStateOf(true) }
     var editorVisible by remember { mutableStateOf(false) }
@@ -578,12 +579,20 @@ fun MainScreen(
                 bottomBar = {
                     NoraBottomBar(
                         active = tab,
-                        onSelect = { tab = it },
+                        onSelect = { tab = it; advancedPage = null },
                         modifier = Modifier.background(surface).navigationBarsPadding()
                     )
                 }
             ) { inner ->
-                if (tab == NoraTab.Home) {
+                if (tab == NoraTab.Settings && advancedPage != null) {
+                    NoraAdvancedScreen(
+                        page = advancedPage!!,
+                        vpnRunning = appState.isRunning,
+                        onBack = { advancedPage = null },
+                        onNavigate = onNavigate,
+                        modifier = Modifier.fillMaxSize().padding(inner)
+                    )
+                } else if (tab == NoraTab.Home) {
                     NoraHomeContent(
                         modifier = Modifier.fillMaxSize().padding(inner),
                         logo = originalLogo,
@@ -968,12 +977,12 @@ fun MainScreen(
                                         Row(modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                             OutlinedButton(
-                                                onClick = { onNavigate(MainDestination.PerAppProxy) },
+                                                onClick = { advancedPage = NoraAdvancedPage.Apps },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(13.dp)
                                             ) { Text("انتخاب برنامه‌ها", fontSize = 12.sp) }
                                             OutlinedButton(
-                                                onClick = { onNavigate(MainDestination.Routing) },
+                                                onClick = { advancedPage = NoraAdvancedPage.Routing },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(13.dp)
                                             ) { Text("قوانین مسیر‌یابی", fontSize = 12.sp) }
@@ -981,7 +990,7 @@ fun MainScreen(
                                         Row(modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                             OutlinedButton(
-                                                onClick = { onNavigate(MainDestination.Settings) },
+                                                onClick = { advancedPage = NoraAdvancedPage.Network },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(13.dp)
                                             ) { Text("DNS و شبکه", fontSize = 12.sp) }
