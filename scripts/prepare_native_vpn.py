@@ -34,6 +34,8 @@ def prepare():
     copies = (
         ("native-vpn/NoraMainScreen.kt",
          "java/com/v2ray/ang/ui/main/MainScreen.kt"),
+        ("native-vpn/NoraRemoteAds.kt",
+         "java/com/v2ray/ang/ui/main/NoraRemoteAds.kt"),
         ("native-vpn/NoraRouteSelector.kt",
          "java/com/v2ray/ang/ui/main/NoraRouteSelector.kt"),
         ("native-vpn/NoraSubscriptionUsage.kt",
