@@ -4,21 +4,9 @@
   "rotationSeconds": 8,
   "banners": [
     {
-      "id": "banner-1",
-      "file": "banner-1.webp",
-      "title": "پیشنهاد ویژه",
-      "enabled": true
-    },
-    {
-      "id": "banner-2",
-      "file": "banner-2.webp",
-      "title": "اطلاع‌رسانی",
-      "enabled": true
-    },
-    {
-      "id": "banner-3",
-      "file": "banner-3.webp",
-      "title": "تبلیغات",
+      "id": "github-upload-1",
+      "file": "file_00000000d3dc81f5a6fb1b19714b873d.png",
+      "title": "تبلیغات NoraProxy",
       "enabled": true
     }
   ]
