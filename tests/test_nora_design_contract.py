@@ -217,7 +217,7 @@ class NoraDesignContractTest(unittest.TestCase):
         for name in ("NoraTheme.kt", "NoraDiagnostics.kt", "NoraThemeTest.kt",
                      "NoraDiagnosticReaderTest.kt"):
             self.assertIn(name, prepare)
-        for required in ("NoraThemeMode.System", "ThemeManager.setThemeMode(",
+        for required in ("NoraThemeMode.entries", "ThemeManager.setThemeMode(",
                          "LocalNoraPalette provides noraPalette", "noraPalette.materialColors()",
                          "NoraAdvancedPage.Logs", "NoraAdvancedPage.Backup"):
             self.assertIn(required, self.ui)
