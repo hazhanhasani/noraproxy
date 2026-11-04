@@ -1,0 +1,61 @@
+name: Validate NoraProxy UI and Promotions
+
+on:
+  pull_request:
+    paths:
+      - "native-vpn/**"
+      - "assets/ads/**"
+      - "scripts/prepare_native_vpn.py"
+      - "tests/test_nora_design_contract.py"
+      - ".github/workflows/ui-ads-checks.yml"
+  push:
+    branches: [main]
+    paths:
+      - "native-vpn/**"
+      - "assets/ads/**"
+      - "scripts/prepare_native_vpn.py"
+      - "tests/test_nora_design_contract.py"
+      - ".github/workflows/ui-ads-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Drop outdated UI checks on PR updates; no extra Android SDK needed.
+concurrency:
+  group: nora-ui-queue-reset-20261104-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: Python contracts and banner manifest
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Checkout NoraProxy
+        uses: actions/checkout@v4
+      - name: Run native UI and ad security contracts
+        run: python3 -m unittest discover -s tests -p 'test_nora_design_contract.py' -v
+      - name: Validate promotion manifest and ready upload slots
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path("assets/ads")
+          doc = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          assert doc["version"] == 1
+          assert isinstance(doc.get("banners"), list)
+          assert 0 <= len(doc["banners"]) <= 4
+          assert 3 <= int(doc.get("rotationSeconds", 8)) <= 30
+          assert len({item["id"] for item in doc["banners"]}) == len(doc["banners"])
+          assert len({item["file"] for item in doc["banners"]}) == len(doc["banners"])
+          for item in doc["banners"]:
+              name = item["file"]
+              assert name and "/" not in name and "\\" not in name and ".." not in name
+              assert name.lower().endswith((".webp", ".png", ".jpg", ".jpeg"))
+              assert len(name) <= 80
+              target = item.get("target")
+              assert not target or target.startswith("https://")
+          print("NoraProxy banner manifest and static contracts OK")
+          PY

@@ -98,19 +98,26 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
-// NoraProxy's cyan circuitry and deep navy, rather than generic VPN green.
-// NoraProxy VNext / semantic tokens shared with the editable Figma design.
-private val ink = Color(0xFF041B25)
-private val surface = Color(0xFF102C39)
-private val surface2 = Color(0xFF1C3B47)
-private val cyan = Color(0xFF18B8A9)
-private val blue = Color(0xFF66D9C8)
-private val light = Color(0xFFF1FCFC)
-private val muted = Color(0xFFA5BEC2)
-private val green = Color(0xFF29D8B9)
-private val amber = Color(0xFFFFCE88)
-private val edge = Color(0xFF345862)
+// BlueVPN-derived dark visual system adapted to NoraProxy Compose and native VPN lifecycle.
+private val ink = Color(0xFF08090E)
+private val surface = Color(0xFF121319)
+private val surface2 = Color(0xFF181A22)
+private val cyan = Color(0xFF4B7DFF)
+private val blue = Color(0xFF725BFF)
+private val light = Color(0xFFF6F7FB)
+private val muted = Color(0xFFB9BCC7)
+private val green = Color(0xFF2ED3A1)
+private val amber = Color(0xFFFFB454)
+private val edge = Color(0xFF2A2D38)
 private val corner = RoundedCornerShape(24.dp)
+
+private enum class NoraLocationTab(val label: String) {
+    All("همه"), Favorites("علاقه‌مندی"), Recent("اخیر")
+}
+
+private enum class NoraQualityFilter(val label: String) {
+    All("همه"), Fast("سریع"), Usable("پایدار"), Unmeasured("کند / بدون تست")
+}
 
 private enum class NoraTab(val title: String, val iconRes: Int) {
     Home("خانه", R.drawable.nora_tab_home),
@@ -149,6 +156,8 @@ fun MainScreen(
     var editingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var groupBusy by remember { mutableStateOf(false) }
+    // Guard against overlapping group switches while route metadata loads on IO.
+    var groupSwitchBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
     val smartPreferences = remember(context) {
         context.getSharedPreferences("nora_smart_engine", android.content.Context.MODE_PRIVATE)
@@ -201,6 +210,12 @@ fun MainScreen(
     var recentCountry by remember {
         mutableStateOf(routePreferences.getString("recent_country:" + appState.selectedGroupId, null))
     }
+    var recentCountries by remember {
+        mutableStateOf(
+            routePreferences.getString("recent_countries:" + appState.selectedGroupId, "")
+                .orEmpty().split(",").filter { it.isNotBlank() }.distinct().take(12)
+        )
+    }
     // Upstream SelectServer always calls restartService, even if disconnected.
     // Keep the selected GUID persisted without starting the VPN prematurely.
     val selectActualServer: (String) -> Unit = { guid ->
@@ -220,6 +235,9 @@ fun MainScreen(
         recentCountry = routePreferences.getString(
             "recent_country:" + appState.selectedGroupId, null
         )
+        recentCountries = routePreferences.getString(
+            "recent_countries:" + appState.selectedGroupId, ""
+        ).orEmpty().split(",").filter { it.isNotBlank() }.distinct().take(12)
     }
     var refreshTick by remember { mutableIntStateOf(0) }
     // Prevent double-taps from dispatching conflicting native start/stop commands.
@@ -271,11 +289,21 @@ fun MainScreen(
             }
         }
     }
-    val nodes = remember(refreshTick, appState.selectedGroupId) {
-        NoraRouteSelector.load(appState.selectedGroupId)
+    // MMKV profile parsing and quality sorting can touch hundreds of nodes:
+    // keep both strictly off the Compose UI thread during scrolling.
+    var routeSnapshot by remember(appState.selectedGroupId) {
+        mutableStateOf(Pair(emptyList<NoraNode>(), emptyList<NoraNode>()))
     }
-    val ranked = remember(nodes) { NoraRouteSelector.rank(nodes) }
-    val locations = remember(ranked) { NoraRouteSelector.locations(ranked) }
+    LaunchedEffect(refreshTick, appState.selectedGroupId) {
+        val groupId = appState.selectedGroupId
+        routeSnapshot = withContext(Dispatchers.IO) {
+            val sorted = NoraRouteSelector.rank(NoraRouteSelector.load(groupId))
+            sorted to NoraRouteSelector.locations(sorted)
+        }
+    }
+    val nodes = routeSnapshot.first
+    val ranked = routeSnapshot.first
+    val locations = routeSnapshot.second
     val favoritePrefs = remember(context) {
         context.getSharedPreferences("nora_location_favorites", android.content.Context.MODE_PRIVATE)
     }
@@ -283,7 +311,8 @@ fun MainScreen(
         mutableStateOf(favoritePrefs.getStringSet("country_codes", emptySet())?.toSet() ?: emptySet())
     }
     var locationQuery by remember { mutableStateOf("") }
-    var favoritesOnly by remember { mutableStateOf(false) }
+    var locationTab by remember { mutableStateOf(NoraLocationTab.All) }
+    var qualityFilter by remember { mutableStateOf(NoraQualityFilter.All) }
     val toggleFavorite: (String) -> Unit = { code ->
         if (!code.startsWith("UNKNOWN:")) {
             val next = if (code in favoriteCountries) favoriteCountries - code
@@ -292,14 +321,43 @@ fun MainScreen(
             favoritePrefs.edit().putStringSet("country_codes", next.toSet()).apply()
         }
     }
-    val visibleLocations = remember(locations, locationQuery, favoriteCountries, favoritesOnly) {
-        NoraRouteSelector.searchLocations(locations, locationQuery, favoriteCountries, favoritesOnly)
+    val visibleLocations = remember(
+        locations, locationQuery, favoriteCountries, locationTab, qualityFilter, recentCountries
+    ) {
+        NoraRouteSelector.searchLocations(
+            locations, locationQuery, favoriteCountries, locationTab == NoraLocationTab.Favorites
+        ).filter { route ->
+            val matchesTab = locationTab != NoraLocationTab.Recent ||
+                route.countryCode in recentCountries
+            val matchesQuality = when (qualityFilter) {
+                NoraQualityFilter.All -> true
+                NoraQualityFilter.Fast -> route.latencyMs in 1L..150L
+                NoraQualityFilter.Usable -> route.latencyMs in 151L..350L
+                NoraQualityFilter.Unmeasured -> route.latencyMs <= 0L || route.latencyMs > 350L
+            }
+            matchesTab && matchesQuality
+        }.let { filtered ->
+            if (locationTab == NoraLocationTab.Recent)
+                filtered.sortedBy { recentCountries.indexOf(it.countryCode) }
+            else filtered
+        }
     }
     val prioritizedLocations = remember(locations, favoriteCountries) {
         NoraRouteSelector.searchLocations(locations, "", favoriteCountries)
     }
     val identity = remember(nodes) { nodes.joinToString("|") { it.guid } }
     val subscriptions = remember(appState.groups) { mainViewModel.getSubscriptions() }
+    // Scrolling subscription cards must never decode MMKV lists on the main thread.
+    var groupNodeCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    LaunchedEffect(subscriptions, refreshTick) {
+        groupNodeCounts = withContext(Dispatchers.IO) {
+            subscriptions.associate { group ->
+                group.guid to runCatching {
+                    MmkvManager.decodeServerList(group.guid).size
+                }.getOrDefault(0)
+            }
+        }
+    }
     var usageByGroup by remember { mutableStateOf<Map<String, NoraSubscriptionUsage>>(emptyMap()) }
     var usageRefresh by remember { mutableIntStateOf(0) }
     // Load fresh quota/expiry for ALL enabled remote groups, not only the selected one.
@@ -461,6 +519,14 @@ fun MainScreen(
                 ).apply()
             }
             selectedCountry = country
+            if (country != null && !country.startsWith("UNKNOWN:")) {
+                recentCountries = (listOf(country) +
+                    recentCountries.filterNot { it == country }).take(12)
+                routePreferences.edit().putString(
+                    "recent_countries:" + appState.selectedGroupId,
+                    recentCountries.joinToString(",")
+                ).apply()
+            }
             routePreferences.edit().apply {
                 val preferenceKey = "preferred_country:" + appState.selectedGroupId
                 if (country == null) remove(preferenceKey)
@@ -531,39 +597,22 @@ fun MainScreen(
                         locationPing = if (appState.isRunning && !livePingEnabled) null
                             else displayedRoute?.latencyMs,
                         usage = usageByGroup[appState.selectedGroupId],
-                        quickLocations = prioritizedLocations,
-                        selectedCountryCode = selectedCountry,
-                        recentLocation = prioritizedLocations.firstOrNull {
-                            it.countryCode == recentCountry
-                        },
                         testing = appState.isTesting,
                         hasUpdate = updateState.available,
                         onToggle = startOrStop,
                         onChooseLocation = { tab = NoraTab.Locations },
-                        onSelectCountry = { country ->
-                            chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, country.countryCode)
-                                ?: country else country, country.countryCode)
-                        },
-                        onSelectSmart = {
-                            chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
-                                else ranked.firstOrNull { it.latencyMs > 0 } ?: ranked.firstOrNull(), null)
-                        },
-                        onSelectRecent = {
-                            val previous = prioritizedLocations.firstOrNull {
-                                it.countryCode == recentCountry
-                            }
-                            if (previous != null) chooseRoute(previous, previous.countryCode)
-                        },
-                        onOpenUpdate = { tab = NoraTab.Settings }
+                        onOpenUpdate = { tab = NoraTab.Settings },
+                        onOpenSettings = { tab = NoraTab.Settings },
+                        onOpenSubscription = { tab = NoraTab.Subscription }
                     )
                 } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF152943), ink)))
+                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF12192B), ink)))
                         .padding(inner)
                         .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     item { NoraHeader(originalLogo, brand, appState.isRunning, connectionPhase) }
                     when (tab) {
@@ -582,22 +631,93 @@ fun MainScreen(
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(surface2)
+                                        .padding(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    OutlinedButton(
-                                        onClick = { favoritesOnly = !favoritesOnly },
-                                        shape = RoundedCornerShape(14.dp)
-                                    ) {
-                                        Text(if (favoritesOnly) "★ علاقه‌مندی‌ها"
-                                            else "☆ علاقه‌مندی‌ها", fontSize = 12.sp)
+                                    NoraLocationTab.entries.forEach { filter ->
+                                        Box(
+                                            modifier = Modifier.weight(1f)
+                                                .clip(RoundedCornerShape(13.dp))
+                                                .background(if (locationTab == filter) cyan
+                                                    else Color.Transparent)
+                                                .selectable(
+                                                    selected = locationTab == filter,
+                                                    role = Role.Tab,
+                                                    onClick = { locationTab = filter }
+                                                )
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(filter.label,
+                                                color = if (locationTab == filter) Color.White else muted,
+                                                fontWeight = if (locationTab == filter)
+                                                    FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 12.sp, maxLines = 1)
+                                        }
                                     }
-                                    Text(persianNumber(visibleLocations.size.toString()) + " کشور",
-                                        color = muted, fontSize = 12.sp)
                                 }
+                                Spacer(Modifier.height(10.dp))
+                                Card(shape = RoundedCornerShape(19.dp),
+                                    colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(Modifier.fillMaxWidth().padding(13.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text("کیفیت زنده سرورها", color = light,
+                                                    fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                Text(
+                                                    persianNumber(nodes.count { it.latencyMs > 0L }.toString()) +
+                                                        " از " + persianNumber(nodes.size.toString()) +
+                                                        " سرور با پینگ موفق",
+                                                    color = muted, fontSize = 11.sp)
+                                            }
+                                            Button(
+                                                onClick = { onAction(MainAction.TestRealAllServers) },
+                                                enabled = !appState.isTesting && nodes.isNotEmpty(),
+                                                shape = RoundedCornerShape(12.dp),
+                                                contentPadding = PaddingValues(horizontal = 13.dp, vertical = 8.dp)
+                                            ) {
+                                                Text(if (appState.isTesting) "سنجش..." else "تست همه",
+                                                    fontSize = 11.sp)
+                                            }
+                                        }
+                                        val progress = if (nodes.isEmpty()) 0f else
+                                            nodes.count { it.latencyMs > 0L }.toFloat() / nodes.size
+                                        Box(Modifier.fillMaxWidth().height(5.dp)
+                                            .clip(CircleShape).background(surface2)) {
+                                            Box(Modifier.fillMaxWidth(progress)
+                                                .height(5.dp).background(cyan))
+                                        }
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                            items(NoraQualityFilter.entries.toList()) { option ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(if (qualityFilter == option)
+                                                            cyan.copy(alpha = .22f) else surface2)
+                                                        .border(1.dp,
+                                                            if (qualityFilter == option) cyan else edge,
+                                                            RoundedCornerShape(12.dp))
+                                                        .clickable { qualityFilter = option }
+                                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                ) {
+                                                    Text(option.label, color = if (qualityFilter == option)
+                                                        light else muted, fontSize = 11.sp)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Text(persianNumber(visibleLocations.size.toString()) +
+                                    " لوکیشن", color = muted, fontSize = 11.sp)
                                 Spacer(Modifier.height(8.dp))
-                                if (!favoritesOnly && locationQuery.isBlank()) {
+                                if (locationTab == NoraLocationTab.All &&
+                                    qualityFilter == NoraQualityFilter.All &&
+                                    locationQuery.isBlank()) {
                                     NoraLocationCard("✦", "انتخاب هوشمند", "انتخاب بهترین مسیر شناخته‌شده",
                                         null, selectedCountry == null) {
                                         chooseRoute(if (smartMode) smartEngine.bestRoute(ranked, null)
@@ -607,13 +727,17 @@ fun MainScreen(
                             }
                             if (visibleLocations.isEmpty()) {
                                 item {
-                                    Text(if (favoritesOnly && favoriteCountries.isEmpty())
+                                    Text(if (locationTab == NoraLocationTab.Favorites && favoriteCountries.isEmpty())
                                             "برای افزودن کشور به علاقه‌مندی‌ها، روی ستاره کنار آن بزنید."
-                                        else "کشوری مطابق جست‌وجو پیدا نشد.",
+                                        else if (locationTab == NoraLocationTab.Recent && recentCountries.isEmpty())
+                                            "هنوز لوکیشن قبلی ثبت نشده است."
+                                        else "لوکیشنی مطابق فیلتر پیدا نشد.",
                                         color = muted, fontSize = 12.sp)
                                 }
                             }
-                            items(visibleLocations, key = { it.countryCode }) { country ->
+                            items(visibleLocations,
+                                key = { it.countryCode },
+                                contentType = { "location" }) { country ->
                                 NoraLocationCard(country.flag, country.countryName,
                                     "مناسب‌ترین سرور این کشور", country.latencyMs,
                                     selectedCountry == country.countryCode &&
@@ -735,14 +859,16 @@ fun MainScreen(
                                         color = muted, fontSize = 13.sp, lineHeight = 23.sp)
                                 }
                             }
-                            items(subscriptions, key = { "group-" + it.guid }) { group ->
+                            items(subscriptions,
+                                key = { "group-" + it.guid },
+                                contentType = { "subscription" }) { group ->
                                 NoraSubscriptionGroupCard(
                                     name = when (group.subscription.remarks.trim().lowercase()) {
                                         "default" -> "کانفیگ‌های شخصی"
                                         "import sub" -> "اشتراک واردشده"
                                         else -> group.subscription.remarks.ifBlank { "اشتراک بدون نام" }
                                     },
-                                    numberOfNodes = MmkvManager.decodeServerList(group.guid).size,
+                                    numberOfNodes = groupNodeCounts[group.guid] ?: 0,
                                     active = group.guid == appState.selectedGroupId,
                                     usage = usageByGroup[group.guid],
                                     onEdit = { editingGroup = group; editorVisible = true },
@@ -752,25 +878,45 @@ fun MainScreen(
                                         } else deletingGroup = group
                                     },
                                     onSelect = {
-                                        val savedCountry = routePreferences.getString(
-                                            "preferred_country:" + group.guid, null
-                                        )
-                                        val routes = NoraRouteSelector.rank(NoraRouteSelector.load(group.guid))
-                                        if (routes.isEmpty() && appState.isRunning) {
-                                            Toast.makeText(context,
-                                                "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
-                                                Toast.LENGTH_LONG).show()
-                                        } else {
-                                            smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
-                                            selectedCountry = savedCountry
-                                            onAction(MainAction.SelectGroup(group.guid))
-                                            val selected = (if (smartMode)
-                                                smartEngine.bestRoute(routes, savedCountry)
-                                                else NoraRouteSelector.locations(routes).firstOrNull {
-                                                    it.countryCode == savedCountry
-                                                }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
-                                            if (selected != null && selected.guid != appState.selectedGuid) {
-                                                selectActualServer(selected.guid)
+                                        if (!groupSwitchBusy) {
+                                            groupSwitchBusy = true
+                                            importScope.launch {
+                                                try {
+                                                    val savedCountry = routePreferences.getString(
+                                                        "preferred_country:" + group.guid, null
+                                                    )
+                                                    val routes = withContext(Dispatchers.IO) {
+                                                        NoraRouteSelector.rank(
+                                                            NoraRouteSelector.load(group.guid)
+                                                        )
+                                                    }
+                                                    if (routes.isEmpty() && mainViewModel.uiState.value.isRunning) {
+                                                        Toast.makeText(context,
+                                                            "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
+                                                            Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
+                                                        selectedCountry = savedCountry
+                                                        onAction(MainAction.SelectGroup(group.guid))
+                                                        val selected = (if (smartMode)
+                                                            smartEngine.bestRoute(routes, savedCountry)
+                                                            else NoraRouteSelector.locations(routes).firstOrNull {
+                                                                it.countryCode == savedCountry
+                                                            }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
+                                                        if (selected != null &&
+                                                            selected.guid != mainViewModel.uiState.value.selectedGuid) {
+                                                            selectActualServer(selected.guid)
+                                                        }
+                                                    }
+                                                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                                    throw cancelled
+                                                } catch (_: Exception) {
+                                                    Toast.makeText(context,
+                                                        "خطا در بارگذاری گروه؛ دوباره تلاش کنید",
+                                                        Toast.LENGTH_LONG).show()
+                                                } finally {
+                                                    groupSwitchBusy = false
+                                                }
                                             }
                                         }
                                     }
@@ -958,20 +1104,14 @@ private fun NoraHomeContent(
     locationFlag: String,
     locationPing: Long?,
     usage: NoraSubscriptionUsage?,
-    quickLocations: List<NoraNode>,
-    selectedCountryCode: String?,
-    recentLocation: NoraNode?,
     testing: Boolean,
     hasUpdate: Boolean,
     onToggle: () -> Unit,
     onChooseLocation: () -> Unit,
-    onSelectCountry: (NoraNode) -> Unit,
-    onSelectSmart: () -> Unit,
-    onSelectRecent: () -> Unit,
-    onOpenUpdate: () -> Unit
+    onOpenUpdate: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSubscription: () -> Unit
 ) {
-    // The timer is explicitly a foreground observation timer, not fabricated
-    // service uptime. Xray's running state is still the single source of truth.
     var observedSeconds by remember { mutableIntStateOf(0) }
     LaunchedEffect(connected) {
         observedSeconds = 0
@@ -989,255 +1129,174 @@ private fun NoraHomeContent(
         observedSeconds / 3600, observedSeconds / 60 % 60, observedSeconds % 60
     )
     BoxWithConstraints(
-        modifier = modifier.background(ink).padding(horizontal = 15.dp)
+        modifier = modifier
+            .background(Brush.verticalGradient(listOf(ink, Color(0xFF0E1020), ink)))
+            .padding(horizontal = 17.dp)
     ) {
-        // Preserve a completely visible power button on small Android screens.
-        val compact = maxHeight < 665.dp
-        val tiny = maxHeight < 525.dp
-        val heroHeight = (maxHeight * (if (tiny) .32f else if (compact) .34f else .37f))
-            .coerceIn(152.dp, 286.dp)
-        val buttonSize = (heroHeight * .53f).coerceIn(100.dp, 148.dp)
-        val sectionGap = if (tiny) 6.dp else if (compact) 8.dp else 11.dp
+        val compact = maxHeight < 650.dp
+        val tiny = maxHeight < 535.dp
+        val gap = if (tiny) 5.dp else if (compact) 8.dp else 12.dp
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(sectionGap)
+            verticalArrangement = Arrangement.spacedBy(gap)
         ) {
-            Box(Modifier.fillMaxWidth().height(heroHeight)) {
-                // These nested rings are drawn locally and require neither an
-                // external map service nor high-cost infinite animations.
-                Canvas(Modifier.fillMaxSize()) {
-                    val anchor = androidx.compose.ui.geometry.Offset(
-                        center.x, size.height * 1.03f
-                    )
-                    val r = size.width * .95f
-                    drawCircle(Color(0xFF04323A), r, anchor)
-                    drawCircle(Color(0xFF072732), r * .77f, anchor)
-                    drawCircle(Color(0xFF07504F), r * .61f, anchor)
-                    drawCircle(Color(0xFF092934), r * .45f, anchor)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0x5525B6A5), Color.Transparent),
-                            center = anchor,
-                            radius = r * .75f
-                        ),
-                        radius = r * .75f,
-                        center = anchor
-                    )
+            // The reference BlueVPN header, with the original Nora identity.
+            Row(
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Image(painter = logo, contentDescription = "NoraProxy",
+                    modifier = Modifier.size(39.dp).clip(RoundedCornerShape(13.dp)))
+                Column(Modifier.weight(1f)) {
+                    Text("NoraProxy", fontSize = 19.sp,
+                        fontWeight = FontWeight.ExtraBold, color = light, maxLines = 1)
+                    Text(if (seller.isBlank()) "اتصال هوشمند" else seller,
+                        color = muted, fontSize = 10.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 7.dp, start = 2.dp, end = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = logo, contentDescription = "NoraProxy",
-                        modifier = Modifier.size(if (tiny) 35.dp else 42.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text("NoraProxy", color = light, fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold, maxLines = 1)
-                        Text(
-                            if (seller.isBlank()) "Secure connection" else seller,
-                            color = muted, fontSize = 10.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Text(
-                        when (phase) {
-                            NoraConnectionPhase.CONNECTED -> "● متصل"
-                            NoraConnectionPhase.CONNECTING -> "● در حال اتصال"
-                            NoraConnectionPhase.DISCONNECTING -> "● در حال قطع"
-                            NoraConnectionPhase.FAILED -> "● خطای اتصال"
-                            NoraConnectionPhase.NO_ROUTE -> "● بدون اشتراک"
-                            NoraConnectionPhase.READY -> "● آماده"
-                        },
-                        color = if (connected) green else if (phase.isBusy) amber else muted,
-                        fontSize = 11.sp, maxLines = 1
-                    )
+                if (hasUpdate) {
+                    Text("آپدیت", color = cyan, fontSize = 11.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenUpdate)
+                            .padding(horizontal = 9.dp, vertical = 8.dp))
                 }
                 Box(
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
+                        .background(surface).border(1.dp, edge, RoundedCornerShape(14.dp))
+                        .clickable(onClick = onOpenSubscription),
                     contentAlignment = Alignment.Center
+                ) {
+                    Icon(painter = painterResource(R.drawable.nora_tab_subscription),
+                        contentDescription = "اشتراک‌ها",
+                        tint = light, modifier = Modifier.size(21.dp))
+                }
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(14.dp))
+                        .background(surface).border(1.dp, edge, RoundedCornerShape(14.dp))
+                        .clickable(onClick = onOpenSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(painter = painterResource(R.drawable.nora_tab_settings),
+                        contentDescription = "تنظیمات",
+                        tint = light, modifier = Modifier.size(21.dp))
+                }
+            }
+            // One clear connection surface, with no decorative globe,
+            // duplicate metrics or server-identity exposure.
+            Column(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    when {
+                        waiting && !phase.isBusy -> "در حال آماده‌سازی..."
+                        connected -> "اتصال برقرار است"
+                        else -> phase.statusLabel
+                    },
+                    color = light, fontSize = if (tiny) 17.sp else 21.sp,
+                    fontWeight = FontWeight.Bold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    when {
+                        lastOperationTimedOut -> "تغییر وضعیت تأیید نشد؛ دوباره تلاش کنید"
+                        connected -> "زمان مشاهده اتصال: " + observedTime
+                        else -> phase.actionHint
+                    },
+                    color = muted, fontSize = 11.sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(if (tiny) 12.dp else 18.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .height(if (tiny) 76.dp else 88.dp)
+                        .clip(RoundedCornerShape(52.dp))
+                        .background(Brush.horizontalGradient(listOf(surface2, surface)))
+                        .border(1.dp, if (connected) green.copy(alpha = .55f)
+                            else edge, RoundedCornerShape(52.dp))
+                        .clickable(
+                            enabled = !waiting && (connected || canConnect),
+                            onClick = onToggle
+                        )
+                        .padding(5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     NoraPowerButton(
                         connected = connected,
                         phase = phase,
                         enabled = !waiting && (connected || canConnect),
-                        diameter = buttonSize,
+                        diameter = if (tiny) 64.dp else 76.dp,
                         onClick = onToggle
                     )
+                    Column(Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(if (connected) "قطع اتصال" else "اتصال سریع",
+                            color = light, fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(
+                            if (connected) "VPN فعال است"
+                            else if (canConnect) "آماده اتصال ایمن"
+                            else "ابتدا اشتراک اضافه کنید",
+                            color = if (connected) green else muted,
+                            fontSize = 11.sp, maxLines = 1
+                        )
+                    }
+                    Text("←", color = cyan, fontSize = 21.sp,
+                        modifier = Modifier.padding(end = 9.dp))
                 }
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    when {
-                        waiting && !phase.isBusy -> "نمایش تبلیغ..."
-                        connected -> "Connected  |  " + observedTime
-                        else -> phase.statusLabel
-                    },
-                    color = light,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = if (tiny) 14.sp else 17.sp,
-                    maxLines = 1
-                )
-                if (!tiny) {
-                    Text(
-                        when {
-                            connected -> "زمان نمایش اتصال در برنامه"
-                            lastOperationTimedOut -> "تغییر وضعیت تأیید نشد؛ دوباره بررسی کنید"
-                            else -> phase.actionHint
-                        },
-                        color = muted, fontSize = 10.sp, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            if (hasUpdate) {
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF234E4B))
-                        .clickable(onClick = onOpenUpdate)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("نسخه جدید NoraProxy آماده است", color = green,
-                        fontSize = 11.sp, modifier = Modifier.weight(1f))
-                    Text("←", color = light)
-                }
-            }
-            // A real backend-selected location, never an invented IP or server.
+            // Standalone light-weight banner: never blocks VPN operations.
+            NoraPromotionsStrip()
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(19.dp))
                     .background(surface)
+                    .border(1.dp, edge.copy(alpha = .65f), RoundedCornerShape(19.dp))
                     .clickable(onClick = onChooseLocation)
-                    .padding(horizontal = 14.dp, vertical = if (tiny) 9.dp else 11.dp),
+                    .padding(horizontal = 14.dp, vertical = if (tiny) 9.dp else 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(locationFlag, fontSize = 27.sp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Selected Location", color = muted, fontSize = 11.sp)
-                    Text(selectedCountryName, color = light,
-                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.size(if (tiny) 39.dp else 46.dp)
+                    .clip(CircleShape).background(surface2),
+                    contentAlignment = Alignment.Center) {
+                    Text(locationFlag, fontSize = 25.sp)
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("←", color = light, fontSize = 22.sp)
-                    if (locationPing != null && locationPing > 0L) {
-                        Text(persianNumber(locationPing.toString()) + " ms",
-                            color = green, fontSize = 11.sp)
-                    } else if (testing) {
-                        Text("سنجش...", color = amber, fontSize = 10.sp)
-                    }
+                Column(Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("مکان انتخاب‌شده", color = muted, fontSize = 10.sp)
+                    Text(selectedCountryName, color = light, fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
                 }
+                Text(
+                    if (locationPing != null && locationPing > 0L)
+                        persianNumber(locationPing.toString()) + " ms"
+                    else if (testing) "سنجش..." else "—",
+                    color = if (locationPing != null && locationPing > 0L) green else muted,
+                    fontSize = 11.sp, maxLines = 1
+                )
+                Text("←", color = cyan, fontSize = 19.sp)
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                NoraRouteShortcut(
-                    modifier = Modifier.weight(1f),
-                    icon = "ϟ",
-                    title = "Smart Location",
-                    subtitle = if (selectedCountryCode == null) "فعال" else "بهترین مسیر",
-                    selected = selectedCountryCode == null,
-                    enabled = quickLocations.isNotEmpty(),
-                    onClick = onSelectSmart
-                )
-                NoraRouteShortcut(
-                    modifier = Modifier.weight(1f),
-                    icon = "◷",
-                    title = "Recent Location",
-                    subtitle = recentLocation?.countryName ?: "بدون سابقه",
-                    selected = recentLocation != null &&
-                        selectedCountryCode == recentLocation.countryCode,
-                    enabled = recentLocation != null,
-                    onClick = onSelectRecent
-                )
-            }
-            if (!tiny) {
-                // Decorative network globe. Does not imply coordinates, ISP or
-                // an external IP: those values are not present in the native state.
-                Box(
-                    Modifier.fillMaxWidth()
-                        .height(if (compact) 91.dp else 112.dp)
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(Color(0xFF112C38))
-                ) {
-                    Canvas(Modifier.fillMaxSize()) {
-                        val lineColor = Color(0xFF527A80).copy(alpha = .33f)
-                        val middle = androidx.compose.ui.geometry.Offset(
-                            size.width * .34f, size.height * .58f
-                        )
-                        val radius = size.height * .59f
-                        drawCircle(lineColor, radius, middle, style = Stroke(width = 1.dp.toPx()))
-                        drawOval(
-                            color = lineColor,
-                            topLeft = androidx.compose.ui.geometry.Offset(
-                                middle.x - radius * .5f, middle.y - radius
-                            ),
-                            size = androidx.compose.ui.geometry.Size(radius, radius * 2f),
-                            style = Stroke(width = 1.dp.toPx())
-                        )
-                        for (fraction in listOf(-.48f, 0f, .48f)) {
-                            val y = middle.y + radius * fraction
-                            drawLine(
-                                lineColor,
-                                androidx.compose.ui.geometry.Offset(middle.x - radius * .82f, y),
-                                androidx.compose.ui.geometry.Offset(middle.x + radius * .82f, y),
-                                strokeWidth = 1.dp.toPx()
-                            )
-                        }
-                        drawCircle(
-                            Color(0xFF12B9A8).copy(alpha = .19f),
-                            radius * .24f, middle
-                        )
-                        drawCircle(Color(0xFF16CDB6), 5.dp.toPx(), middle)
-                    }
-                    Column(
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                            .padding(end = 12.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xEE173744))
-                            .padding(horizontal = 13.dp, vertical = 9.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Text("Secure Network", color = muted, fontSize = 10.sp)
-                        Text(locationFlag + "  " + selectedCountryName,
-                            color = light, fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp, maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                        Text(
-                            if (connected) "● VPN active"
-                            else if (canConnect) "○ Ready to connect" else "○ No route",
-                            color = if (connected) green else muted, fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                NoraInfoTile(
-                    title = "Remaining Traffic",
-                    value = usage?.remainingTrafficLabel() ?: "نامشخص",
-                    modifier = Modifier.weight(1f)
-                )
-                NoraInfoTile(
-                    title = "Subscription",
-                    value = usage?.remainingTimeLabel() ?: "نامشخص",
-                    modifier = Modifier.weight(1f)
-                )
+                NoraInfoTile("حجم باقی‌مانده",
+                    usage?.remainingTrafficLabel() ?: "نامشخص",
+                    Modifier.weight(1f))
+                NoraInfoTile("زمان باقی‌مانده",
+                    usage?.remainingTimeLabel() ?: "نامشخص",
+                    Modifier.weight(1f))
             }
             if (!compact) {
-                Text(
-                    "اطلاعات اتصال و مصرف فقط از سرویس و اشتراک واقعی خوانده می‌شود",
-                    color = muted, fontSize = 9.sp, maxLines = 1
-                )
+                Text("حجم و اعتبار از اطلاعات واقعی اشتراک دریافت می‌شود",
+                    color = muted, fontSize = 9.sp, maxLines = 1)
             }
         }
     }
@@ -1256,7 +1315,7 @@ private fun NoraRouteShortcut(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(17.dp))
-            .background(if (selected) Color(0xFF1A4549) else surface)
+            .background(if (selected) Color(0xFF1A2847) else surface)
             .border(1.dp, if (selected) cyan.copy(alpha = .35f)
                 else edge.copy(alpha = .15f), RoundedCornerShape(17.dp))
             .clickable(enabled = enabled, onClick = onClick)
@@ -1319,8 +1378,8 @@ private fun NoraQuickCountryCard(
             .heightIn(min = if (compact) 56.dp else 72.dp)
             .clip(shape)
             .background(if (selected)
-                Brush.verticalGradient(listOf(Color(0xFF294B76), Color(0xFF21354E)))
-                else Brush.verticalGradient(listOf(Color(0xFF16283D), surface)))
+                Brush.verticalGradient(listOf(Color(0xFF233D78), Color(0xFF18264E)))
+                else Brush.verticalGradient(listOf(Color(0xFF141824), surface)))
             .border(1.dp, if (selected) cyan.copy(alpha = .78f)
                 else edge.copy(alpha = .34f), shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -1351,7 +1410,7 @@ private fun NoraHeader(
         }
         Box(modifier = Modifier
             .clip(RoundedCornerShape(30.dp))
-            .background(if (connected) Color(0xFF1A4946) else surface2)
+            .background(if (connected) Color(0xFF17362F) else surface2)
             .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
                 RoundedCornerShape(30.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -1384,7 +1443,7 @@ private fun NoraPowerButton(
     Box(
         modifier = Modifier.size(diameter)
             .clip(CircleShape) // Prevent square ripple artifacts on tap.
-            .background(Color(0xFF0E2A36))
+            .background(Color(0xFF151C34))
             .border(1.dp, accent.copy(alpha = .13f), CircleShape)
             .semantics {
                 contentDescription = if (!enabled && phase.isBusy) phase.statusLabel
@@ -1431,7 +1490,7 @@ private fun NoraSubscriptionGroupCard(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
             .background(if (active)
-                Brush.horizontalGradient(listOf(Color(0xFF243E5D), surface2))
+                Brush.horizontalGradient(listOf(Color(0xFF222C48), surface2))
                 else Brush.horizontalGradient(listOf(surface, surface)))
             .border(1.dp, if (active) cyan.copy(alpha = .55f)
                 else edge.copy(alpha = .28f), shape)
@@ -1455,7 +1514,7 @@ private fun NoraSubscriptionGroupCard(
         }
         usage?.usagePercent()?.let { percent ->
             Box(Modifier.fillMaxWidth().height(5.dp)
-                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF28435E))) {
+                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF25375F))) {
                 Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
             }
             if (usage.used != null && usage.total != null) {
@@ -1529,18 +1588,13 @@ private fun NoraLocationCard(
     favorite: Boolean = false,
     onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(21.dp)
+    val shape = RoundedCornerShape(18.dp)
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
-            .background(
-                Brush.horizontalGradient(
-                    if (selected) listOf(Color(0xFF264A70), Color(0xFF172B46))
-                    else listOf(surface, Color(0xFF16283E))
-                )
-            )
-            .border(1.dp, if (selected) cyan.copy(alpha = .7f)
-                else edge.copy(alpha = .4f), shape)
+            .background(if (selected) Color(0xFF1A2444) else surface)
+            .border(1.dp, if (selected) cyan.copy(alpha = .60f)
+                else edge.copy(alpha = .36f), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1549,7 +1603,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier.size(if (compact) 42.dp else 50.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF243F5F))
+                .background(Color(0xFF202A49))
                 .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1580,7 +1634,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (delay != null && delay > 0L) Color(0xFF1C464A) else surface2)
+                .background(if (delay != null && delay > 0L) Color(0xFF193A30) else surface2)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -1600,7 +1654,7 @@ private fun NoraBottomBar(
 ) {
     Row(
         modifier = modifier.fillMaxWidth()
-            .background(Color(0xFF15303C))
+            .background(ink)
             .padding(horizontal = 9.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1610,7 +1664,10 @@ private fun NoraBottomBar(
             Column(
                 modifier = Modifier.weight(1f)
                     .heightIn(min = 59.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(15.dp))
+                    .background(if (isActive) cyan.copy(alpha = .17f) else Color.Transparent)
+                    .border(1.dp, if (isActive) cyan.copy(alpha = .42f)
+                        else Color.Transparent, RoundedCornerShape(15.dp))
                     .selectable(selected = isActive, role = Role.Tab,
                         onClick = { onSelect(tab) })
                     .padding(vertical = 7.dp),
@@ -1621,11 +1678,11 @@ private fun NoraBottomBar(
                     painter = painterResource(tab.iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(23.dp),
-                    tint = if (isActive) green else muted
+                    tint = if (isActive) cyan else muted
                 )
                 Text(
-                    if (tab == NoraTab.Home) "VPN" else tab.title,
-                    color = if (isActive) light else muted,
+                    tab.title,
+                    color = if (isActive) cyan else muted,
                     fontSize = 11.sp, maxLines = 1,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                 )

@@ -23,13 +23,17 @@ on:
 permissions:
   contents: write
 
+# Pull requests only need the latest native APK build. Superseded PR
+# runs are cancelled so rapid UI commits cannot congest the Actions queue.
+# Keep main-branch release builds running to avoid interrupting signing,
+# release publication, or Telegram distribution.
 concurrency:
-  group: nora-native-${{ github.ref }}
-  cancel-in-progress: true
+  group: nora-native-queue-reset-20261104-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-native-vpn:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - name: Checkout NoraProxy
