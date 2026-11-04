@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -42,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
@@ -49,7 +51,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -89,6 +90,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.util.QRCodeDecoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -138,6 +140,18 @@ fun MainScreen(
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit
 ) {
+
+    val themeModeValue by ThemeManager.themeMode.collectAsStateWithLifecycle()
+    val noraThemeMode = NoraThemeMode.fromStorage(themeModeValue)
+    val noraPalette = NoraPalettes.resolve(noraThemeMode, isSystemInDarkTheme())
+    val ink = noraPalette.ink
+    val surface = noraPalette.surface
+    val surface2 = noraPalette.surface2
+    val cyan = noraPalette.cyan
+    val blue = noraPalette.blue
+    val light = noraPalette.light
+    val muted = noraPalette.muted
+    val edge = noraPalette.edge
     val context = LocalContext.current
     val tapsell = remember(context) { NoraTapsellAds(context.noraActivity()) }
     val adShowing by tapsell.blocking.collectAsStateWithLifecycle()
@@ -568,11 +582,11 @@ fun MainScreen(
         Unit
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(
-        primary = cyan, secondary = blue, background = ink, surface = surface,
-        onSurface = light, onBackground = light
-    )) {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    MaterialTheme(colorScheme = noraPalette.materialColors()) {
+        CompositionLocalProvider(
+            LocalLayoutDirection provides LayoutDirection.Rtl,
+            LocalNoraPalette provides noraPalette
+        ) {
             Scaffold(
                 containerColor = ink,
                 contentWindowInsets = WindowInsets.safeDrawing,
@@ -619,7 +633,7 @@ fun MainScreen(
                 } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(ink, Color(0xFF12192B), ink)))
+                        .background(Brush.verticalGradient(listOf(ink, noraPalette.gradientMid, ink)))
                         .padding(inner)
                         .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
@@ -964,6 +978,32 @@ fun MainScreen(
                             item { NoraSection("تنظیمات", "") }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Text("ظاهر برنامه", color = light, fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold)
+                                        Text("حالت دلخواه را انتخاب کنید؛ تنظیمات با سایر صفحات اندروید هماهنگ می‌مانند.",
+                                            color = muted, fontSize = 11.sp, lineHeight = 20.sp)
+                                        Row(modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            NoraThemeMode.entries.forEach { choice ->
+                                                FilterChip(
+                                                    selected = choice == noraThemeMode,
+                                                    onClick = {
+                                                        if (choice != noraThemeMode) {
+                                                            ThemeManager.setThemeMode(choice.storageValue)
+                                                        }
+                                                    },
+                                                    label = { Text(choice.label, fontSize = 12.sp) },
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            item {
+                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
                                     Column(
                                         modifier = Modifier.fillMaxWidth().padding(18.dp),
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1188,6 +1228,17 @@ private fun NoraHomeContent(
     onOpenSettings: () -> Unit,
     onOpenSubscription: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val ink = noraColors.ink
+    val surface = noraColors.surface
+    val surface2 = noraColors.surface2
+    val cyan = noraColors.cyan
+    val blue = noraColors.blue
+    val light = noraColors.light
+    val muted = noraColors.muted
+    val green = noraColors.green
+    val edge = noraColors.edge
     var observedSeconds by remember { mutableIntStateOf(0) }
     LaunchedEffect(connected) {
         observedSeconds = 0
@@ -1206,7 +1257,7 @@ private fun NoraHomeContent(
     )
     BoxWithConstraints(
         modifier = modifier
-            .background(Brush.verticalGradient(listOf(ink, Color(0xFF0E1020), ink)))
+            .background(Brush.verticalGradient(listOf(ink, noraColors.homeGradientMid, ink)))
             .padding(horizontal = 17.dp)
     ) {
         val compact = maxHeight < 650.dp
@@ -1421,6 +1472,14 @@ private fun NoraRouteShortcut(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val cyan = noraColors.cyan
+    val light = noraColors.light
+    val muted = noraColors.muted
+    val green = noraColors.green
+    val edge = noraColors.edge
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(17.dp))
@@ -1449,6 +1508,11 @@ private fun NoraInfoTile(
     value: String,
     modifier: Modifier
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val light = noraColors.light
+    val muted = noraColors.muted
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(17.dp))
@@ -1465,6 +1529,10 @@ private fun NoraInfoTile(
 
 @Composable
 private fun NoraDashboardMetric(title: String, value: String, modifier: Modifier = Modifier) {
+
+    val noraColors = LocalNoraPalette.current
+    val light = noraColors.light
+    val muted = noraColors.muted
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, color = muted, fontSize = 11.sp, maxLines = 1)
         Text(value, color = light, fontSize = 13.sp, fontWeight = FontWeight.Bold,
@@ -1480,6 +1548,12 @@ private fun NoraQuickCountryCard(
     compact: Boolean,
     onClick: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val cyan = noraColors.cyan
+    val light = noraColors.light
+    val edge = noraColors.edge
     val shape = RoundedCornerShape(17.dp)
     Column(
         modifier = Modifier
@@ -1507,6 +1581,14 @@ private fun NoraQuickCountryCard(
 private fun NoraHeader(
     painter: Painter, seller: String, connected: Boolean, phase: NoraConnectionPhase
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface2 = noraColors.surface2
+    val light = noraColors.light
+    val muted = noraColors.muted
+    val green = noraColors.green
+    val amber = noraColors.amber
+    val edge = noraColors.edge
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Image(painter = painter, contentDescription = "NoraProxy logo",
@@ -1548,6 +1630,11 @@ private fun NoraPowerButton(
     diameter: Dp = 132.dp,
     onClick: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val cyan = noraColors.cyan
+    val muted = noraColors.muted
+    val green = noraColors.green
     val accent by animateColorAsState(if (connected) green else cyan, label = "powerAccent")
     Box(
         modifier = Modifier.size(diameter)
@@ -1593,6 +1680,14 @@ private fun NoraSubscriptionGroupCard(
     onDelete: () -> Unit,
     onSelect: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val surface2 = noraColors.surface2
+    val cyan = noraColors.cyan
+    val light = noraColors.light
+    val muted = noraColors.muted
+    val edge = noraColors.edge
     val shape = RoundedCornerShape(20.dp)
     var actionsExpanded by remember { mutableStateOf(false) }
     Column(
@@ -1706,6 +1801,12 @@ private fun NoraSubscriptionGroupCard(
 
 @Composable
 private fun NoraSection(title: String, caption: String) {
+
+    val noraColors = LocalNoraPalette.current
+    val cyan = noraColors.cyan
+    val blue = noraColors.blue
+    val light = noraColors.light
+    val muted = noraColors.muted
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 3.dp, bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1727,6 +1828,11 @@ private fun NoraSection(title: String, caption: String) {
 
 @Composable
 private fun NoraMetric(label: String, number: String, modifier: Modifier) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val cyan = noraColors.cyan
+    val muted = noraColors.muted
     Card(modifier = modifier, shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = surface)) {
         Column(modifier = Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1744,6 +1850,16 @@ private fun NoraLocationCard(
     favorite: Boolean = false,
     onClick: () -> Unit
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val surface = noraColors.surface
+    val surface2 = noraColors.surface2
+    val cyan = noraColors.cyan
+    val light = noraColors.light
+    val muted = noraColors.muted
+    val green = noraColors.green
+    val amber = noraColors.amber
+    val edge = noraColors.edge
     val shape = RoundedCornerShape(18.dp)
     Row(
         modifier = Modifier.fillMaxWidth()
@@ -1808,6 +1924,11 @@ private fun NoraBottomBar(
     onSelect: (NoraTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    val noraColors = LocalNoraPalette.current
+    val ink = noraColors.ink
+    val cyan = noraColors.cyan
+    val muted = noraColors.muted
     Row(
         modifier = modifier.fillMaxWidth()
             .background(ink)
