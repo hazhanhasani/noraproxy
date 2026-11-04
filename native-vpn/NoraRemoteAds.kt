@@ -58,7 +58,8 @@ internal data class NoraPromotion(
     val id: String,
     val title: String,
     val target: String?,
-    val bitmap: Bitmap
+    val bitmap: Bitmap,
+    val loadedRevision: String?
 )
 
 /**
@@ -205,7 +206,11 @@ internal object NoraPromotionRepository {
                     }
                 }
             }
-            bitmap?.let { NoraPromotion(item.id, item.title, item.target, it) }
+            // Report the revision actually present on disk (which might be an
+            // older image if the replacement download failed). Once a retry
+            // succeeds, the signature changes and Compose updates the banner.
+            val loadedRevision = runCatching { revisionFile.readText() }.getOrNull()
+            bitmap?.let { NoraPromotion(item.id, item.title, item.target, it, loadedRevision) }
         }
     }
 
@@ -214,7 +219,9 @@ internal object NoraPromotionRepository {
         val manifest = runCatching {
             File(storage(context), "manifest.json").readText(Charsets.UTF_8)
         }.getOrDefault("")
-        return manifest + images.joinToString(separator = "|") { it.id }
+        return manifest + images.joinToString(separator = "|") {
+            it.id + ":" + (it.loadedRevision ?: "uncached")
+        }
     }
 
     /** Read only from IO; 3–30 seconds to avoid excessive redraws. */
