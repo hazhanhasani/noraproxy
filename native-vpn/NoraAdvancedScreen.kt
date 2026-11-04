@@ -343,7 +343,7 @@ private fun NoraAdvancedApps(vpnRunning: Boolean) {
             }
             loadError -> item {
                 Text("فهرست برنامه‌ها در دسترس نیست؛ دوباره وارد این بخش شوید.",
-                    color = Color(0xFFFFB6A8), fontSize = 13.sp)
+                    color = colors.error, fontSize = 13.sp)
             }
             shown.isEmpty() -> item {
                 Text("برنامه‌ای با این فیلتر پیدا نشد.", color = noraSecondary, fontSize = 13.sp)
