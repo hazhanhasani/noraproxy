@@ -100,7 +100,7 @@ internal object NoraSubscriptionUsageReader {
      */
     internal fun safeProviderUrl(header: String?): String? {
         if (header.isNullOrBlank() || header.length > 2048 ||
-            header.any { it.isISOControl() }) return null
+            header.any { it.code < 0x20 || it.code == 0x7f }) return null
         val text = header.trim()
         val uri = runCatching { URI(text) }.getOrNull() ?: return null
         val host = uri.host?.lowercase(Locale.ROOT) ?: return null
