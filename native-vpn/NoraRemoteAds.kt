@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -329,7 +330,7 @@ internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
     val radius = RoundedCornerShape(18.dp)
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(81.dp)
+            modifier = Modifier.fillMaxWidth().aspectRatio(3.75f)
                 .clip(radius)
                 .background(Color(0xFF151B2C))
                 .border(1.dp, Color(0xFF282E40), radius)
@@ -350,7 +351,7 @@ internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
             if (selected != null) {
                 Image(bitmap = remember(selected.bitmap) { selected.bitmap.asImageBitmap() },
                     contentDescription = selected.title,
-                    contentScale = ContentScale.Fit,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize())
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically,
@@ -366,11 +367,11 @@ internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
                 }
             }
             if (selected != null) {
-                Text("تبلیغات", color = Color.White.copy(alpha = .8f), fontSize = 9.sp,
+                Text("تبلیغات", color = Color.White.copy(alpha = .9f), fontSize = 9.sp,
                     modifier = Modifier.align(Alignment.BottomEnd)
-                        .padding(5.dp)
-                        .background(Color.Black.copy(alpha = .5f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 5.dp, vertical = 2.dp))
+                        .padding(8.dp)
+                        .background(Color.Black.copy(alpha = .66f), RoundedCornerShape(7.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp))
             }
         }
         if (banners.size > 1) {
