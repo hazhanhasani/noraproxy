@@ -56,6 +56,23 @@ For an accurate implemented-versus-planned comparison with Hiddify, see
 [Hiddify-inspired feature parity](docs/HIDDIFY_PARITY.md). Hiddify code and
 assets were not imported into this project.
 
+## NoraProxy advanced UX development candidate (v0.2.27)
+
+The Android client now supports **System / Light / Dark** appearance using
+the upstream `ThemeManager` preference, with NoraProxy's own blue/graphite
+design tokens in the home, subscription, location and advanced Compose screens.
+
+Within Settings, a new diagnostic viewer can show a bounded, best-effort
+redacted logcat preview; users may refresh, search and explicitly copy the
+redacted subset. Log redaction is **not guaranteed to catch every secret**.
+An integrated backup hub explains the risks of storing configuration archives
+and opens the original verified backup/restore activity for ZIP/WebDAV work.
+No automatic log upload or custom backup file format was added.
+
+These are **development-branch features**, not a published release. Full
+device VPN, Android font/accessibility, signed-update and restore testing must
+pass before a release is created. See [Phase 2 implementation and QA](docs/NORA_UX_PHASE2.md).
+
 ## Build the real VPN APK
 
 Follow .github/workflows/native-vpn.yml; it checks out the official pinned upstream and its native submodules, compiles hev-tunnel using Android NDK, downloads the upstream-compatible libv2ray AAR, applies NoraProxy branding and UI, then runs:
