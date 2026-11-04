@@ -152,7 +152,12 @@ internal object NoraPromotionRepository {
         }.distinctBy { it.file }.take(MAX_BANNERS).toList()
     }
 
-    private fun render(context: Context, manifest: String, allowNetwork: Boolean): List<NoraPromotion> {
+    private fun render(
+        context: Context,
+        manifest: String,
+        allowNetwork: Boolean,
+        refreshImages: Boolean = false
+    ): List<NoraPromotion> {
         val cache = storage(context)
         val definitions = runCatching { descriptors(manifest) }.getOrElse { emptyList() }
         return definitions.mapNotNull { item ->
@@ -162,11 +167,12 @@ internal object NoraPromotionRepository {
                     local.readBytes() else null
             }.getOrNull()
             var bitmap = cached?.let(::decodeScaled)
-            if (bitmap == null && allowNetwork) {
+            if (allowNetwork && (bitmap == null || refreshImages)) {
                 val bytes = readNetwork(ROOT + item.file, MAX_IMAGE_BYTES)
-                if (bytes != null) {
-                    bitmap = decodeScaled(bytes)
-                    if (bitmap != null) runCatching { local.writeBytes(bytes) }
+                val replacement = bytes?.let(::decodeScaled)
+                if (replacement != null) {
+                    bitmap = replacement
+                    runCatching { local.writeBytes(bytes) }
                 }
             }
             bitmap?.let { NoraPromotion(item.id, item.title, item.target, it) }
@@ -191,10 +197,19 @@ internal object NoraPromotionRepository {
         val json = bytes.toString(Charsets.UTF_8)
         if (runCatching { descriptors(json) }.isFailure) return cached(context)
         val dir = storage(context)
-        // Manifest and image cache are disposable. No shared preferences secrets.
-        runCatching { File(dir, "manifest.json").writeText(json, Charsets.UTF_8) }
+        val manifest = File(dir, "manifest.json")
+        val previous = runCatching { manifest.takeIf { it.isFile }?.readText(Charsets.UTF_8) }
+            .getOrNull()
+        val refreshed = render(context, json, allowNetwork = true, refreshImages = previous != json)
+        // Remove outdated image files when campaigns are deleted or renamed.
+        val activeFiles = runCatching { descriptors(json).map { it.file }.toSet() }
+            .getOrDefault(emptySet())
+        dir.listFiles()?.filter {
+            it.isFile && it.name != "manifest.json" && it.name !in activeFiles
+        }?.forEach { runCatching { it.delete() } }
+        runCatching { manifest.writeText(json, Charsets.UTF_8) }
         prefs.edit().putLong("last_check", now).apply()
-        return render(context, json, allowNetwork = true)
+        return refreshed
     }
 }
 
@@ -206,7 +221,8 @@ internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
     LaunchedEffect(context) {
         banners = withContext(Dispatchers.IO) { NoraPromotionRepository.cached(context) }
         val refreshed = withContext(Dispatchers.IO) { NoraPromotionRepository.refresh(context) }
-        if (refreshed.isNotEmpty() || banners.isEmpty()) banners = refreshed
+        // An explicitly cleared/disabled manifest must also hide cached banners.
+        banners = refreshed
     }
     LaunchedEffect(banners.size) {
         page = 0
