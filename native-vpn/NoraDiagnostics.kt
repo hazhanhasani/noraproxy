@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -160,7 +160,7 @@ internal fun NoraLogsScreen(onOpenFullLogcat: () -> Unit) {
         if (!busy && !error && filtered.isEmpty()) item {
             Text("گزارشی برای نمایش پیدا نشد.", color = colors.muted, fontSize = 12.sp)
         }
-        items(filtered, key = { index, _ -> index }) { item ->
+        itemsIndexed(filtered, key = { index, _ -> index }) { _, item ->
             Text(
                 item,
                 color = colors.light,
