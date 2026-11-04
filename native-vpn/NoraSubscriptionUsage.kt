@@ -12,7 +12,10 @@ internal data class NoraSubscriptionUsage(
     val upload: Long?,
     val download: Long?,
     val total: Long?,
-    val expiresAtSeconds: Long?
+    val expiresAtSeconds: Long?,
+    val portalUrl: String? = null,
+    val supportUrl: String? = null,
+    val updateIntervalHours: Int? = null
 ) {
     val used: Long?
         get() {
@@ -92,6 +95,45 @@ internal object NoraSubscriptionUsageReader {
         )
     }
 
+    /** Public provider links are untrusted headers. Never display or launch arbitrary schemes,
+     * loopback, IP literals, embedded credentials or URLs with fragments.
+     */
+    internal fun safeProviderUrl(header: String?): String? {
+        if (header.isNullOrBlank() || header.length > 2048 ||
+            header.any { it.code < 0x20 || it.code == 0x7f }) return null
+        val text = header.trim()
+        val uri = runCatching { URI(text) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase(Locale.ROOT) ?: return null
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null ||
+            uri.fragment != null || (uri.port != -1 && uri.port != 443) ||
+            host == "localhost" || host.endsWith(".localhost") ||
+            host.endsWith(".local") || host.endsWith(".internal") ||
+            host == "0.0.0.0" || host.matches(Regex("[0-9.]+")) ||
+            ":" in host) return null
+        return uri.toASCIIString()
+    }
+
+    /** Compatible with the public subscription metadata header convention.
+     * Never treat a missing traffic header as zero usage or unlimited quota.
+     */
+    internal fun parseResponse(
+        usageHeader: String?,
+        portalHeader: String?,
+        supportHeader: String?,
+        intervalHeader: String?
+    ): NoraSubscriptionUsage? {
+        val quota = parse(usageHeader)
+        val portal = safeProviderUrl(portalHeader)
+        val support = safeProviderUrl(supportHeader)
+        val interval = intervalHeader?.trim()?.toIntOrNull()?.takeIf { it in 1..168 }
+        if (quota == null && portal == null && support == null && interval == null) return null
+        return (quota ?: NoraSubscriptionUsage(null, null, null, null)).copy(
+            portalUrl = portal,
+            supportUrl = support,
+            updateIntervalHours = interval
+        )
+    }
+
     suspend fun fetch(subscriptionUrl: String): NoraSubscriptionUsage? = withContext(Dispatchers.IO) {
         val uri = runCatching { URI(subscriptionUrl.trim()) }.getOrNull() ?: return@withContext null
         val hostname = uri.host?.lowercase(Locale.ROOT) ?: return@withContext null
@@ -118,9 +160,12 @@ internal object NoraSubscriptionUsageReader {
                 connection.setRequestProperty("Accept", "text/plain, */*")
                 val status = connection.responseCode
                 if (status in 200..299) {
-                    parse(connection.getHeaderField("subscription-userinfo"))?.let {
-                        return@withContext it
-                    }
+                    parseResponse(
+                        connection.getHeaderField("subscription-userinfo"),
+                        connection.getHeaderField("profile-web-page-url"),
+                        connection.getHeaderField("support-url"),
+                        connection.getHeaderField("profile-update-interval")
+                    )?.let { return@withContext it }
                 }
                 if (status in 300..399) break // Never follow redirects with a bearer URL.
             } catch (_: Exception) {

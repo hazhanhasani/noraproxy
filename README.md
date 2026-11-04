@@ -37,6 +37,25 @@ The application does **not** infer remote account quotas from locally observed V
 if metadata is unavailable (especially for standalone raw configs), it explicitly shows **unknown**.
 A refresh button requests fresh quota headers; account tokens and full subscription URLs are never shown on the public UI.
 
+## Advanced connection tools and provider links (v0.2.24)
+
+The NoraProxy Settings tab now exposes native per-app proxy/bypass, routing
+rules, DNS/network settings, connection logs and backup/restore. These tools
+use the pinned upstream Xray runtime and its existing MMKV settings; no second
+VPN core or extra Android VPN service has been introduced. The advanced
+screens currently retain the upstream presentation and are scheduled for a
+NoraProxy-specific Compose UX refresh.
+
+Subscription group cards now show provider-supplied support and portal
+links when HTTPS headers pass strict URL validation. The optional
+`profile-update-interval` value is shown as a **provider recommendation**,
+not as an automatic refresh guarantee. All metadata remains optional,
+and unknown quota is not reported as unlimited.
+
+For an accurate implemented-versus-planned comparison with Hiddify, see
+[Hiddify-inspired feature parity](docs/HIDDIFY_PARITY.md). Hiddify code and
+assets were not imported into this project.
+
 ## Build the real VPN APK
 
 Follow .github/workflows/native-vpn.yml; it checks out the official pinned upstream and its native submodules, compiles hev-tunnel using Android NDK, downloads the upstream-compatible libv2ray AAR, applies NoraProxy branding and UI, then runs:

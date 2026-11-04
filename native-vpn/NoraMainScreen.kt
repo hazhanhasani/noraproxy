@@ -831,6 +831,21 @@ fun MainScreen(
                                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportClipboard) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("از کلیپ‌بورد", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportConfigLocal) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("انتخاب فایل", fontSize = 12.sp) }
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedButton(
                                                 onClick = { onAction(MainAction.ImportQRcode) },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(15.dp)
@@ -938,6 +953,56 @@ fun MainScreen(
                         }
                         NoraTab.Settings -> {
                             item { NoraSection("تنظیمات", "") }
+                            item {
+                                Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text("کنترل پیشرفته اتصال", color = light,
+                                            fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "ابزارهای واقعی Xray برای مدیریت برنامه‌ها، مسیر‌یابی، DNS و عیب‌یابی",
+                                            color = muted, fontSize = 12.sp, lineHeight = 20.sp
+                                        )
+                                        Row(modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                            OutlinedButton(
+                                                onClick = { onNavigate(MainDestination.PerAppProxy) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(13.dp)
+                                            ) { Text("انتخاب برنامه‌ها", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { onNavigate(MainDestination.Routing) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(13.dp)
+                                            ) { Text("قوانین مسیر‌یابی", fontSize = 12.sp) }
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                            OutlinedButton(
+                                                onClick = { onNavigate(MainDestination.Settings) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(13.dp)
+                                            ) { Text("DNS و شبکه", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { onNavigate(MainDestination.Logcat) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(13.dp)
+                                            ) { Text("گزارش اتصال", fontSize = 12.sp) }
+                                        }
+                                        OutlinedButton(
+                                            onClick = { onNavigate(MainDestination.BackupRestore) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(13.dp)
+                                        ) { Text("پشتیبان‌گیری و بازیابی تنظیمات", fontSize = 12.sp) }
+                                        Text(
+                                            "تغییر برخی تنظیمات پیشرفته ممکن است اتصال فعلی را مجدداً راه‌اندازی کند.",
+                                            color = muted, fontSize = 11.sp, lineHeight = 19.sp
+                                        )
+                                    }
+                                }
+                            }
                             item {
                                 Card(shape = corner, colors = CardDefaults.cardColors(containerColor = surface)) {
                                     Column(
@@ -1546,6 +1611,53 @@ private fun NoraSubscriptionGroupCard(
             Text(usage?.remainingTimeLabel() ?: "زمان نامشخص",
                 modifier = Modifier.weight(1f), color = muted, fontSize = 12.sp,
                 textAlign = TextAlign.End)
+        }
+        if (usage?.updateIntervalHours != null) {
+            Text(
+                "دوره به‌روزرسانی پیشنهادی ارائه‌دهنده: " +
+                    persianNumber(usage.updateIntervalHours.toString()) + " ساعت",
+                color = muted, fontSize = 11.sp
+            )
+        }
+        if (usage?.portalUrl != null || usage?.supportUrl != null) {
+            val context = LocalContext.current
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                usage.portalUrl?.let { url ->
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(url)
+                                ))
+                            }.onFailure {
+                                Toast.makeText(context, "امکان باز کردن پنل وجود ندارد", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("پنل اشتراک", fontSize = 12.sp) }
+                }
+                usage.supportUrl?.let { url ->
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(url)
+                                ))
+                            }.onFailure {
+                                Toast.makeText(context, "امکان باز کردن پشتیبانی وجود ندارد", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("پشتیبانی", fontSize = 12.sp) }
+                }
+            }
         }
         usage?.usagePercent()?.let { percent ->
             Box(Modifier.fillMaxWidth().height(5.dp)
