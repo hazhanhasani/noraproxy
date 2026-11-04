@@ -1483,7 +1483,7 @@ private fun NoraRouteShortcut(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(17.dp))
-            .background(if (selected) Color(0xFF1A2847) else surface)
+            .background(if (selected) (if (noraColors.dark) Color(0xFF1A2847) else Color(0xFFE1EBFF)) else surface)
             .border(1.dp, if (selected) cyan.copy(alpha = .35f)
                 else edge.copy(alpha = .15f), RoundedCornerShape(17.dp))
             .clickable(enabled = enabled, onClick = onClick)
@@ -1561,8 +1561,10 @@ private fun NoraQuickCountryCard(
             .heightIn(min = if (compact) 56.dp else 72.dp)
             .clip(shape)
             .background(if (selected)
-                Brush.verticalGradient(listOf(Color(0xFF233D78), Color(0xFF18264E)))
-                else Brush.verticalGradient(listOf(Color(0xFF141824), surface)))
+                Brush.verticalGradient(if (noraColors.dark)
+                    listOf(Color(0xFF233D78), Color(0xFF18264E))
+                    else listOf(Color(0xFFDEEAFF), Color(0xFFEDF4FF)))
+                else Brush.verticalGradient(listOf(if (noraColors.dark) Color(0xFF141824) else noraColors.surface2, surface)))
             .border(1.dp, if (selected) cyan.copy(alpha = .78f)
                 else edge.copy(alpha = .34f), shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
@@ -1601,7 +1603,7 @@ private fun NoraHeader(
         }
         Box(modifier = Modifier
             .clip(RoundedCornerShape(30.dp))
-            .background(if (connected) Color(0xFF17362F) else surface2)
+            .background(if (connected) (if (noraColors.dark) Color(0xFF17362F) else Color(0xFFE0F5E9)) else surface2)
             .border(1.dp, if (connected) green.copy(alpha = .4f) else edge.copy(alpha = .55f),
                 RoundedCornerShape(30.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -1639,7 +1641,7 @@ private fun NoraPowerButton(
     Box(
         modifier = Modifier.size(diameter)
             .clip(CircleShape) // Prevent square ripple artifacts on tap.
-            .background(Color(0xFF151C34))
+            .background(if (noraColors.dark) Color(0xFF151C34) else noraColors.surface2)
             .border(1.dp, accent.copy(alpha = .13f), CircleShape)
             .semantics {
                 contentDescription = if (!enabled && phase.isBusy) phase.statusLabel
@@ -1694,7 +1696,7 @@ private fun NoraSubscriptionGroupCard(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
             .background(if (active)
-                Brush.horizontalGradient(listOf(Color(0xFF222C48), surface2))
+                Brush.horizontalGradient(listOf(if (noraColors.dark) Color(0xFF222C48) else Color(0xFFE2EBFF), surface2))
                 else Brush.horizontalGradient(listOf(surface, surface)))
             .border(1.dp, if (active) cyan.copy(alpha = .55f)
                 else edge.copy(alpha = .28f), shape)
@@ -1765,7 +1767,7 @@ private fun NoraSubscriptionGroupCard(
         }
         usage?.usagePercent()?.let { percent ->
             Box(Modifier.fillMaxWidth().height(5.dp)
-                .clip(RoundedCornerShape(6.dp)).background(Color(0xFF25375F))) {
+                .clip(RoundedCornerShape(6.dp)).background(if (noraColors.dark) Color(0xFF25375F) else Color(0xFFDCE7F5))) {
                 Box(Modifier.fillMaxWidth(percent).height(5.dp).background(cyan))
             }
             if (usage.used != null && usage.total != null) {
@@ -1864,7 +1866,7 @@ private fun NoraLocationCard(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
-            .background(if (selected) Color(0xFF1A2444) else surface)
+            .background(if (selected) (if (noraColors.dark) Color(0xFF1A2444) else Color(0xFFE1EAFC)) else surface)
             .border(1.dp, if (selected) cyan.copy(alpha = .60f)
                 else edge.copy(alpha = .36f), shape)
             .clickable(onClick = onClick)
@@ -1875,7 +1877,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier.size(if (compact) 42.dp else 50.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF202A49))
+                .background(if (noraColors.dark) Color(0xFF202A49) else Color(0xFFE2EAFA))
                 .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1906,7 +1908,7 @@ private fun NoraLocationCard(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (delay != null && delay > 0L) Color(0xFF193A30) else surface2)
+                .background(if (delay != null && delay > 0L) (if (noraColors.dark) Color(0xFF193A30) else Color(0xFFE3F5E8)) else surface2)
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
