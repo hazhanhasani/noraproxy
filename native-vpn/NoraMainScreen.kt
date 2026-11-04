@@ -352,7 +352,9 @@ fun MainScreen(
     LaunchedEffect(subscriptions, refreshTick) {
         groupNodeCounts = withContext(Dispatchers.IO) {
             subscriptions.associate { group ->
-                group.guid to MmkvManager.decodeServerList(group.guid).size
+                group.guid to runCatching {
+                    MmkvManager.decodeServerList(group.guid).size
+                }.getOrDefault(0)
             }
         }
     }
@@ -906,6 +908,12 @@ fun MainScreen(
                                                             selectActualServer(selected.guid)
                                                         }
                                                     }
+                                                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                                    throw cancelled
+                                                } catch (_: Exception) {
+                                                    Toast.makeText(context,
+                                                        "خطا در بارگذاری گروه؛ دوباره تلاش کنید",
+                                                        Toast.LENGTH_LONG).show()
                                                 } finally {
                                                     groupSwitchBusy = false
                                                 }
