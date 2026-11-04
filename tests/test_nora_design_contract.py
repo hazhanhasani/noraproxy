@@ -117,13 +117,15 @@ class NoraDesignContractTest(unittest.TestCase):
 
     def test_subscription_rows_do_not_decode_profiles_during_draw(self):
         self.assertIn("var groupNodeCounts by remember", self.ui)
-        self.assertIn("group.guid to MmkvManager.decodeServerList(group.guid).size", self.ui)
+        self.assertIn("group.guid to runCatching {", self.ui)
+        self.assertIn("MmkvManager.decodeServerList(group.guid).size", self.ui)
         self.assertIn("numberOfNodes = groupNodeCounts[group.guid] ?: 0", self.ui)
         self.assertNotIn(
             "numberOfNodes = MmkvManager.decodeServerList(group.guid).size",
             self.ui
         )
         self.assertIn("var groupSwitchBusy by remember", self.ui)
+        self.assertIn("catch (cancelled: kotlinx.coroutines.CancellationException)", self.ui)
         self.assertIn("withContext(Dispatchers.IO) {\n                                                        NoraRouteSelector.rank(", self.ui)
 
     def test_banner_network_failures_are_guarded_and_images_refresh(self):
