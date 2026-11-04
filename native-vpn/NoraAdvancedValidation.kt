@@ -77,8 +77,8 @@ internal object NoraAdvancedValidation {
             ip = csv(ips)?.takeIf { it.isNotEmpty() }
             process = csv(processes)?.takeIf { it.isNotEmpty() }
             protocol = csv(protocols)?.takeIf { it.isNotEmpty() }
-            port = ports.trim().ifBlank { null }
-            this.network = network.ifBlank { null }
+            port = ports.trim().takeIf { it.isNotBlank() }
+            this.network = network.takeIf { it.isNotBlank() }
             outboundTag = outbound.trim()
         }
     }
