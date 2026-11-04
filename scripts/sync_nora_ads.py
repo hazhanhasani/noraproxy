@@ -6,6 +6,7 @@ remote advertising endpoint, user information, or API key is required.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -26,6 +27,13 @@ def valid_image(path: Path) -> bool:
         and ".." not in path.name
         and 0 < path.stat().st_size <= MAX_IMAGE_BYTES
     )
+
+
+def git_blob_sha(path: Path) -> str:
+    """Return Git-compatible content SHA-1 (NOT a signature or security hash)."""
+    data = path.read_bytes()
+    header = b"blob " + str(len(data)).encode("ascii") + bytes([0])
+    return hashlib.sha1(header + data).hexdigest()
 
 
 def image_timestamp(root: Path, path: Path) -> float:
@@ -77,6 +85,7 @@ def synchronize(root: Path) -> bool:
         item = {
             "id": str(previous.get("id") or ("github-" + path.stem))[:70],
             "file": path.name,
+            "sha": git_blob_sha(path),
             "title": str(previous.get("title") or "تبلیغات NoraProxy")[:80],
             "enabled": previous.get("enabled", True) is not False,
         }

@@ -15,7 +15,7 @@ The app reads `raw.githubusercontent.com/hazhanhasani/noraproxy/main/assets/ads/
 - Only simple image filenames; no separators or `..` accepted. Content cannot redirect the image loader to other hosts.
 - At most 4 active images, 2 MiB per image, 32 KiB manifest, bounds checking before decode, RGB_565 downsampling to max roughly 1200 × 400.
 - No automatic click-through, analytics tracking or privacy identifiers.
-- 3.5s connection timeout, 4.5s read timeout, no HTTP redirects, refresh at most once per 15 minutes. Cached banners appear offline.
+- 3.5s connection timeout, 4.5s read timeout, no HTTP redirects, refresh at most once per 15 seconds while Home is foregrounded. Cached banners appear offline.
 - An empty or disabled manifest displays a small non-clickable placeholder.
 - The banner panel does not affect native Xray, DNS, VPN permission prompts, node switching, or Tapsell. Avoid running network IO on Compose frame callbacks.
 
