@@ -56,6 +56,8 @@ class NoraDesignContractTest(unittest.TestCase):
             "NoraPowerButton(",
             "onClick = onToggle",
             "NoraPromotionsStrip()",
+            '.verticalScroll(rememberScrollState())',
+            'Text("NoraProxy", color = light,',
             "SystemClock.elapsedRealtime()",
             "usage?.remainingTrafficLabel()",
             "usage?.remainingTimeLabel()",
@@ -64,10 +66,18 @@ class NoraDesignContractTest(unittest.TestCase):
         ):
             self.assertIn(expected, self.home)
         for forbidden in (
-            "verticalScroll(", "185.251.", "VPN IP:", "Secure Network",
-            "NoraRouteShortcut(", "NoraDashboardMetric(", "loctionFake"
+            "185.251.", "VPN IP:", "Secure Network",
+            "NoraRouteShortcut(", "NoraDashboardMetric(", "loctionFake",
+            "modifier = Modifier.fillMaxWidth().weight(1f)"
         ):
             self.assertNotIn(forbidden, self.home)
+
+    def test_ad_banner_fills_available_card_width(self):
+        self.assertIn("Modifier.fillMaxWidth().aspectRatio(3.75f)", self.ads)
+        self.assertIn("contentScale = ContentScale.Crop", self.ads)
+        self.assertIn("Modifier.align(Alignment.BottomEnd)", self.ads)
+        self.assertNotIn("Modifier.fillMaxWidth().height(81.dp)", self.ads)
+        self.assertNotIn("contentScale = ContentScale.Fit", self.ads)
 
     def test_home_actions_open_real_destinations(self):
         for expected in (

@@ -8,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1135,13 +1137,18 @@ private fun NoraHomeContent(
     ) {
         val compact = maxHeight < 650.dp
         val tiny = maxHeight < 535.dp
-        val gap = if (tiny) 5.dp else if (compact) 8.dp else 12.dp
+        val gap = if (tiny) 7.dp else if (compact) 10.dp else 13.dp
+        // The old weight(1f) hero expanded to consume the whole free height,
+        // creating a giant gap between the header and the power control.
+        // A content-height layout keeps the brand and controls together.
+        // Vertical scrolling is only needed on small screens / large font sizes.
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(top = if (tiny) 3.dp else 8.dp, bottom = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(gap)
         ) {
-            // The reference BlueVPN header, with the original Nora identity.
             Row(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1183,12 +1190,38 @@ private fun NoraHomeContent(
                         tint = light, modifier = Modifier.size(21.dp))
                 }
             }
-            // One clear connection surface, with no decorative globe,
-            // duplicate metrics or server-identity exposure.
+
+            // BlueVPN-like centered identity, consistently branded NoraProxy.
+            Box(
+                modifier = Modifier.fillMaxWidth()
+                    .height(if (tiny) 61.dp else 76.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier.width(228.dp).height(if (tiny) 58.dp else 73.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(cyan.copy(alpha = .16f), blue.copy(alpha = .07f),
+                                    Color.Transparent)
+                            ),
+                            RoundedCornerShape(48.dp)
+                        )
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("NoraProxy", color = light,
+                        fontSize = if (tiny) 26.sp else 31.sp,
+                        fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp,
+                        maxLines = 1)
+                    Text("اتصال سریع، پایدار و هوشمند", color = muted,
+                        fontSize = 11.sp, maxLines = 1)
+                }
+            }
+
             Column(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(if (tiny) 5.dp else 8.dp)
             ) {
                 Text(
                     when {
@@ -1196,11 +1229,11 @@ private fun NoraHomeContent(
                         connected -> "اتصال برقرار است"
                         else -> phase.statusLabel
                     },
-                    color = light, fontSize = if (tiny) 17.sp else 21.sp,
+                    color = if (connected) green else light,
+                    fontSize = if (tiny) 17.sp else 20.sp,
                     fontWeight = FontWeight.Bold, maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(5.dp))
                 Text(
                     when {
                         lastOperationTimedOut -> "تغییر وضعیت تأیید نشد؛ دوباره تلاش کنید"
@@ -1210,7 +1243,7 @@ private fun NoraHomeContent(
                     color = muted, fontSize = 11.sp, maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(if (tiny) 12.dp else 18.dp))
+                Spacer(Modifier.height(if (tiny) 3.dp else 7.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth()
                         .height(if (tiny) 76.dp else 88.dp)
@@ -1250,8 +1283,10 @@ private fun NoraHomeContent(
                         modifier = Modifier.padding(end = 9.dp))
                 }
             }
-            // Standalone light-weight banner: never blocks VPN operations.
+
+            // Image fills its rounded card; small label overlays, never reserves width.
             NoraPromotionsStrip()
+
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .clip(RoundedCornerShape(19.dp))
