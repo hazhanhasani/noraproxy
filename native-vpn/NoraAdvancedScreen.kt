@@ -67,7 +67,9 @@ import kotlinx.coroutines.withContext
 internal enum class NoraAdvancedPage(val label: String, val hint: String) {
     Apps("مدیریت برنامه‌ها", "انتخاب برنامه‌های متصل یا مستثنا از VPN"),
     Routing("قوانین مسیر‌یابی", "اولویت قواعد و کنترل مسیر ترافیک"),
-    Network("شبکه و DNS", "تنظیمات اصلی DNS و پشته شبکه")
+    Network("شبکه و DNS", "تنظیمات اصلی DNS و پشته شبکه"),
+    Logs("گزارش اتصال", "نمایش محدود و پالایش‌شده آخرین رویدادها"),
+    Backup("پشتیبان‌گیری", "دسترسی ایمن به پشتیبان‌گیری و بازیابی")
 }
 
 private val noraPanel = Color(0xFF121319)
@@ -85,9 +87,15 @@ internal fun NoraAdvancedScreen(
     onNavigate: (MainDestination) -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    val colors = LocalNoraPalette.current
+    val noraPanelInner = colors.surface2
+    val noraBorder = colors.edge
+    val noraWhite = colors.light
+    val noraSecondary = colors.muted
     BackHandler(onBack = onBack)
     Column(
-        modifier = modifier.fillMaxSize().background(Color(0xFF08090E))
+        modifier = modifier.fillMaxSize().background(colors.ink)
             .padding(horizontal = 18.dp)
     ) {
         Row(
@@ -116,6 +124,12 @@ internal fun NoraAdvancedScreen(
             NoraAdvancedPage.Apps -> NoraAdvancedApps(vpnRunning)
             NoraAdvancedPage.Routing -> NoraAdvancedRouting(vpnRunning, onNavigate)
             NoraAdvancedPage.Network -> NoraAdvancedNetwork(vpnRunning, onNavigate)
+            NoraAdvancedPage.Logs -> NoraLogsScreen {
+                onNavigate(MainDestination.Logcat)
+            }
+            NoraAdvancedPage.Backup -> NoraBackupHubScreen {
+                onNavigate(MainDestination.BackupRestore)
+            }
         }
     }
 }
@@ -126,6 +140,12 @@ private fun NoraAdvancedCard(
     description: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+
+    val colors = LocalNoraPalette.current
+    val noraPanel = colors.surface
+    val noraBorder = colors.edge
+    val noraWhite = colors.light
+    val noraSecondary = colors.muted
     val shape = RoundedCornerShape(20.dp)
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, noraBorder, shape),
@@ -153,6 +173,10 @@ private fun NoraAdvancedSwitch(
     enabled: Boolean = true,
     onChanged: (Boolean) -> Unit
 ) {
+
+    val colors = LocalNoraPalette.current
+    val noraWhite = colors.light
+    val noraSecondary = colors.muted
     Row(
         modifier = Modifier.fillMaxWidth()
             .toggleable(
@@ -176,12 +200,14 @@ private fun NoraAdvancedSwitch(
 
 @Composable
 private fun NoraAdvancedNotice(vpnRunning: Boolean) {
+
+    val colors = LocalNoraPalette.current
     if (vpnRunning) {
         Text(
             "اتصال فعلی فعال است. برای اعمال قطعی تغییرات مسیریابی یا DNS، اتصال را یک‌بار قطع و وصل کنید.",
-            color = Color(0xFFFFD18A), fontSize = 12.sp, lineHeight = 20.sp,
+            color = colors.warningText, fontSize = 12.sp, lineHeight = 20.sp,
             modifier = Modifier.fillMaxWidth()
-                .background(Color(0xFF30281C), RoundedCornerShape(13.dp))
+                .background(colors.warningBackground, RoundedCornerShape(13.dp))
                 .padding(12.dp)
         )
     }
@@ -189,6 +215,13 @@ private fun NoraAdvancedNotice(vpnRunning: Boolean) {
 
 @Composable
 private fun NoraAdvancedApps(vpnRunning: Boolean) {
+
+    val colors = LocalNoraPalette.current
+    val noraPanel = colors.surface
+    val noraBorder = colors.edge
+    val noraAccent = colors.cyan
+    val noraWhite = colors.light
+    val noraSecondary = colors.muted
     val context = LocalContext.current
     var list by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -310,7 +343,7 @@ private fun NoraAdvancedApps(vpnRunning: Boolean) {
             }
             loadError -> item {
                 Text("فهرست برنامه‌ها در دسترس نیست؛ دوباره وارد این بخش شوید.",
-                    color = Color(0xFFFFB6A8), fontSize = 13.sp)
+                    color = colors.error, fontSize = 13.sp)
             }
             shown.isEmpty() -> item {
                 Text("برنامه‌ای با این فیلتر پیدا نشد.", color = noraSecondary, fontSize = 13.sp)
@@ -358,6 +391,10 @@ private fun NoraAdvancedRouting(
     vpnRunning: Boolean,
     onNavigate: (MainDestination) -> Unit
 ) {
+
+    val colors = LocalNoraPalette.current
+    val noraWhite = colors.light
+    val noraSecondary = colors.muted
     var rules by remember { mutableStateOf<List<RulesetItem>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showEnabledOnly by remember { mutableStateOf(false) }
@@ -582,6 +619,9 @@ private fun NoraAdvancedNetwork(
     vpnRunning: Boolean,
     onNavigate: (MainDestination) -> Unit
 ) {
+
+    val colors = LocalNoraPalette.current
+    val noraSecondary = colors.muted
     val context = LocalContext.current
     var localDns by remember {
         mutableStateOf(MmkvManager.decodeSettingsBool(AppConfig.PREF_LOCAL_DNS_ENABLED, false))

@@ -187,8 +187,8 @@ class NoraDesignContractTest(unittest.TestCase):
             self.assertIn(expected, advanced)
         self.assertNotIn("https://github.com/hiddify/", advanced)
         self.assertNotIn("CoreVpnService", advanced)
-        self.assertIn("'versionCode = 226'", prepare)
-        self.assertIn('"0.2.26"', prepare)
+        self.assertIn("'versionCode = 227'", prepare)
+        self.assertIn('"0.2.27"', prepare)
 
     def test_phase_two_rule_and_dns_editors_are_packaged(self):
         prepare = PREPARE.read_text(encoding="utf-8")
@@ -207,6 +207,30 @@ class NoraDesignContractTest(unittest.TestCase):
             self.assertIn(token, editor)
         for token in ("UUID.randomUUID()", "validatePorts(", "validateDnsCsv("):
             self.assertIn(token, validator)
+
+    def test_theme_and_diagnostics_are_native_and_safe(self):
+        prepare = PREPARE.read_text(encoding="utf-8")
+        palette = (ROOT / "native-vpn" / "NoraTheme.kt").read_text(encoding="utf-8")
+        diagnostics = (ROOT / "native-vpn" / "NoraDiagnostics.kt").read_text(encoding="utf-8")
+        advanced = ADVANCED.read_text(encoding="utf-8")
+
+        for name in ("NoraTheme.kt", "NoraDiagnostics.kt", "NoraThemeTest.kt",
+                     "NoraDiagnosticReaderTest.kt"):
+            self.assertIn(name, prepare)
+        for required in ("NoraThemeMode.entries", "ThemeManager.setThemeMode(",
+                         "LocalNoraPalette provides noraPalette", "noraPalette.materialColors()",
+                         "NoraAdvancedPage.Logs", "NoraAdvancedPage.Backup"):
+            self.assertIn(required, self.ui)
+        for required in ("NoraThemeMode", "NoraPalettes", "LocalNoraPalette",
+                         "Light = NoraPalette(", "Dark = NoraPalette("):
+            self.assertIn(required, palette)
+        for required in ("NoraLogsScreen", "NoraBackupHubScreen", "NoraDiagnosticReader",
+                         "REDACTED-URL", "REDACTED-CONFIG", "ProcessBuilder(",
+                         "Dispatchers.IO", "read()"):
+            self.assertIn(required, diagnostics)
+        self.assertIn("onNavigate(MainDestination.BackupRestore)", advanced)
+        self.assertIn("onNavigate(MainDestination.Logcat)", advanced)
+        self.assertNotIn("Intent.ACTION_SEND", diagnostics)
 
     def test_accessibility_and_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(

@@ -1,6 +1,6 @@
 # NoraProxy Android — Advanced UX Phase 2
 
-**Candidate:** 0.2.26  
+**Candidate:** 0.2.27  
 **Base:** PR #14 (the 0.2.24 capability-discovery layer)  
 **Source:** `native-vpn/NoraAdvancedScreen.kt`
 
@@ -63,12 +63,40 @@ screens do not start or stop a second VPN service.
   Preserve the upstream advanced settings page for MTU and remaining low-level options.
 - Warn that active sessions may need reconnection for changes to apply.
 
+### Responsive theme selection (0.2.27)
+
+- NoraProxy now offers **System / Light / Dark** from its Persian Settings tab.
+- Uses the existing upstream `ThemeManager` and `PREF_UI_MODE_NIGHT`
+  MMKV key; no shadow preferences or independent account settings.
+- Semantic colors cover home, tabs, location lists, subscriptions, advanced
+  routing, per-app controls, DNS and rule dialogs.
+- The system mode responds to Android's current dark/light preference.
+- The Nora identity stays blue, with themed surfaces, readable text and a
+  consistent system-bar mode through the existing upstream activity theme.
+- Some less-common upstream screens and third-party promotion assets retain
+  their original styling until screenshot and device accessibility QA.
+
+### Diagnostics and protected backup navigation (0.2.27)
+
+- Nora-branded diagnostic page reads a **limited subset** of logcat on IO,
+  supports search/refresh, and explicitly warns about private information.
+- Before rendering or copying, known URL, configuration URI, bearer-token,
+  and credential patterns are redacted. **This is best-effort sanitization**,
+  not a security guarantee. Raw logs remain in the original advanced viewer.
+- No logs are uploaded by Nora's diagnostic page.
+- The Nora backup hub explains that archives may contain credentials and
+  launches the pinned original backup/restore flow, rather than introducing
+  an unverified archive writer or recovery routine.
+- Automated tests check palette mode selection and representative redaction
+  patterns; physical-device logcat and recovery QA remain required.
+
 ## UX and safety follow-ups
 
-- Unify the remaining upstream Import/Export routing actions, log viewer,
-  MTU/advanced transport and backup flows into Nora Compose routes.
-- Add optional light/system themes; keep current dark design stable until
-  screenshot and accessibility tests pass.
+- Unify the remaining upstream Import/Export routing actions, raw log
+  viewer, WebDAV configuration and MTU/advanced transport into Nora Compose
+  routes. Keep mature backup/restore operations delegated to upstream for safety.
+- Validate light/system/dark screen contrast, including on Android 12+,
+  and test accessibility and screenshot regressions before release.
 - Add TalkBack checks, 200% font scale, landscape, compact-screen QA, and
   bidirectional text tests for package names and raw addresses.
 - Run unit tests in `NoraAdvancedValidationTest` for ID preservation, scoped

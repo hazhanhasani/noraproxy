@@ -37,6 +37,8 @@ internal fun NoraRoutingRuleEditor(
     onSave: (RulesetItem) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
+
+    val themeColors = LocalNoraPalette.current
     key(current?.id ?: "nora-new-routing-rule") {
         var remarks by rememberSaveable { mutableStateOf(current?.remarks.orEmpty()) }
         var domains by rememberSaveable { mutableStateOf(current?.domain?.joinToString(",").orEmpty()) }
@@ -52,11 +54,11 @@ internal fun NoraRoutingRuleEditor(
         val validation = NoraAdvancedValidation.validateRule(
             remarks, domains, ips, processes, protocols, ports, network, outbound
         )
-        val pale = Color(0xFFF7F9FF)
-        val secondary = Color(0xFFACB8C9)
+        val pale = themeColors.light
+        val secondary = themeColors.muted
         AlertDialog(
             onDismissRequest = onDismiss,
-            containerColor = Color(0xFF181A22),
+            containerColor = themeColors.surface2,
             title = {
                 Text(if (current == null) "قانون مسیر‌یابی جدید" else "ویرایش قانون",
                     color = pale, fontWeight = FontWeight.Bold)
@@ -131,7 +133,7 @@ internal fun NoraRoutingRuleEditor(
                         singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
                     if (validation != null) {
-                        Text(validation, color = Color(0xFFFFB5A9))
+                        Text(validation, color = themeColors.error)
                     }
                 }
             },
@@ -146,13 +148,13 @@ internal fun NoraRoutingRuleEditor(
                             ))
                         }
                     }
-                ) { Text("ذخیره", color = Color(0xFF86B5FF)) }
+                ) { Text("ذخیره", color = themeColors.cyan) }
             },
             dismissButton = {
                 Row {
                     if (current != null && current.locked != true && onDelete != null) {
                         TextButton(onClick = { confirmDelete = true }) {
-                            Text("حذف", color = Color(0xFFFFB5A9))
+                            Text("حذف", color = themeColors.error)
                         }
                     }
                     TextButton(onClick = onDismiss) { Text("انصراف", color = secondary) }
@@ -162,12 +164,12 @@ internal fun NoraRoutingRuleEditor(
         if (confirmDelete && onDelete != null) {
             AlertDialog(
                 onDismissRequest = { confirmDelete = false },
-                containerColor = Color(0xFF181A22),
+                containerColor = themeColors.surface2,
                 title = { Text("حذف قانون", color = pale) },
                 text = { Text("این قانون حذف شود؟ تغییرات بعد از اتصال مجدد اعمال می‌شوند.", color = secondary) },
                 confirmButton = {
                     TextButton(onClick = { confirmDelete = false; onDelete() }) {
-                        Text("حذف قطعی", color = Color(0xFFFFB5A9))
+                        Text("حذف قطعی", color = themeColors.error)
                     }
                 },
                 dismissButton = {
@@ -188,6 +190,8 @@ internal fun NoraDnsServersEditor(
     onDismiss: () -> Unit,
     onSave: (String, String, String) -> Unit
 ) {
+
+    val themeColors = LocalNoraPalette.current
     var remote by rememberSaveable { mutableStateOf(currentRemote) }
     var direct by rememberSaveable { mutableStateOf(currentDirect) }
     var vpn by rememberSaveable { mutableStateOf(currentVpn) }
@@ -196,8 +200,8 @@ internal fun NoraDnsServersEditor(
         ?: NoraAdvancedValidation.validateDnsCsv(vpn, true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF181A22),
-        title = { Text("سرورهای DNS", color = Color(0xFFF7F9FF),
+        containerColor = themeColors.surface2,
+        title = { Text("سرورهای DNS", color = themeColors.light,
             fontWeight = FontWeight.Bold) },
         text = {
             Column(
@@ -206,7 +210,7 @@ internal fun NoraDnsServersEditor(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("IP یا آدرس DoH/TCP/QUIC معتبر وارد کنید. جداکننده: ویرگول. خالی یعنی بازگشت به پیش‌فرض Xray.",
-                    color = Color(0xFFACB8C9))
+                    color = themeColors.muted)
                 OutlinedTextField(
                     value = remote, onValueChange = { remote = it.take(4096) },
                     label = { Text("DNS پروکسی (Remote)") },
@@ -222,18 +226,18 @@ internal fun NoraDnsServersEditor(
                     label = { Text("DNS تونل VPN — فقط IP") },
                     minLines = 2, maxLines = 3, modifier = Modifier.fillMaxWidth()
                 )
-                if (error != null) Text(error, color = Color(0xFFFFB5A9))
+                if (error != null) Text(error, color = themeColors.error)
                 Text("تنظیمات ذخیره می‌شوند اما اتصال فعال ممکن است به قطع و وصل مجدد نیاز داشته باشد.",
-                    color = Color(0xFFACB8C9))
+                    color = themeColors.muted)
             }
         },
         confirmButton = {
             TextButton(enabled = error == null, onClick = {
                 if (error == null) onSave(remote.trim(), direct.trim(), vpn.trim())
-            }) { Text("ذخیره", color = Color(0xFF86B5FF)) }
+            }) { Text("ذخیره", color = themeColors.cyan) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("انصراف", color = Color(0xFFACB8C9)) }
+            TextButton(onClick = onDismiss) { Text("انصراف", color = themeColors.muted) }
         }
     )
 }
