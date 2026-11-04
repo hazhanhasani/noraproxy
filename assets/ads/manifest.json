@@ -4,6 +4,12 @@
   "rotationSeconds": 8,
   "banners": [
     {
+      "id": "github-file_000000008a0882438a125380e945cf68",
+      "file": "file_000000008a0882438a125380e945cf68.png",
+      "title": "تبلیغات NoraProxy",
+      "enabled": true
+    },
+    {
       "id": "github-upload-1",
       "file": "file_00000000d3dc81f5a6fb1b19714b873d.png",
       "title": "تبلیغات NoraProxy",
