@@ -70,5 +70,9 @@ class NoraAdvancedValidationTest {
         assertNotNull(NoraAdvancedValidation.validateDnsCsv(
             "javascript:alert(1)", false))
         assertNull(NoraAdvancedValidation.validateDnsCsv("", false))
+        assertEquals("1.1.1.1,8.8.8.8",
+            NoraAdvancedValidation.normalizedDnsCsv("1.1.1.1, 8.8.8.8"))
+        assertEquals("https://dns.example.com/dns-query",
+            NoraAdvancedValidation.normalizedDnsCsv("HTTPS://dns.example.com/dns-query"))
     }
 }
