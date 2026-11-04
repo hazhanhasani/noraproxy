@@ -21,10 +21,15 @@ on:
 permissions:
   contents: read
 
+# Drop outdated UI checks on PR updates; no extra Android SDK needed.
+concurrency:
+  group: nora-ui-queue-reset-20261104-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     name: Python contracts and banner manifest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Checkout NoraProxy

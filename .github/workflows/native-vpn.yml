@@ -28,12 +28,12 @@ permissions:
 # Keep main-branch release builds running to avoid interrupting signing,
 # release publication, or Telegram distribution.
 concurrency:
-  group: nora-native-${{ github.ref }}
+  group: nora-native-queue-reset-20261104-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-native-vpn:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
       - name: Checkout NoraProxy
