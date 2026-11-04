@@ -719,19 +719,34 @@ private fun NoraAdvancedNetwork(
                         AppConfig.PREF_DOMESTIC_DNS to resolvedDirect,
                         AppConfig.PREF_VPN_DNS to resolvedVpn
                     )
-                    var updated = false
-                    changes.forEach { (key, value) ->
-                        if (MmkvManager.decodeSettingsString(key) != value) {
-                            MmkvManager.encodeSettings(key, value)
-                            updated = true
+                    val pending = changes.mapNotNull { (key, value) ->
+                        val old = MmkvManager.decodeSettingsString(key)
+                        if (old == value) null else Triple(key, old, value)
+                    }
+                    val written = mutableListOf<Pair<String, String?>>()
+                    var failed = false
+                    for ((key, old, value) in pending) {
+                        if (MmkvManager.encodeSettings(key, value)) {
+                            written.add(key to old)
+                        } else {
+                            failed = true
+                            break
                         }
                     }
-                    if (updated) SettingsChangeManager.makeRestartService()
-                    remoteDns = resolvedRemote
-                    directDns = resolvedDirect
-                    vpnDns = resolvedVpn
-                    showDnsEditor = false
-                    Toast.makeText(context, "DNS ذخیره شد", Toast.LENGTH_SHORT).show()
+                    if (failed) {
+                        // Best-effort rollback: never acknowledge a partial DNS update.
+                        written.asReversed().forEach { (key, old) ->
+                            MmkvManager.encodeSettings(key, old)
+                        }
+                        Toast.makeText(context, "ذخیره DNS ناموفق بود", Toast.LENGTH_LONG).show()
+                    } else {
+                        if (pending.isNotEmpty()) SettingsChangeManager.makeRestartService()
+                        remoteDns = resolvedRemote
+                        directDns = resolvedDirect
+                        vpnDns = resolvedVpn
+                        showDnsEditor = false
+                        Toast.makeText(context, "DNS ذخیره شد", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         )
