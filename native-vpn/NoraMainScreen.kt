@@ -208,6 +208,12 @@ fun MainScreen(
     var recentCountry by remember {
         mutableStateOf(routePreferences.getString("recent_country:" + appState.selectedGroupId, null))
     }
+    var recentCountries by remember {
+        mutableStateOf(
+            routePreferences.getString("recent_countries:" + appState.selectedGroupId, "")
+                .orEmpty().split(",").filter { it.isNotBlank() }.distinct().take(12)
+        )
+    }
     // Upstream SelectServer always calls restartService, even if disconnected.
     // Keep the selected GUID persisted without starting the VPN prematurely.
     val selectActualServer: (String) -> Unit = { guid ->
@@ -227,6 +233,9 @@ fun MainScreen(
         recentCountry = routePreferences.getString(
             "recent_country:" + appState.selectedGroupId, null
         )
+        recentCountries = routePreferences.getString(
+            "recent_countries:" + appState.selectedGroupId, ""
+        ).orEmpty().split(",").filter { it.isNotBlank() }.distinct().take(12)
     }
     var refreshTick by remember { mutableIntStateOf(0) }
     // Prevent double-taps from dispatching conflicting native start/stop commands.
@@ -301,13 +310,13 @@ fun MainScreen(
         }
     }
     val visibleLocations = remember(
-        locations, locationQuery, favoriteCountries, locationTab, qualityFilter, recentCountry
+        locations, locationQuery, favoriteCountries, locationTab, qualityFilter, recentCountries
     ) {
         NoraRouteSelector.searchLocations(
             locations, locationQuery, favoriteCountries, locationTab == NoraLocationTab.Favorites
         ).filter { route ->
             val matchesTab = locationTab != NoraLocationTab.Recent ||
-                route.countryCode == recentCountry
+                route.countryCode in recentCountries
             val matchesQuality = when (qualityFilter) {
                 NoraQualityFilter.All -> true
                 NoraQualityFilter.Fast -> route.latencyMs in 1L..150L
@@ -315,6 +324,10 @@ fun MainScreen(
                 NoraQualityFilter.Unmeasured -> route.latencyMs <= 0L || route.latencyMs > 350L
             }
             matchesTab && matchesQuality
+        }.let { filtered ->
+            if (locationTab == NoraLocationTab.Recent)
+                filtered.sortedBy { recentCountries.indexOf(it.countryCode) }
+            else filtered
         }
     }
     val prioritizedLocations = remember(locations, favoriteCountries) {
@@ -483,6 +496,14 @@ fun MainScreen(
                 ).apply()
             }
             selectedCountry = country
+            if (country != null && !country.startsWith("UNKNOWN:")) {
+                recentCountries = (listOf(country) +
+                    recentCountries.filterNot { it == country }).take(12)
+                routePreferences.edit().putString(
+                    "recent_countries:" + appState.selectedGroupId,
+                    recentCountries.joinToString(",")
+                ).apply()
+            }
             routePreferences.edit().apply {
                 val preferenceKey = "preferred_country:" + appState.selectedGroupId
                 if (country == null) remove(preferenceKey)
@@ -704,7 +725,7 @@ fun MainScreen(
                                 item {
                                     Text(if (locationTab == NoraLocationTab.Favorites && favoriteCountries.isEmpty())
                                             "برای افزودن کشور به علاقه‌مندی‌ها، روی ستاره کنار آن بزنید."
-                                        else if (locationTab == NoraLocationTab.Recent && recentCountry == null)
+                                        else if (locationTab == NoraLocationTab.Recent && recentCountries.isEmpty())
                                             "هنوز لوکیشن قبلی ثبت نشده است."
                                         else "لوکیشنی مطابق فیلتر پیدا نشد.",
                                         color = muted, fontSize = 12.sp)
@@ -1713,7 +1734,7 @@ private fun NoraBottomBar(
                 )
                 Text(
                     tab.title,
-                    color = if (isActive) light else muted,
+                    color = if (isActive) cyan else muted,
                     fontSize = 11.sp, maxLines = 1,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                 )
