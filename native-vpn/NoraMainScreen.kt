@@ -599,7 +599,7 @@ fun MainScreen(
                         .padding(inner)
                         .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 30.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     item { NoraHeader(originalLogo, brand, appState.isRunning, connectionPhase) }
                     when (tab) {
@@ -1555,18 +1555,13 @@ private fun NoraLocationCard(
     favorite: Boolean = false,
     onClick: () -> Unit
 ) {
-    val shape = RoundedCornerShape(21.dp)
+    val shape = RoundedCornerShape(18.dp)
     Row(
         modifier = Modifier.fillMaxWidth()
             .clip(shape)
-            .background(
-                Brush.horizontalGradient(
-                    if (selected) listOf(Color(0xFF203B7A), Color(0xFF171E3D))
-                    else listOf(surface, Color(0xFF131A2D))
-                )
-            )
-            .border(1.dp, if (selected) cyan.copy(alpha = .7f)
-                else edge.copy(alpha = .4f), shape)
+            .background(if (selected) Color(0xFF1A2444) else surface)
+            .border(1.dp, if (selected) cyan.copy(alpha = .60f)
+                else edge.copy(alpha = .36f), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = if (compact) 10.dp else 13.dp),
         verticalAlignment = Alignment.CenterVertically,
