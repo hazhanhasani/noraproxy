@@ -1,49 +1,49 @@
 # NoraProxy Promotional Banners
 
-## Automatic registration
+NoraProxy 0.2.21 loads first-party banner images from this public folder on the
+`main` branch. **You only need to upload the image.** No APK rebuild, preset
+filename, JSON editing or server login is required.
 
-**You only need to upload an image to this folder.** The workflow
-[`Sync NoraProxy Promotional Banners`](../../.github/workflows/sync-nora-ads.yml)
-automatically updates `manifest.json` on the `main` branch after any
-image upload, rename or deletion. Accepted extensions: `.png`, `.jpg`,
-`.jpeg`, `.webp`; file name must use ASCII letters/digits, hyphens,
-underscores and dots, without `..`. Each file must be under **2 MiB**.
-The newest **four** valid images appear, and any custom title, enabled
-state or HTTPS destination for existing images remains intact. No APK
-rebuild is required.
+## Upload an ad
 
-The Android app checks cached promotions when Home opens and refreshes
-the remote manifest after its 15-minute cache interval. Reopening the
-app after that interval is sufficient; do not clear application data.
+1. Open `assets/ads/` on GitHub, choose **Add file → Upload files**, select a
+   `.webp`, `.png`, `.jpg`, or `.jpeg` image, and commit it on `main`.
+2. The [Sync NoraProxy Promotional Banners workflow](../../.github/workflows/sync-nora-ads.yml)
+   scans uploaded files and updates `manifest.json` automatically.
+3. Reopen NoraProxy after its 15-minute promotions cache interval. The image
+   then appears on the Home screen. Do not clear app data or reinstall the APK.
 
+**Recommended image:** 1200 × 320 px (wide 3.75:1), compressed WebP, ideally
+under 200 KiB. The maximum app download size is 2 MiB per image, and the
+Android decoder accepts images up to 4096 × 2048 px. Use filenames containing
+ASCII letters/digits, dots, underscores or hyphens only; no `..` sequences.
+Only the **four most recently committed** valid images will display.
 
-The Android home screen reads **this public GitHub folder**. It fetches `manifest.json` and the referenced images from the `main` branch after changes are merged.
+## Configure behavior
 
-## Upload an ad without a new APK
-1. Open `assets/ads/` in GitHub, choose **Add file → Upload files**, and upload an image named **`banner-1.webp`**, **`banner-2.webp`**, or **`banner-3.webp`**. These three slots are already enabled in `manifest.json` — no JSON editing is needed for a simple banner upload or replacement.
-2. Recommended size: **1200 × 320 px** (wide 3.75:1). Target **under 200 KB**, maximum download size **2 MiB** per image.
-3. Commit the uploaded file. The app updates on its next manifest/image refresh (normally within 15 minutes after reopening Home) and caches banners for offline launches. Edit `manifest.json` only for custom filenames, titles, destinations, rotation intervals, or disabling a slot.
-4. When none of the configured images exist, or all slots are disabled, the app shows a compact non-clickable placeholder.
+The Android app reads `manifest.json` from
+`https://raw.githubusercontent.com/hazhanhasani/noraproxy/main/assets/ads/manifest.json`.
 
-Example:
+The auto-updater preserves the manually set `title`, `enabled`, and optional
+HTTPS `target` for images already present in the manifest. You may change
+`rotationSeconds` to 3–30 and set the top-level `enabled: false` to hide all
+banners. Uploaded files automatically create enabled entries by default.
+
+Example entry generated for a new file:
 
 ```json
 {
-  "version": 1,
-  "enabled": true,
-  "rotationSeconds": 8,
-  "banners": [
-    {
-      "id": "november-offer",
-      "file": "november-offer.webp",
-      "title": "پیشنهاد ویژه",
-      "target": "https://example.com",
-      "enabled": true
-    }
-  ]
+  "id": "github-sale-2026",
+  "file": "sale-2026.webp",
+  "title": "تبلیغات NoraProxy",
+  "enabled": true
 }
 ```
 
-**Rules:** up to 4 enabled banners. Files must be *simple filenames* (no paths), with ASCII letters/digits/hyphens/underscores/dots; no `..`. `target` is optional and must be HTTPS. Never upload API keys, private customer data, or copyrighted creative without rights. To disable ads, set `enabled: false` or clear the `banners` array.
+The manifest is refreshed on Home entry after its cache interval; offline
+launches use cached images. With no valid images, the app shows a non-clickable
+placeholder. The manifest is not a place for API keys, personal information or
+secrets. Only upload artwork you are authorized to use.
 
-**Deployment:** Because the APK fetches `https://raw.githubusercontent.com/hazhanhasani/noraproxy/main/assets/ads/...`, edits to an unmerged feature branch do not appear for stable clients.
+The upload automation only runs for changes committed to `main`. Uploads to
+feature branches do not become visible in the published application.
