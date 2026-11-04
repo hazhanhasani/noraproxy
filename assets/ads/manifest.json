@@ -2,5 +2,24 @@
   "version": 1,
   "enabled": true,
   "rotationSeconds": 8,
-  "banners": []
+  "banners": [
+    {
+      "id": "banner-1",
+      "file": "banner-1.webp",
+      "title": "پیشنهاد ویژه",
+      "enabled": true
+    },
+    {
+      "id": "banner-2",
+      "file": "banner-2.webp",
+      "title": "اطلاع‌رسانی",
+      "enabled": true
+    },
+    {
+      "id": "banner-3",
+      "file": "banner-3.webp",
+      "title": "تبلیغات",
+      "enabled": true
+    }
+  ]
 }
