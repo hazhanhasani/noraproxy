@@ -187,8 +187,26 @@ class NoraDesignContractTest(unittest.TestCase):
             self.assertIn(expected, advanced)
         self.assertNotIn("https://github.com/hiddify/", advanced)
         self.assertNotIn("CoreVpnService", advanced)
-        self.assertIn("'versionCode = 225'", prepare)
-        self.assertIn('"0.2.25"', prepare)
+        self.assertIn("'versionCode = 226'", prepare)
+        self.assertIn('"0.2.26"', prepare)
+
+    def test_phase_two_rule_and_dns_editors_are_packaged(self):
+        prepare = PREPARE.read_text(encoding="utf-8")
+        advanced = ADVANCED.read_text(encoding="utf-8")
+        editor = (ROOT / "native-vpn" / "NoraAdvancedEditors.kt").read_text(encoding="utf-8")
+        validator = (ROOT / "native-vpn" / "NoraAdvancedValidation.kt").read_text(encoding="utf-8")
+        for name in ("NoraAdvancedEditors.kt", "NoraAdvancedValidation.kt",
+                     "NoraAdvancedValidationTest.kt"):
+            self.assertIn(name, prepare)
+        for token in ("NoraRoutingRuleEditor(", "NoraDnsServersEditor(",
+                      "SettingsManager.removeRoutingRuleset(",
+                      "MmkvManager.encodeRoutingRulesets(updated)",
+                      "AppConfig.PREF_REMOTE_DNS", "AppConfig.PREF_VPN_DNS"):
+            self.assertIn(token, advanced)
+        for token in ("validateRule(", "validateDnsCsv(", "onSave(", "confirmDelete"):
+            self.assertIn(token, editor)
+        for token in ("UUID.randomUUID()", "validatePorts(", "validateDnsCsv("):
+            self.assertIn(token, validator)
 
     def test_accessibility_and_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
