@@ -260,9 +260,15 @@ private fun NoraAdvancedApps(vpnRunning: Boolean) {
                         "فقط برنامه‌های انتخاب‌شده از VPN عبور می‌کنند",
                     value = bypass,
                     onChanged = { next ->
-                        bypass = next
-                        MmkvManager.encodeSettings(AppConfig.PREF_BYPASS_APPS, next)
-                        SettingsChangeManager.makeRestartService()
+                        if (!next && enabled && selected.isEmpty()) {
+                            Toast.makeText(context,
+                                "پیش از انتخاب حالت محدود، حداقل یک برنامه انتخاب کنید",
+                                Toast.LENGTH_SHORT).show()
+                        } else {
+                            bypass = next
+                            MmkvManager.encodeSettings(AppConfig.PREF_BYPASS_APPS, next)
+                            SettingsChangeManager.makeRestartService()
+                        }
                     }
                 )
                 Text(
