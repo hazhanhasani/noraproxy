@@ -23,9 +23,13 @@ on:
 permissions:
   contents: write
 
+# Keep expensive PR Gradle builds running while reviewers push UI fixes.
+# GitHub may still replace an older *pending* run with a newer one, but it
+# should not kill an in-progress assemble job. Retain latest-only behavior
+# on main to avoid publishing superseded APK releases.
 concurrency:
   group: nora-native-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   build-native-vpn:
