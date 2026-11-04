@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -43,6 +44,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -65,12 +69,13 @@ internal data class NoraPromotion(
 internal object NoraPromotionRepository {
     private const val ROOT =
         "https://raw.githubusercontent.com/hazhanhasani/noraproxy/main/assets/ads/"
-    private const val CACHE_TTL_MS = 15 * 60 * 1000L
+    private const val CACHE_TTL_MS = 15_000L
     private const val MAX_BANNERS = 4
     private const val MAX_MANIFEST_BYTES = 32 * 1024
     private const val MAX_IMAGE_BYTES = 2 * 1024 * 1024
     private val safeName = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,72}\\.(?:webp|png|jpg|jpeg)$",
         RegexOption.IGNORE_CASE)
+    private val safeRevision = Regex("^[a-fA-F0-9]{40}$")
 
     private fun storage(context: Context): File =
         File(context.cacheDir, "nora_promotions").apply { mkdirs() }
@@ -99,6 +104,8 @@ internal object NoraPromotionRepository {
             connection.connectTimeout = 3500
             connection.readTimeout = 4500
             connection.instanceFollowRedirects = false
+            connection.useCaches = false
+            connection.setRequestProperty("Cache-Control", "no-cache")
             connection.setRequestProperty("Accept", "application/json,image/webp,image/png,image/jpeg")
             if (connection.responseCode != 200) return null
             if (connection.contentLengthLong > maxBytes) return null
@@ -140,7 +147,13 @@ internal object NoraPromotionRepository {
         }.getOrNull()
     }
 
-    private data class Descriptor(val id: String, val file: String, val title: String, val target: String?)
+    private data class Descriptor(
+        val id: String,
+        val file: String,
+        val title: String,
+        val target: String?,
+        val revision: String?
+    )
 
     private fun descriptors(json: String): List<Descriptor> {
         val doc = JSONObject(json)
@@ -153,15 +166,15 @@ internal object NoraPromotionRepository {
             if (!validFile(file)) return@mapNotNull null
             val id = item.optString("id", file).take(70)
             val title = item.optString("title", "تبلیغات").take(80)
-            Descriptor(id, file, title, validTarget(item.optString("target", "")))
+            val revision = item.optString("sha").takeIf { safeRevision.matches(it) }
+            Descriptor(id, file, title, validTarget(item.optString("target", "")), revision)
         }.distinctBy { it.file }.take(MAX_BANNERS).toList()
     }
 
     private fun render(
         context: Context,
         manifest: String,
-        allowNetwork: Boolean,
-        refreshImages: Boolean = false
+        allowNetwork: Boolean
     ): List<NoraPromotion> {
         val cache = storage(context)
         val definitions = runCatching { descriptors(manifest) }.getOrElse { emptyList() }
@@ -172,16 +185,36 @@ internal object NoraPromotionRepository {
                     local.readBytes() else null
             }.getOrNull()
             var bitmap = cached?.let(::decodeScaled)
-            if (allowNetwork && (bitmap == null || refreshImages)) {
-                val bytes = readNetwork(ROOT + item.file, MAX_IMAGE_BYTES)
+            // The manifest contains the SHA-1 of Git's immutable image blob.
+            // A replacement with the SAME filename therefore invalidates the
+            // local bitmap, while unchanged banners do not download again.
+            val revisionFile = File(cache, item.file + ".revision")
+            val cachedRevision = runCatching { revisionFile.readText() }.getOrNull()
+            val revisionChanged = item.revision != null && cachedRevision != item.revision
+            if (allowNetwork && (bitmap == null || revisionChanged)) {
+                // Versioned query defeats raw.githubusercontent.com intermediary
+                // caches without allowing arbitrary URLs in the manifest.
+                val url = ROOT + item.file + (item.revision?.let { "?v=" + it } ?: "")
+                val bytes = readNetwork(url, MAX_IMAGE_BYTES)
                 val replacement = bytes?.let(::decodeScaled)
                 if (replacement != null && bytes != null) {
                     bitmap = replacement
-                    runCatching { local.writeBytes(bytes) }
+                    runCatching {
+                        local.writeBytes(bytes)
+                        if (item.revision != null) revisionFile.writeText(item.revision)
+                    }
                 }
             }
             bitmap?.let { NoraPromotion(item.id, item.title, item.target, it) }
         }
+    }
+
+    /** Cached manifest identity plus visible image list for stable Compose state. */
+    fun fingerprint(context: Context, images: List<NoraPromotion>): String {
+        val manifest = runCatching {
+            File(storage(context), "manifest.json").readText(Charsets.UTF_8)
+        }.getOrDefault("")
+        return manifest + images.joinToString(separator = "|") { it.id }
     }
 
     /** Read only from IO; 3–30 seconds to avoid excessive redraws. */
@@ -199,24 +232,29 @@ internal object NoraPromotionRepository {
             render(context, manifest.readText(Charsets.UTF_8), allowNetwork = false)
     }.getOrDefault(emptyList())
 
-    /** Pull only once every 15 minutes; preserve offline cache on network errors. */
+    /** Poll at most every 15 seconds while Home is visible; preserve offline cache. */
     fun refresh(context: Context): List<NoraPromotion> {
         val prefs = context.getSharedPreferences("nora_ads", Context.MODE_PRIVATE)
         val lastCheck = prefs.getLong("last_check", 0L)
         val now = SystemClock.elapsedRealtime()
         if (lastCheck in 1..now && now - lastCheck < CACHE_TTL_MS) return cached(context)
-        val bytes = readNetwork(ROOT + "manifest.json", MAX_MANIFEST_BYTES)
+        // CDN cache-busting: public GitHub raw files can remain cached even after
+        // a commit. A short-lived query makes recently published manifests visible.
+        val manifestUrl = ROOT + "manifest.json?refresh=" +
+            (System.currentTimeMillis() / CACHE_TTL_MS)
+        val bytes = readNetwork(manifestUrl, MAX_MANIFEST_BYTES)
             ?: return cached(context)
         val json = bytes.toString(Charsets.UTF_8)
         if (runCatching { descriptors(json) }.isFailure) return cached(context)
         val dir = storage(context)
         val manifest = File(dir, "manifest.json")
-        // Revalidate image bytes on each scheduled refresh so changing the
-        // existing GitHub image (without renaming it) updates installed apps.
-        val refreshed = render(context, json, allowNetwork = true, refreshImages = true)
+        // Reuse unchanged images. Only new or content-hash-changed images
+        // trigger image downloads; the manifest itself is tiny.
+        val refreshed = render(context, json, allowNetwork = true)
         // Remove outdated image files when campaigns are deleted or renamed.
-        val activeFiles = runCatching { descriptors(json).map { it.file }.toSet() }
-            .getOrDefault(emptySet())
+        val activeFiles = runCatching {
+            descriptors(json).flatMap { listOf(it.file, it.file + ".revision") }.toSet()
+        }.getOrDefault(emptySet())
         dir.listFiles()?.filter {
             it.isFile && it.name != "manifest.json" && it.name !in activeFiles
         }?.forEach { runCatching { it.delete() } }
@@ -229,16 +267,48 @@ internal object NoraPromotionRepository {
 @Composable
 internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var foreground by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            foreground = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var banners by remember { mutableStateOf<List<NoraPromotion>>(emptyList()) }
     var page by remember { mutableIntStateOf(0) }
     var rotationSeconds by remember { mutableIntStateOf(8) }
-    LaunchedEffect(context) {
-        banners = withContext(Dispatchers.IO) { NoraPromotionRepository.cached(context) }
-        val refreshed = withContext(Dispatchers.IO) { NoraPromotionRepository.refresh(context) }
-        // An explicitly cleared/disabled manifest must also hide cached banners.
-        banners = refreshed
-        rotationSeconds = withContext(Dispatchers.IO) {
-            NoraPromotionRepository.rotationSeconds(context)
+    var lastFingerprint by remember { mutableStateOf("") }
+    LaunchedEffect(context, foreground) {
+        if (!foreground) return@LaunchedEffect
+        // Cached content paints immediately. All file/network/decode IO stays off UI.
+        if (lastFingerprint.isEmpty()) {
+            val initial = withContext(Dispatchers.IO) {
+                val items = NoraPromotionRepository.cached(context)
+                Triple(items, NoraPromotionRepository.rotationSeconds(context),
+                    NoraPromotionRepository.fingerprint(context, items))
+            }
+            banners = initial.first
+            rotationSeconds = initial.second
+            lastFingerprint = initial.third
+        }
+        // Re-check while this screen is visible. When the user leaves Home or
+        // backgrounds the app, the effect is cancelled (no background polling).
+        while (true) {
+            val updated = withContext(Dispatchers.IO) {
+                val items = NoraPromotionRepository.refresh(context)
+                Triple(items, NoraPromotionRepository.rotationSeconds(context),
+                    NoraPromotionRepository.fingerprint(context, items))
+            }
+            if (updated.third != lastFingerprint) {
+                banners = updated.first
+                rotationSeconds = updated.second
+                lastFingerprint = updated.third
+            }
+            delay(15_000L)
         }
     }
     LaunchedEffect(banners.size, rotationSeconds) {

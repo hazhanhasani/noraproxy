@@ -57,6 +57,18 @@ class NoraBannerSyncTest(unittest.TestCase):
         self.assertEqual(len(self.current()["banners"]), 4)
         self.assertEqual(self.current()["banners"][0]["file"], "image_5.png")
 
+    def test_replacing_same_filename_updates_revision(self):
+        photo = self.ads / "sale.webp"
+        photo.write_bytes(b"first version")
+        synchronize(self.root)
+        first_revision = self.current()["banners"][0]["sha"]
+        self.assertRegex(first_revision, r"^[a-f0-9]{40}$")
+        photo.write_bytes(b"second version")
+        self.assertTrue(synchronize(self.root))
+        second_revision = self.current()["banners"][0]["sha"]
+        self.assertNotEqual(first_revision, second_revision)
+        self.assertEqual(self.current()["banners"][0]["file"], "sale.webp")
+
     def test_rejects_insecure_click_targets(self):
         (self.ads / "ok.png").write_bytes(b"data")
         doc = self.current()
