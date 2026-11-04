@@ -1,5 +1,8 @@
 package com.v2ray.ang.ui.main
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -22,12 +25,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -57,6 +62,8 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.util.AppManagerUtil
+import com.v2ray.ang.util.JsonUtil
+import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -399,6 +406,9 @@ private fun NoraAdvancedRouting(
     var loaded by remember { mutableStateOf(false) }
     var showEnabledOnly by remember { mutableStateOf(false) }
     var editingIndex by remember { mutableStateOf<Int?>(null) }
+    var importPreview by remember { mutableStateOf<NoraRoutingTransfer.ImportResult.Ready?>(null) }
+    var importBaseline by remember { mutableStateOf<String?>(null) }
+    var exportConfirm by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val availableStrategies = stringArrayResource(R.array.routing_domain_strategy).toList()
     var strategy by remember {
@@ -552,13 +562,133 @@ private fun NoraAdvancedRouting(
             }
         }
         item {
+            NoraAdvancedCard(
+                "ورود و خروج قوانین",
+                "فایل JSON یا متن قوانین را از کلیپ‌بورد وارد کنید. قوانین قفل‌شده فعلی محفوظ می‌مانند."
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            val clipboard = runCatching { Utils.getClipboard(context) }.getOrNull()
+                            when (val result = NoraRoutingTransfer.preview(clipboard)) {
+                                is NoraRoutingTransfer.ImportResult.Invalid ->
+                                    Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                                is NoraRoutingTransfer.ImportResult.Ready -> {
+                                    importBaseline = JsonUtil.toJson(
+                                        MmkvManager.decodeRoutingRulesets() ?: emptyList<RulesetItem>()
+                                    )
+                                    importPreview = result
+                                }
+                            }
+                        }
+                    ) { Text("ورود از کلیپ‌بورد", fontSize = 11.sp) }
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = {
+                            val latest = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                            if (NoraRoutingTransfer.exportUnlocked(latest) == null) {
+                                Toast.makeText(context, "قانون قابل انتقالی وجود ندارد",
+                                    Toast.LENGTH_SHORT).show()
+                            } else exportConfirm = true
+                        }
+                    ) { Text("کپی خروجی", fontSize = 11.sp) }
+                }
+            }
+        }
+        item {
             OutlinedButton(
                 onClick = { onNavigate(MainDestination.Routing) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text("ابزارهای پیشرفته و Import/Export قوانین") }
+            ) { Text("قوانین آماده و واردکردن از QR") }
         }
     }
+    importPreview?.let { preview ->
+        val protectedCount = rules.count { it.locked == true }
+        val replaceCount = rules.size - protectedCount
+        AlertDialog(
+            onDismissRequest = { importPreview = null; importBaseline = null },
+            containerColor = colors.surface2,
+            title = { Text("تأیید جایگزینی قوانین", color = colors.light) },
+            text = {
+                Text(
+                    "ورود ${preview.rules.size} قانون، ${replaceCount} قانون قابل ویرایش فعلی را جایگزین می‌کند. ${protectedCount} قانون قفل‌شده حفظ می‌شوند. پس از ذخیره، برای اعمال تغییرات VPN را مجدداً وصل کنید.",
+                    color = colors.muted
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val latest = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                    if (JsonUtil.toJson(latest) != importBaseline) {
+                        Toast.makeText(context,
+                            "قوانین در این فاصله تغییر کرده‌اند؛ دوباره پیش‌نمایش بگیرید",
+                            Toast.LENGTH_LONG).show()
+                    } else {
+                        val previousRaw =
+                            MmkvManager.decodeSettingsString(AppConfig.PREF_ROUTING_RULESET) ?: ""
+                        val combined = NoraRoutingTransfer.replaceUnlocked(latest, preview.rules)
+                        val newRaw = JsonUtil.toJson(combined)
+                        if (MmkvManager.encodeSettings(AppConfig.PREF_ROUTING_RULESET, newRaw) &&
+                            JsonUtil.toJson(MmkvManager.decodeRoutingRulesets()) == newRaw) {
+                            rules = combined
+                            SettingsChangeManager.makeRestartService()
+                            Toast.makeText(context, "قوانین وارد شدند", Toast.LENGTH_SHORT).show()
+                        } else {
+                            MmkvManager.encodeSettings(AppConfig.PREF_ROUTING_RULESET, previousRaw)
+                            Toast.makeText(context, "ذخیره قوانین ناموفق بود", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    importPreview = null
+                    importBaseline = null
+                }) { Text("جایگزینی", color = colors.cyan) }
+            },
+            dismissButton = {
+                TextButton(onClick = { importPreview = null; importBaseline = null }) {
+                    Text("انصراف", color = colors.muted)
+                }
+            }
+        )
+    }
+
+    if (exportConfirm) {
+        AlertDialog(
+            onDismissRequest = { exportConfirm = false },
+            containerColor = colors.surface2,
+            title = { Text("کپی قوانین قابل ویرایش", color = colors.light) },
+            text = {
+                Text(
+                    "خروجی ممکن است دامنه، IP یا نام برنامه‌های خصوصی را شامل شود. قوانین قفل‌شده کپی نمی‌شوند؛ کلیپ‌بورد را پس از استفاده پاک کنید.",
+                    color = colors.muted
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val latest = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                    val text = NoraRoutingTransfer.exportUnlocked(latest)
+                    if (text != null && runCatching {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as? ClipboardManager ?: error("Clipboard unavailable")
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText("NoraProxy routing rules", text)
+                        )
+                    }.isSuccess) {
+                        Toast.makeText(context, "قوانین در کلیپ‌بورد کپی شدند",
+                            Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "کپی قوانین انجام نشد", Toast.LENGTH_LONG).show()
+                    }
+                    exportConfirm = false
+                }) { Text("کپی", color = colors.cyan) }
+            },
+            dismissButton = {
+                TextButton(onClick = { exportConfirm = false }) {
+                    Text("انصراف", color = colors.muted)
+                }
+            }
+        )
+    }
+
     editingIndex?.let { position ->
         val current = if (position < 0) null else rules.getOrNull(position)
         // Rules may have been removed by an external editor while this page was visible.
@@ -642,6 +772,14 @@ private fun NoraAdvancedNetwork(
         mutableStateOf(MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false))
     }
     var showDnsEditor by remember { mutableStateOf(false) }
+    var showMtuEditor by remember { mutableStateOf(false) }
+    var vpnMtu by remember {
+        mutableStateOf(
+            MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString())
+                ?: AppConfig.VPN_MTU.toString()
+        )
+    }
+    val vpnMode = SettingsManager.isVpnMode()
     var remoteDns by remember {
         mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY)
     }
@@ -661,6 +799,9 @@ private fun NoraAdvancedNetwork(
                 preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6, false)
                 sniffing = MmkvManager.decodeSettingsBool(AppConfig.PREF_SNIFFING_ENABLED, true)
                 routeOnly = MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false)
+                vpnMtu = MmkvManager.decodeSettingsString(
+                    AppConfig.PREF_VPN_MTU, AppConfig.VPN_MTU.toString()
+                ) ?: AppConfig.VPN_MTU.toString()
                 remoteDns = MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY
                 directDns = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT) ?: AppConfig.DNS_DIRECT
                 vpnDns = MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN) ?: AppConfig.DNS_VPN
@@ -723,11 +864,24 @@ private fun NoraAdvancedNetwork(
             }
         }
         item {
+            NoraAdvancedCard(
+                "اندازه بسته‌های VPN (MTU)",
+                "مقدار فعلی: ${vpnMtu.ifBlank { AppConfig.VPN_MTU.toString() }} · پیش‌فرض: ۱۵۰۰"
+            ) {
+                OutlinedButton(
+                    onClick = { showMtuEditor = true },
+                    enabled = vpnMode,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(15.dp)
+                ) { Text(if (vpnMode) "تغییر MTU" else "تنها در حالت VPN در دسترس است") }
+            }
+        }
+        item {
             OutlinedButton(
                 onClick = { onNavigate(MainDestination.Settings) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text("MTU و سایر تنظیمات تخصصی Xray") }
+            ) { Text("تنظیمات تخصصی تونل و شبکه Xray") }
         }
         item {
             Text(
@@ -736,6 +890,25 @@ private fun NoraAdvancedNetwork(
                 color = noraSecondary, fontSize = 11.sp, lineHeight = 20.sp
             )
         }
+    }
+    if (showMtuEditor) {
+        NoraVpnMtuEditor(
+            current = vpnMtu,
+            onDismiss = { showMtuEditor = false },
+            onSave = { value ->
+                if (NoraAdvancedValidation.validateVpnMtu(value) != null || !SettingsManager.isVpnMode()) {
+                    Toast.makeText(context, "مقدار MTU معتبر نیست", Toast.LENGTH_LONG).show()
+                } else if (MmkvManager.encodeSettings(AppConfig.PREF_VPN_MTU, value)) {
+                    vpnMtu = value
+                    SettingsChangeManager.makeRestartService()
+                    showMtuEditor = false
+                    Toast.makeText(context, "MTU ذخیره شد؛ برای اعمال اتصال را مجدداً برقرار کنید",
+                        Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "ذخیره MTU ناموفق بود", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
     }
     if (showDnsEditor) {
         NoraDnsServersEditor(

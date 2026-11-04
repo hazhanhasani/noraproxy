@@ -1,6 +1,6 @@
 # NoraProxy Android — Advanced UX Phase 2
 
-**Candidate:** 0.2.27  
+**Candidate:** 0.2.28  
 **Base:** PR #14 (the 0.2.24 capability-discovery layer)  
 **Source:** `native-vpn/NoraAdvancedScreen.kt`
 
@@ -90,11 +90,33 @@ screens do not start or stop a second VPN service.
 - Automated tests check palette mode selection and representative redaction
   patterns; physical-device logcat and recovery QA remain required.
 
+### Routing clipboard transfer and mobile MTU (0.2.28)
+
+- Routing rules can now be **exported to the clipboard** or **imported from
+  the clipboard with a count preview and explicit destructive confirmation**.
+- Clipboard export excludes locked rules. Incoming JSON is bounded to 256,000
+  characters and 100 editable rules; invalid, overly broad, or locked incoming
+  entries are rejected. Imported IDs are regenerated to avoid collisions.
+- Before applying an import, the app checks that existing rules have not
+  changed since the preview. All currently locked rules are preserved and only
+  unlocked rules are replaced. Write failure triggers a best-effort rollback.
+- The export dialog warns that routing rules may contain private domain/IP
+  information; no clipboard data is read automatically.
+- The Persian MTU editor uses the upstream `PREF_VPN_MTU` setting. It offers
+  the safe mobile range **1280–1500**, with **1500** as the default, disabled
+  outside VPN mode. Unusual MTU values are still available in the upstream
+  advanced settings for expert users.
+- Changing routing or MTU can require the user to disconnect and reconnect
+  the active VPN; this UI does not silently alter an active tunnel.
+- Regression coverage: `NoraRoutingTransferTest` plus the repository's UI
+  contract suite. Device clipboard, split tunneling, and MTU connectivity
+  tests remain required.
+
 ## UX and safety follow-ups
 
-- Unify the remaining upstream Import/Export routing actions, raw log
-  viewer, WebDAV configuration and MTU/advanced transport into Nora Compose
-  routes. Keep mature backup/restore operations delegated to upstream for safety.
+- Unify QR import, provider routing presets, raw log viewer, WebDAV and
+  remaining advanced transport controls into Nora Compose routes. Keep mature
+  backup/restore operations delegated to upstream for safety.
 - Validate light/system/dark screen contrast, including on Android 12+,
   and test accessibility and screenshot regressions before release.
 - Add TalkBack checks, 200% font scale, landscape, compact-screen QA, and

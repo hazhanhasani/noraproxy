@@ -56,7 +56,7 @@ For an accurate implemented-versus-planned comparison with Hiddify, see
 [Hiddify-inspired feature parity](docs/HIDDIFY_PARITY.md). Hiddify code and
 assets were not imported into this project.
 
-## NoraProxy advanced UX development candidate (v0.2.27)
+## NoraProxy advanced UX development candidate (v0.2.28)
 
 The Android client now supports **System / Light / Dark** appearance using
 the upstream `ThemeManager` preference, with NoraProxy's own blue/graphite
@@ -65,6 +65,11 @@ design tokens in the home, subscription, location and advanced Compose screens.
 Within Settings, a new diagnostic viewer can show a bounded, best-effort
 redacted logcat preview; users may refresh, search and explicitly copy the
 redacted subset. Log redaction is **not guaranteed to catch every secret**.
+Routing rules now support bounded clipboard import/export with preview,
+protected-rule preservation and confirmation. Advanced networking includes a
+validated VPN MTU editor (1280–1500), saved through the existing Xray
+preferences and not applied mid-session without reconnection.
+
 An integrated backup hub explains the risks of storing configuration archives
 and opens the original verified backup/restore activity for ZIP/WebDAV work.
 No automatic log upload or custom backup file format was added.

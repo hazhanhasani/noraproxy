@@ -97,6 +97,20 @@ internal object NoraAdvancedValidation {
         }
     }
 
+    /**
+     * IPv6 requires a path MTU of at least 1280; 1500 is the pinned
+     * upstream default and the upper bound for this safe mobile UI.
+     * Advanced values outside this interval remain editable upstream.
+     */
+    fun validateVpnMtu(value: String): String? {
+        if (value.isBlank()) return null // Reset to pinned default.
+        val parsed = value.toIntOrNull()
+        if (parsed == null || parsed !in 1280..1500 || value.length > 4) {
+            return "MTU باید عددی بین ۱۲۸۰ تا ۱۵۰۰ باشد"
+        }
+        return null
+    }
+
     /** Returns human-readable error, or null when safe to save. */
     fun validateDnsCsv(text: String, vpnOnly: Boolean): String? {
         val values = csv(text, maxItems = 8)

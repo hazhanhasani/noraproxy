@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui.main
 
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.dto.entities.RulesetItem
@@ -238,6 +240,63 @@ internal fun NoraDnsServersEditor(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("انصراف", color = themeColors.muted) }
+        }
+    )
+}
+
+
+/** Safe MTU editing: the service reads the same upstream MMKV field. */
+@Composable
+internal fun NoraVpnMtuEditor(
+    current: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val colors = LocalNoraPalette.current
+    var value by rememberSaveable(current) { mutableStateOf(current) }
+    val error = NoraAdvancedValidation.validateVpnMtu(value)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface2,
+        title = {
+            Text("اندازه بسته VPN (MTU)", color = colors.light,
+                fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "مقدار پیش‌فرض ۱۵۰۰ است. در شبکه‌هایی با مشکل قطع اتصال یا باز نشدن بعضی سایت‌ها می‌توانید مقدار ۱۲۸۰ تا ۱۵۰۰ را آزمایش کنید.",
+                    color = colors.muted
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it.take(5) },
+                    label = { Text("MTU") },
+                    singleLine = true,
+                    isError = error != null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error != null) Text(error, color = colors.error)
+                Text("اعمال مقدار جدید ممکن است به قطع و وصل مجدد VPN نیاز داشته باشد.",
+                    color = colors.muted)
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = error == null, onClick = {
+                if (error == null) onSave(value.ifBlank { AppConfig.VPN_MTU.toString() })
+            }) { Text("ذخیره", color = colors.cyan) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { value = AppConfig.VPN_MTU.toString() }) {
+                    Text("پیش‌فرض", color = colors.cyan)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("انصراف", color = colors.muted)
+                }
+            }
         }
     )
 }
