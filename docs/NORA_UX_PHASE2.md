@@ -28,9 +28,9 @@ screens do not start or stop a second VPN service.
 - Read the exact native routing ruleset and domain strategy.
 - Display current rules and allow enabling/disabling non-locked rules.
 - Preserve rule order, identifiers, and existing match conditions.
-- Open the original native advanced routing editor for new rules, complex
-  editing and manual reordering. This legacy screen is a deliberate
-  intermediate step, not branded UI completion.
+- Use the Nora-native editor for creating, editing, deleting and ordering rules.
+  Keep the upstream Import/Export presets and complex external tools accessible
+  until these are replaced with fully branded workflows.
 
 ### Native routing editor (0.2.26)
 
@@ -59,7 +59,8 @@ screens do not start or stop a second VPN service.
 - Manage local DNS, Fake DNS, IPv6, IPv6 preference, sniffing and route-only.
 - Persist changes using the original AppConfig keys and
   `SettingsChangeManager.notifySettingChanged` to preserve runtime behavior.
-- Offer the native advanced settings page for raw resolver lists and MTU.
+- Edit Remote, Direct and VPN DNS resolvers in the Nora-native dialog.
+  Preserve the upstream advanced settings page for MTU and remaining low-level options.
 - Warn that active sessions may need reconnection for changes to apply.
 
 ## UX and safety follow-ups
