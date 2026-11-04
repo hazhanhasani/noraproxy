@@ -1035,13 +1035,13 @@ fun MainScreen(
                                                 shape = RoundedCornerShape(13.dp)
                                             ) { Text("DNS و شبکه", fontSize = 12.sp) }
                                             OutlinedButton(
-                                                onClick = { onNavigate(MainDestination.Logcat) },
+                                                onClick = { advancedPage = NoraAdvancedPage.Logs },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(13.dp)
                                             ) { Text("گزارش اتصال", fontSize = 12.sp) }
                                         }
                                         OutlinedButton(
-                                            onClick = { onNavigate(MainDestination.BackupRestore) },
+                                            onClick = { advancedPage = NoraAdvancedPage.Backup },
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(13.dp)
                                         ) { Text("پشتیبان‌گیری و بازیابی تنظیمات", fontSize = 12.sp) }
