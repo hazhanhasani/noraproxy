@@ -156,6 +156,8 @@ fun MainScreen(
     var editingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var deletingGroup by remember { mutableStateOf<SubscriptionCache?>(null) }
     var groupBusy by remember { mutableStateOf(false) }
+    // Guard against overlapping group switches while route metadata loads on IO.
+    var groupSwitchBusy by remember { mutableStateOf(false) }
     val importScope = rememberCoroutineScope()
     val smartPreferences = remember(context) {
         context.getSharedPreferences("nora_smart_engine", android.content.Context.MODE_PRIVATE)
@@ -345,6 +347,15 @@ fun MainScreen(
     }
     val identity = remember(nodes) { nodes.joinToString("|") { it.guid } }
     val subscriptions = remember(appState.groups) { mainViewModel.getSubscriptions() }
+    // Scrolling subscription cards must never decode MMKV lists on the main thread.
+    var groupNodeCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    LaunchedEffect(subscriptions, refreshTick) {
+        groupNodeCounts = withContext(Dispatchers.IO) {
+            subscriptions.associate { group ->
+                group.guid to MmkvManager.decodeServerList(group.guid).size
+            }
+        }
+    }
     var usageByGroup by remember { mutableStateOf<Map<String, NoraSubscriptionUsage>>(emptyMap()) }
     var usageRefresh by remember { mutableIntStateOf(0) }
     // Load fresh quota/expiry for ALL enabled remote groups, not only the selected one.
@@ -855,7 +866,7 @@ fun MainScreen(
                                         "import sub" -> "اشتراک واردشده"
                                         else -> group.subscription.remarks.ifBlank { "اشتراک بدون نام" }
                                     },
-                                    numberOfNodes = MmkvManager.decodeServerList(group.guid).size,
+                                    numberOfNodes = groupNodeCounts[group.guid] ?: 0,
                                     active = group.guid == appState.selectedGroupId,
                                     usage = usageByGroup[group.guid],
                                     onEdit = { editingGroup = group; editorVisible = true },
@@ -865,25 +876,39 @@ fun MainScreen(
                                         } else deletingGroup = group
                                     },
                                     onSelect = {
-                                        val savedCountry = routePreferences.getString(
-                                            "preferred_country:" + group.guid, null
-                                        )
-                                        val routes = NoraRouteSelector.rank(NoraRouteSelector.load(group.guid))
-                                        if (routes.isEmpty() && appState.isRunning) {
-                                            Toast.makeText(context,
-                                                "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
-                                                Toast.LENGTH_LONG).show()
-                                        } else {
-                                            smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
-                                            selectedCountry = savedCountry
-                                            onAction(MainAction.SelectGroup(group.guid))
-                                            val selected = (if (smartMode)
-                                                smartEngine.bestRoute(routes, savedCountry)
-                                                else NoraRouteSelector.locations(routes).firstOrNull {
-                                                    it.countryCode == savedCountry
-                                                }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
-                                            if (selected != null && selected.guid != appState.selectedGuid) {
-                                                selectActualServer(selected.guid)
+                                        if (!groupSwitchBusy) {
+                                            groupSwitchBusy = true
+                                            importScope.launch {
+                                                try {
+                                                    val savedCountry = routePreferences.getString(
+                                                        "preferred_country:" + group.guid, null
+                                                    )
+                                                    val routes = withContext(Dispatchers.IO) {
+                                                        NoraRouteSelector.rank(
+                                                            NoraRouteSelector.load(group.guid)
+                                                        )
+                                                    }
+                                                    if (routes.isEmpty() && mainViewModel.uiState.value.isRunning) {
+                                                        Toast.makeText(context,
+                                                            "برای انتخاب گروه بدون سرور ابتدا اتصال را قطع کنید",
+                                                            Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        smartEngine.recordManualChoice(SystemClock.elapsedRealtime())
+                                                        selectedCountry = savedCountry
+                                                        onAction(MainAction.SelectGroup(group.guid))
+                                                        val selected = (if (smartMode)
+                                                            smartEngine.bestRoute(routes, savedCountry)
+                                                            else NoraRouteSelector.locations(routes).firstOrNull {
+                                                                it.countryCode == savedCountry
+                                                            }) ?: routes.firstOrNull { it.latencyMs > 0 } ?: routes.firstOrNull()
+                                                        if (selected != null &&
+                                                            selected.guid != mainViewModel.uiState.value.selectedGuid) {
+                                                            selectActualServer(selected.guid)
+                                                        }
+                                                    }
+                                                } finally {
+                                                    groupSwitchBusy = false
+                                                }
                                             }
                                         }
                                     }
