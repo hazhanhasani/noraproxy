@@ -1,5 +1,8 @@
 package com.v2ray.ang.ui.main
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -663,7 +666,13 @@ private fun NoraAdvancedRouting(
                 TextButton(onClick = {
                     val latest = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
                     val text = NoraRoutingTransfer.exportUnlocked(latest)
-                    if (text != null && runCatching { Utils.setClipboard(context, text) }.isSuccess) {
+                    if (text != null && runCatching {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as? ClipboardManager ?: error("Clipboard unavailable")
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText("NoraProxy routing rules", text)
+                        )
+                    }.isSuccess) {
                         Toast.makeText(context, "قوانین در کلیپ‌بورد کپی شدند",
                             Toast.LENGTH_SHORT).show()
                     } else {
