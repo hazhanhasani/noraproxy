@@ -53,4 +53,32 @@ class NoraSubscriptionUsageTest {
     @Test fun rejectsOutOfRangeNumbers() {
         assertNull(NoraSubscriptionUsageReader.parse("upload=99999999999999999999999"))
     }
+    @Test fun readsSafeProviderLinksWithoutInventingQuota() {
+        val info = NoraSubscriptionUsageReader.parseResponse(
+            null, "https://portal.example.com/account",
+            "https://support.example.com/help", "12"
+        )!!
+        assertNull(info.total)
+        assertEquals("حجم نامشخص", info.remainingTrafficLabel())
+        assertEquals("https://portal.example.com/account", info.portalUrl)
+        assertEquals("https://support.example.com/help", info.supportUrl)
+        assertEquals(12, info.updateIntervalHours)
+    }
+
+    @Test fun rejectsUntrustedProviderMetadata() {
+        assertNull(NoraSubscriptionUsageReader.parseResponse(
+            null, "http://example.com", "javascript:alert(1)", "-4"
+        ))
+        val info = NoraSubscriptionUsageReader.parseResponse(
+            "total=100", "https://127.0.0.1/admin",
+            "https://user:pass@example.com/x", "9999"
+        )!!
+        assertNull(info.portalUrl)
+        assertNull(info.supportUrl)
+        assertNull(info.updateIntervalHours)
+        assertEquals(100L, info.total)
+        assertNull(NoraSubscriptionUsageReader.safeProviderUrl("https://localhost/"))
+        assertNull(NoraSubscriptionUsageReader.safeProviderUrl("https://example.com:8080/"))
+    }
+
 }
