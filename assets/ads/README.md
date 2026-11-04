@@ -1,5 +1,22 @@
 # NoraProxy Promotional Banners
 
+## Automatic registration
+
+**You only need to upload an image to this folder.** The workflow
+[`Sync NoraProxy Promotional Banners`](../../.github/workflows/sync-nora-ads.yml)
+automatically updates `manifest.json` on the `main` branch after any
+image upload, rename or deletion. Accepted extensions: `.png`, `.jpg`,
+`.jpeg`, `.webp`; file name must use ASCII letters/digits, hyphens,
+underscores and dots, without `..`. Each file must be under **2 MiB**.
+The newest **four** valid images appear, and any custom title, enabled
+state or HTTPS destination for existing images remains intact. No APK
+rebuild is required.
+
+The Android app checks cached promotions when Home opens and refreshes
+the remote manifest after its 15-minute cache interval. Reopening the
+app after that interval is sufficient; do not clear application data.
+
+
 The Android home screen reads **this public GitHub folder**. It fetches `manifest.json` and the referenced images from the `main` branch after changes are merged.
 
 ## Upload an ad without a new APK

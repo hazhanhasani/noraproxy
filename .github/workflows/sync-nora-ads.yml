@@ -1,0 +1,53 @@
+name: Sync NoraProxy Promotional Banners
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "assets/ads/**"
+      - "scripts/sync_nora_ads.py"
+      - ".github/workflows/sync-nora-ads.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Serialize changes so simultaneous image uploads are resolved deterministically.
+concurrency:
+  group: nora-promotions-main
+  cancel-in-progress: false
+
+jobs:
+  sync-manifest:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout NoraProxy with image history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Register newly uploaded promotional images
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B main origin/main
+            python3 scripts/sync_nora_ads.py .
+            if git diff --quiet -- assets/ads/manifest.json; then
+              echo "Banner manifest matches uploaded images"
+              exit 0
+            fi
+            git add assets/ads/manifest.json
+            git commit -m "chore(ads): automatically register uploaded banners"
+            if git push origin HEAD:main; then
+              echo "Banner manifest published to main"
+              exit 0
+            fi
+            echo "Concurrent push detected; recalculating"
+          done
+          echo "::error::Failed to synchronize the promotion manifest"
+          exit 1
