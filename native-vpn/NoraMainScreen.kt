@@ -831,6 +831,21 @@ fun MainScreen(
                                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportClipboard) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("از کلیپ‌بورد", fontSize = 12.sp) }
+                                            OutlinedButton(
+                                                onClick = { onAction(MainAction.ImportConfigLocal) },
+                                                modifier = Modifier.weight(1f),
+                                                shape = RoundedCornerShape(15.dp)
+                                            ) { Text("انتخاب فایل", fontSize = 12.sp) }
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            OutlinedButton(
                                                 onClick = { onAction(MainAction.ImportQRcode) },
                                                 modifier = Modifier.weight(1f),
                                                 shape = RoundedCornerShape(15.dp)
