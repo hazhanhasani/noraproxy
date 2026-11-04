@@ -32,7 +32,8 @@ def valid_image(path: Path) -> bool:
 def git_blob_sha(path: Path) -> str:
     """Return Git-compatible content SHA-1 (NOT a signature or security hash)."""
     data = path.read_bytes()
-    return hashlib.sha1(f"blob {len(data)}\\0".encode("ascii") + data).hexdigest()
+    header = b"blob " + str(len(data)).encode("ascii") + bytes([0])
+    return hashlib.sha1(header + data).hexdigest()
 
 
 def image_timestamp(root: Path, path: Path) -> float:
