@@ -184,6 +184,14 @@ internal object NoraPromotionRepository {
         }
     }
 
+    /** Read only from IO; 3–30 seconds to avoid excessive redraws. */
+    fun rotationSeconds(context: Context): Int = runCatching {
+        val manifest = File(storage(context), "manifest.json")
+        if (!manifest.isFile) 8
+        else JSONObject(manifest.readText(Charsets.UTF_8))
+            .optInt("rotationSeconds", 8).coerceIn(3, 30)
+    }.getOrDefault(8)
+
     /** Intended to be called from Dispatchers.IO, not from a composable draw pass. */
     fun cached(context: Context): List<NoraPromotion> = runCatching {
         val manifest = File(storage(context), "manifest.json")
@@ -223,16 +231,20 @@ internal fun NoraPromotionsStrip(modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
     var banners by remember { mutableStateOf<List<NoraPromotion>>(emptyList()) }
     var page by remember { mutableIntStateOf(0) }
+    var rotationSeconds by remember { mutableIntStateOf(8) }
     LaunchedEffect(context) {
         banners = withContext(Dispatchers.IO) { NoraPromotionRepository.cached(context) }
         val refreshed = withContext(Dispatchers.IO) { NoraPromotionRepository.refresh(context) }
         // An explicitly cleared/disabled manifest must also hide cached banners.
         banners = refreshed
+        rotationSeconds = withContext(Dispatchers.IO) {
+            NoraPromotionRepository.rotationSeconds(context)
+        }
     }
-    LaunchedEffect(banners.size) {
+    LaunchedEffect(banners.size, rotationSeconds) {
         page = 0
         while (banners.size > 1) {
-            delay(8000)
+            delay(rotationSeconds * 1000L)
             page = (page + 1) % banners.size
         }
     }
