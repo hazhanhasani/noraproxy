@@ -361,6 +361,8 @@ private fun NoraAdvancedRouting(
     var rules by remember { mutableStateOf<List<RulesetItem>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showEnabledOnly by remember { mutableStateOf(false) }
+    var editingIndex by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
     val availableStrategies = stringArrayResource(R.array.routing_domain_strategy).toList()
     var strategy by remember {
         mutableStateOf(MmkvManager.decodeSettingsString(
@@ -438,7 +440,14 @@ private fun NoraAdvancedRouting(
         }
         if (loaded && displayed.isEmpty()) item {
             NoraAdvancedCard("قانونی برای نمایش وجود ندارد",
-                "برای افزودن یا واردکردن قانون جدید، ویرایشگر کامل را باز کنید.") {}
+                "برای ساخت قانون جدید، گزینه افزودن را انتخاب کنید.") {}
+        }
+        item {
+            OutlinedButton(
+                onClick = { editingIndex = -1 },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(15.dp)
+            ) { Text("＋ افزودن قانون جدید") }
         }
         items(displayed.size, key = { index ->
             val (position, rule) = displayed[index]
@@ -470,6 +479,39 @@ private fun NoraAdvancedRouting(
                         SettingsChangeManager.makeRestartService()
                     }
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        enabled = rule.locked != true,
+                        onClick = { editingIndex = position }
+                    ) { Text("ویرایش", fontSize = 11.sp) }
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        enabled = !showEnabledOnly && position > 0 &&
+                            rule.locked != true && rules[position - 1].locked != true,
+                        onClick = {
+                            val updated = rules.toMutableList()
+                            val entry = updated.removeAt(position)
+                            updated.add(position - 1, entry)
+                            MmkvManager.encodeRoutingRulesets(updated)
+                            rules = updated.toList()
+                            SettingsChangeManager.makeRestartService()
+                        }
+                    ) { Text("بالاتر", fontSize = 11.sp) }
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        enabled = !showEnabledOnly && position < rules.lastIndex &&
+                            rule.locked != true && rules[position + 1].locked != true,
+                        onClick = {
+                            val updated = rules.toMutableList()
+                            val entry = updated.removeAt(position)
+                            updated.add(position + 1, entry)
+                            MmkvManager.encodeRoutingRulesets(updated)
+                            rules = updated.toList()
+                            SettingsChangeManager.makeRestartService()
+                        }
+                    ) { Text("پایین‌تر", fontSize = 11.sp) }
+                }
             }
         }
         item {
@@ -477,7 +519,50 @@ private fun NoraAdvancedRouting(
                 onClick = { onNavigate(MainDestination.Routing) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text("افزودن، ویرایش و جابه‌جایی کامل قوانین") }
+            ) { Text("ابزارهای پیشرفته و Import/Export قوانین") }
+        }
+    }
+    editingIndex?.let { position ->
+        val current = if (position < 0) null else rules.getOrNull(position)
+        // Rules may have been removed by an external editor while this page was visible.
+        if (position >= 0 && current == null) {
+            editingIndex = null
+        } else if (current?.locked != true) {
+            NoraRoutingRuleEditor(
+                current = current,
+                onDismiss = { editingIndex = null },
+                onSave = { rule ->
+                    try {
+                        SettingsManager.saveRoutingRuleset(position, rule)
+                        rules = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                        SettingsChangeManager.makeRestartService()
+                        editingIndex = null
+                        Toast.makeText(context, "قانون ذخیره شد", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "ذخیره قانون انجام نشد", Toast.LENGTH_LONG).show()
+                    }
+                },
+                onDelete = if (position < 0) null else ({
+                    try {
+                        val saved = MmkvManager.decodeRoutingRulesets()
+                        if (saved != null && position in saved.indices &&
+                            saved[position].locked != true && saved[position].id == current.id) {
+                            SettingsManager.removeRoutingRuleset(position)
+                            rules = MmkvManager.decodeRoutingRulesets()?.toList() ?: emptyList()
+                            SettingsChangeManager.makeRestartService()
+                            Toast.makeText(context, "قانون حذف شد", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "قانون تغییر کرده؛ فهرست را بررسی کنید",
+                                Toast.LENGTH_LONG).show()
+                            rules = saved?.toList() ?: emptyList()
+                        }
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "حذف قانون انجام نشد", Toast.LENGTH_LONG).show()
+                    } finally {
+                        editingIndex = null
+                    }
+                })
+            )
         }
     }
 }
@@ -505,6 +590,16 @@ private fun NoraAdvancedNetwork(
     var routeOnly by remember {
         mutableStateOf(MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false))
     }
+    var showDnsEditor by remember { mutableStateOf(false) }
+    var remoteDns by remember {
+        mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY)
+    }
+    var directDns by remember {
+        mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT) ?: AppConfig.DNS_DIRECT)
+    }
+    var vpnDns by remember {
+        mutableStateOf(MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN) ?: AppConfig.DNS_VPN)
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -515,6 +610,9 @@ private fun NoraAdvancedNetwork(
                 preferIpv6 = MmkvManager.decodeSettingsBool(AppConfig.PREF_PREFER_IPV6, false)
                 sniffing = MmkvManager.decodeSettingsBool(AppConfig.PREF_SNIFFING_ENABLED, true)
                 routeOnly = MmkvManager.decodeSettingsBool(AppConfig.PREF_ROUTE_ONLY_ENABLED, false)
+                remoteDns = MmkvManager.decodeSettingsString(AppConfig.PREF_REMOTE_DNS, AppConfig.DNS_PROXY) ?: AppConfig.DNS_PROXY
+                directDns = MmkvManager.decodeSettingsString(AppConfig.PREF_DOMESTIC_DNS, AppConfig.DNS_DIRECT) ?: AppConfig.DNS_DIRECT
+                vpnDns = MmkvManager.decodeSettingsString(AppConfig.PREF_VPN_DNS, AppConfig.DNS_VPN) ?: AppConfig.DNS_VPN
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -565,11 +663,20 @@ private fun NoraAdvancedNetwork(
             }
         }
         item {
+            NoraAdvancedCard("سرورهای DNS", "برای هر مسیر می‌توانید DNS اختصاصی تعیین کنید.") {
+                OutlinedButton(
+                    onClick = { showDnsEditor = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(15.dp)
+                ) { Text("ویرایش DNS پروکسی، مستقیم و تونل") }
+            }
+        }
+        item {
             OutlinedButton(
                 onClick = { onNavigate(MainDestination.Settings) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text("DNS سفارشی، MTU و تنظیمات تخصصی Xray") }
+            ) { Text("MTU و سایر تنظیمات تخصصی Xray") }
         }
         item {
             Text(
@@ -578,5 +685,44 @@ private fun NoraAdvancedNetwork(
                 color = noraSecondary, fontSize = 11.sp, lineHeight = 20.sp
             )
         }
+    }
+    if (showDnsEditor) {
+        NoraDnsServersEditor(
+            currentRemote = remoteDns,
+            currentDirect = directDns,
+            currentVpn = vpnDns,
+            onDismiss = { showDnsEditor = false },
+            onSave = { remote, direct, vpn ->
+                if (listOf(
+                        NoraAdvancedValidation.validateDnsCsv(remote, false),
+                        NoraAdvancedValidation.validateDnsCsv(direct, false),
+                        NoraAdvancedValidation.validateDnsCsv(vpn, true)
+                    ).any { it != null }) {
+                    Toast.makeText(context, "آدرس DNS نامعتبر است", Toast.LENGTH_LONG).show()
+                } else {
+                    val resolvedRemote = remote.ifBlank { AppConfig.DNS_PROXY }
+                    val resolvedDirect = direct.ifBlank { AppConfig.DNS_DIRECT }
+                    val resolvedVpn = vpn.ifBlank { AppConfig.DNS_VPN }
+                    val changes = listOf(
+                        AppConfig.PREF_REMOTE_DNS to resolvedRemote,
+                        AppConfig.PREF_DOMESTIC_DNS to resolvedDirect,
+                        AppConfig.PREF_VPN_DNS to resolvedVpn
+                    )
+                    var updated = false
+                    changes.forEach { (key, value) ->
+                        if (MmkvManager.decodeSettingsString(key) != value) {
+                            MmkvManager.encodeSettings(key, value)
+                            updated = true
+                        }
+                    }
+                    if (updated) SettingsChangeManager.makeRestartService()
+                    remoteDns = resolvedRemote
+                    directDns = resolvedDirect
+                    vpnDns = resolvedVpn
+                    showDnsEditor = false
+                    Toast.makeText(context, "DNS ذخیره شد", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
     }
 }
