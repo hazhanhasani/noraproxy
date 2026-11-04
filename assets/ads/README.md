@@ -3,10 +3,10 @@
 The Android home screen reads **this public GitHub folder**. It fetches `manifest.json` and the referenced images from the `main` branch after changes are merged.
 
 ## Upload an ad without a new APK
-1. Open `assets/ads/` in GitHub, choose **Add file → Upload files**, and upload a `.webp`, `.png` or `.jpg` image.
+1. Open `assets/ads/` in GitHub, choose **Add file → Upload files**, and upload an image named **`banner-1.webp`**, **`banner-2.webp`**, or **`banner-3.webp`**. These three slots are already enabled in `manifest.json` — no JSON editing is needed for a simple banner upload or replacement.
 2. Recommended size: **1200 × 320 px** (wide 3.75:1). Target **under 200 KB**, maximum download size **2 MiB** per image.
-3. Edit `manifest.json`, enable a banner, and commit. The app updates on the next refresh (normally within 15 minutes) and caches images for offline launches.
-4. When no banners are active, the app shows a compact non-clickable placeholder.
+3. Commit the uploaded file. The app updates on its next manifest/image refresh (normally within 15 minutes after reopening Home) and caches banners for offline launches. Edit `manifest.json` only for custom filenames, titles, destinations, rotation intervals, or disabling a slot.
+4. When none of the configured images exist, or all slots are disabled, the app shows a compact non-clickable placeholder.
 
 Example:
 
