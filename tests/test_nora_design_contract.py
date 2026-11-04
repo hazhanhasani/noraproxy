@@ -187,8 +187,8 @@ class NoraDesignContractTest(unittest.TestCase):
             self.assertIn(expected, advanced)
         self.assertNotIn("https://github.com/hiddify/", advanced)
         self.assertNotIn("CoreVpnService", advanced)
-        self.assertIn("'versionCode = 227'", prepare)
-        self.assertIn('"0.2.27"', prepare)
+        self.assertIn("'versionCode = 228'", prepare)
+        self.assertIn('"0.2.28"', prepare)
 
     def test_phase_two_rule_and_dns_editors_are_packaged(self):
         prepare = PREPARE.read_text(encoding="utf-8")
@@ -231,6 +231,26 @@ class NoraDesignContractTest(unittest.TestCase):
         self.assertIn("onNavigate(MainDestination.BackupRestore)", advanced)
         self.assertIn("onNavigate(MainDestination.Logcat)", advanced)
         self.assertNotIn("Intent.ACTION_SEND", diagnostics)
+
+    def test_phase_three_import_export_and_mtu_safety(self):
+        prepare = PREPARE.read_text(encoding="utf-8")
+        advanced = ADVANCED.read_text(encoding="utf-8")
+        transfer = (ROOT / "native-vpn" / "NoraRoutingTransfer.kt").read_text(encoding="utf-8")
+        editor = (ROOT / "native-vpn" / "NoraAdvancedEditors.kt").read_text(encoding="utf-8")
+        validation = (ROOT / "native-vpn" / "NoraAdvancedValidation.kt").read_text(encoding="utf-8")
+
+        for expected in ("NoraRoutingTransfer.kt", "NoraRoutingTransferTest.kt"):
+            self.assertIn(expected, prepare)
+        for expected in ("NoraRoutingTransfer.preview(", "NoraRoutingTransfer.exportUnlocked(",
+                         "NoraRoutingTransfer.replaceUnlocked(", "importBaseline",
+                         "MmkvManager.encodeSettings(AppConfig.PREF_ROUTING_RULESET",
+                         "NoraVpnMtuEditor(", "AppConfig.PREF_VPN_MTU"):
+            self.assertIn(expected, advanced)
+        for expected in ("MAX_CLIPBOARD_CHARS", "locked == true",
+                         "UUID.randomUUID()", "fun exportUnlocked("):
+            self.assertIn(expected, transfer)
+        self.assertIn("fun validateVpnMtu(", validation)
+        self.assertIn("NoraAdvancedValidation.validateVpnMtu(value)", editor)
 
     def test_accessibility_and_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
