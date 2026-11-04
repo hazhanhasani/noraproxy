@@ -170,7 +170,7 @@ internal object NoraPromotionRepository {
             if (allowNetwork && (bitmap == null || refreshImages)) {
                 val bytes = readNetwork(ROOT + item.file, MAX_IMAGE_BYTES)
                 val replacement = bytes?.let(::decodeScaled)
-                if (replacement != null) {
+                if (replacement != null && bytes != null) {
                     bitmap = replacement
                     runCatching { local.writeBytes(bytes) }
                 }
