@@ -1,6 +1,6 @@
 # NoraProxy Android — Advanced UX Phase 2
 
-**Candidate:** 0.2.25  
+**Candidate:** 0.2.26  
 **Base:** PR #14 (the 0.2.24 capability-discovery layer)  
 **Source:** `native-vpn/NoraAdvancedScreen.kt`
 
@@ -32,6 +32,28 @@ screens do not start or stop a second VPN service.
   editing and manual reordering. This legacy screen is a deliberate
   intermediate step, not branded UI completion.
 
+### Native routing editor (0.2.26)
+
+- Create a rule with a stable generated ID and an explicit match condition.
+- Edit domain/geosite, IP/CIDR/geoip, process, protocol, ports, network and
+  outbound tag, while preserving enabled/locked flags and existing IDs.
+- Delete only unlocked rules after confirmation; guarded against stale indices.
+- Reorder adjacent unlocked rules, preserving MMKV order and preventing movement
+  through protected rules. Reordering is disabled while the filtered list is shown.
+- Validate names, scoped conditions, CSV limits, port ranges and outbound tags
+  before any write. Do not create an accidental catch-all block rule.
+- Keep upstream native Import/Export as a fallback pending full branding.
+
+### DNS servers editor (0.2.26)
+
+- Edit Remote/Direct DNS using literal IP, HTTPS DoH, TCP or QUIC endpoints.
+- Edit VPN DNS using IP literals only, matching the upstream native resolver.
+- Reject malformed URLs, credentials, invalid ports and oversized lists.
+- Blank fields reset to upstream defaults instead of leaving an invalid resolver.
+- Save through the existing MMKV settings and request an Xray restart, without
+  constructing a second tunnel or changing active server credentials.
+- Preserve unsaved edits until explicit confirmation; Cancel is non-destructive.
+
 ### Network and DNS
 
 - Manage local DNS, Fake DNS, IPv6, IPv6 preference, sniffing and route-only.
@@ -42,12 +64,14 @@ screens do not start or stop a second VPN service.
 
 ## UX and safety follow-ups
 
-- Migrate the remaining upstream complex routing editor, custom DNS form,
-  logs and backup flows to dedicated Nora Compose routes.
+- Unify the remaining upstream Import/Export routing actions, log viewer,
+  MTU/advanced transport and backup flows into Nora Compose routes.
 - Add optional light/system themes; keep current dark design stable until
   screenshot and accessibility tests pass.
 - Add TalkBack checks, 200% font scale, landscape, compact-screen QA, and
   bidirectional text tests for package names and raw addresses.
+- Run unit tests in `NoraAdvancedValidationTest` for ID preservation, scoped
+  rules, port ranges and DNS endpoint validation.
 - Run device tests with Wi-Fi/cellular handovers, two or more different
   subscription formats and all supported Android target versions.
 - Do not copy Hiddify source, trademark, or visual assets.
