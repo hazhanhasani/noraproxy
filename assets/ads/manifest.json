@@ -4,17 +4,10 @@
   "rotationSeconds": 8,
   "banners": [
     {
-      "id": "github-file_000000008a0882438a125380e945cf68",
-      "file": "file_000000008a0882438a125380e945cf68.png",
-      "sha": "f9051d2a13581bef5896ea8af5a7cbf58ba7bfcb",
-      "title": "تبلیغات NoraProxy",
-      "enabled": true
-    },
-    {
-      "id": "github-upload-1",
-      "file": "file_00000000d3dc81f5a6fb1b19714b873d.png",
-      "sha": "58ab97daf1eae531fa217b931abc0943f16a8a37",
-      "title": "تبلیغات NoraProxy",
+      "id": "noraproxy-universal-v2ray",
+      "file": "noraproxy-universal-v2ray.webp",
+      "sha": "171a6842328b85c9bc1b9f4feaec8cc8c6152685",
+      "title": "اتصال به انواع کانفیگ و اشتراک V2Ray با NoraProxy",
       "enabled": true
     }
   ]
