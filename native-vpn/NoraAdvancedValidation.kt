@@ -83,6 +83,20 @@ internal object NoraAdvancedValidation {
         }
     }
 
+    /**
+     * Upstream Xray SettingsManager splits resolver values on commas without
+     * trimming. Store a normalized value to avoid silently dropping a server.
+     */
+    fun normalizedDnsCsv(text: String): String {
+        val entries = requireNotNull(csv(text, maxItems = 8)) { "Invalid DNS list" }
+        return entries.joinToString(",") { item ->
+            val separator = item.indexOf("://")
+            if (separator > 0) {
+                item.substring(0, separator).lowercase(Locale.ROOT) + item.substring(separator)
+            } else item
+        }
+    }
+
     /** Returns human-readable error, or null when safe to save. */
     fun validateDnsCsv(text: String, vpnOnly: Boolean): String? {
         val values = csv(text, maxItems = 8)
