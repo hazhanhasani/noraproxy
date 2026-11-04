@@ -115,6 +115,27 @@ class NoraDesignContractTest(unittest.TestCase):
         self.assertEqual(manifest["version"], 1)
         self.assertIsInstance(manifest["banners"], list)
 
+    def test_subscription_rows_do_not_decode_profiles_during_draw(self):
+        self.assertIn("var groupNodeCounts by remember", self.ui)
+        self.assertIn("group.guid to MmkvManager.decodeServerList(group.guid).size", self.ui)
+        self.assertIn("numberOfNodes = groupNodeCounts[group.guid] ?: 0", self.ui)
+        self.assertNotIn(
+            "numberOfNodes = MmkvManager.decodeServerList(group.guid).size",
+            self.ui
+        )
+        self.assertIn("var groupSwitchBusy by remember", self.ui)
+        self.assertIn("withContext(Dispatchers.IO) {\n                                                        NoraRouteSelector.rank(", self.ui)
+
+    def test_banner_network_failures_are_guarded_and_images_refresh(self):
+        self.assertIn("val connection = try {", self.ads)
+        self.assertIn("} catch (_: Exception) {\n            return null", self.ads)
+        self.assertIn("refreshImages = true", self.ads)
+        self.assertIn("rotationSeconds(context: Context): Int", self.ads)
+        self.assertIn('optInt("rotationSeconds", 8).coerceIn(3, 30)', self.ads)
+        self.assertIn("delay(rotationSeconds * 1000L)", self.ads)
+        self.assertIn("instanceFollowRedirects = false", self.ads)
+        self.assertIn("local.length() in 1L..MAX_IMAGE_BYTES.toLong()", self.ads)
+
     def test_accessibility_and_navigation(self):
         power = self.ui.split("private fun NoraPowerButton(", 1)[1].split(
             "@Composable\nprivate fun NoraSubscriptionGroupCard", 1
