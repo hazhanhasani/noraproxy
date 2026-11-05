@@ -52,9 +52,8 @@ class NoraDesignContractTest(unittest.TestCase):
             "BoxWithConstraints(",
             "val compact = maxHeight < 650.dp",
             "val tiny = maxHeight < 535.dp",
-            "RoundedCornerShape(52.dp)",
-            "NoraPowerButton(",
-            "onClick = onToggle",
+            "NoraSwipeConnect(",
+            "onToggle = onToggle",
             "NoraPromotionsStrip()",
             '.verticalScroll(rememberScrollState())',
             'Text("NoraProxy", color = light,',
@@ -71,6 +70,14 @@ class NoraDesignContractTest(unittest.TestCase):
             "modifier = Modifier.fillMaxWidth().weight(1f)"
         ):
             self.assertNotIn(forbidden, self.home)
+
+    def test_swipe_is_directional_and_accessible(self):
+        self.assertIn("detectHorizontalDragGestures(", self.ui)
+        self.assertIn("dragPx - amount", self.ui)
+        self.assertIn("dragPx >= travelPx * .70f", self.ui)
+        self.assertIn('onClick(label = if (connected)', self.ui)
+        self.assertIn("NoraFlagBadge(", self.ui)
+        self.assertIn("nora_tab_subscription", self.ui)
 
     def test_ad_banner_fills_available_card_width(self):
         self.assertIn("Modifier.fillMaxWidth().aspectRatio(3.75f)", self.ads)
