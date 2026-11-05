@@ -791,16 +791,33 @@ fun MainScreen(
                             item {
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(RoundedCornerShape(21.dp))
+                                        .background(Brush.horizontalGradient(
+                                            listOf(Color(0xFF1A2B4B), surface)))
+                                        .border(1.dp, cyan.copy(alpha = .30f),
+                                            RoundedCornerShape(21.dp))
                                         .clickable { importExpanded = !importExpanded }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(13.dp)
                                 ) {
-                                    Text("افزودن کانفیگ یا اشتراک", color = light,
-                                        modifier = Modifier.weight(1f),
-                                        fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                                    Text(if (importExpanded) "−" else "＋",
-                                        color = cyan, fontSize = 22.sp)
+                                    Box(Modifier.size(45.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(cyan.copy(alpha = .18f)),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(painter = painterResource(R.drawable.nora_tab_subscription),
+                                            contentDescription = null,
+                                            tint = cyan, modifier = Modifier.size(25.dp))
+                                    }
+                                    Column(Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("افزودن کانفیگ یا اشتراک", color = light,
+                                            fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text("لینک اشتراک · کانفیگ خام · اسکن QR",
+                                            color = muted, fontSize = 11.sp)
+                                    }
+                                    Text(if (importExpanded) "−" else "+",
+                                        color = cyan, fontSize = 27.sp)
                                 }
                             }
                             if (importExpanded) {
@@ -856,7 +873,14 @@ fun MainScreen(
                                 }
                             }
                             item {
-                                NoraSection("گروه‌های من", "")
+                                Row(modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text("گروه‌های من", color = light,
+                                        fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.weight(1f))
+                                    Text(persianNumber(subscriptions.size.toString()) + " گروه",
+                                        color = cyan, fontSize = 12.sp)
+                                }
                                 if (syncingGroups) {
                                     Text("در حال به‌روزرسانی خودکار گروه‌های فعال…",
                                         color = cyan, fontSize = 12.sp)
@@ -1274,11 +1298,7 @@ private fun NoraHomeContent(
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(if (tiny) 39.dp else 46.dp)
-                    .clip(CircleShape).background(surface2),
-                    contentAlignment = Alignment.Center) {
-                    Text(locationFlag, fontSize = 25.sp)
-                }
+                NoraFlagBadge(locationFlag, if (tiny) 39.dp else 46.dp)
                 Column(Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("مکان انتخاب‌شده", color = muted, fontSize = 10.sp)
@@ -1399,7 +1419,7 @@ private fun NoraQuickCountryCard(
         verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(flag, fontSize = if (compact) 21.sp else 25.sp, maxLines = 1)
+        NoraFlagBadge(flag, if (compact) 34.dp else 40.dp)
         Text(label, color = if (selected) cyan else light,
             fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1606,12 +1626,25 @@ private fun NoraSubscriptionGroupCard(
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(painter = painterResource(R.drawable.nora_tab_subscription),
+                contentDescription = null, tint = if (active) cyan else muted,
+                modifier = Modifier.size(21.dp))
+            Spacer(Modifier.width(8.dp))
             Text(name, color = light, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (active) "● فعال" else "انتخاب  ←", color = if (active) cyan else muted,
-                fontSize = 12.sp)
+            Box(Modifier.clip(RoundedCornerShape(10.dp))
+                .background(if (active) cyan.copy(alpha = .17f) else surface2)
+                .padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text(if (active) "● فعال" else "انتخاب",
+                    color = if (active) cyan else muted, fontSize = 11.sp)
+            }
         }
-        Text(persianNumber(numberOfNodes.toString()) + " سرور", color = muted, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("سرورهای این گروه", color = muted, fontSize = 11.sp)
+            Text(persianNumber(numberOfNodes.toString()) + " سرور",
+                color = light, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(usage?.remainingTrafficLabel() ?: "حجم نامشخص",
                 modifier = Modifier.weight(1f), color = light, fontSize = 12.sp)
@@ -1688,6 +1721,22 @@ private fun NoraMetric(label: String, number: String, modifier: Modifier) {
 }
 
 @Composable
+private fun NoraFlagBadge(flag: String, diameter: Dp) {
+    Box(
+        modifier = Modifier.size(diameter)
+            .clip(RoundedCornerShape(diameter * .34f))
+            .background(Brush.linearGradient(listOf(
+                Color(0xFF23365A), Color(0xFF151E33)
+            )))
+            .border(1.dp, cyan.copy(alpha = .3f),
+                RoundedCornerShape(diameter * .34f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(flag, fontSize = (diameter.value * .53f).sp, maxLines = 1)
+    }
+}
+
+@Composable
 private fun NoraLocationCard(
     emoji: String, title: String, subtitle: String,
     delay: Long?, selected: Boolean, compact: Boolean = false,
@@ -1707,15 +1756,7 @@ private fun NoraLocationCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier.size(if (compact) 42.dp else 50.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF202A49))
-                .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(emoji, fontSize = if (compact) 25.sp else 28.sp)
-        }
+        NoraFlagBadge(emoji, if (compact) 42.dp else 50.dp)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(title, fontSize = 15.sp, color = light, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
