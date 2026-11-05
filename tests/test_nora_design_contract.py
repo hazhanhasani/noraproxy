@@ -74,6 +74,7 @@ class NoraDesignContractTest(unittest.TestCase):
     def test_swipe_is_directional_and_accessible(self):
         self.assertIn("detectHorizontalDragGestures(", self.ui)
         self.assertIn("dragPx - amount", self.ui)
+        self.assertIn(".absoluteOffset { IntOffset(-dragPx.roundToInt(), 0) }", self.ui)
         self.assertIn("dragPx >= travelPx * .70f", self.ui)
         self.assertIn('onClick(label = if (connected)', self.ui)
         self.assertIn("NoraFlagBadge(", self.ui)
