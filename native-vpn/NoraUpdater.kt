@@ -230,7 +230,7 @@ class NoraUpdater(private val context: Context) {
             .getPackageInfo(context.packageName, 0).versionName.orEmpty()
             .removePrefix("v")
         fun numeric(version: String): List<Int>? {
-            val match = Regex("""^(\\d+)\\.(\\d+)\\.(\\d+)(?:-dev)?$""")
+            val match = Regex("""^(\d+)\.(\d+)\.(\d+)(?:-dev)?$""")
                 .matchEntire(version) ?: return null
             return (1..3).map { match.groupValues[it].toInt() }
         }
