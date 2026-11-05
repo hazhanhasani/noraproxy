@@ -125,8 +125,6 @@ dependencies {
     implementation("ir.tapsell.mediation.adapter:legacy:1.4.0-alpha04")
     // Restore Guava actual API: the mediation SDK brings an empty ListenableFuture stub.
     implementation("com.google.guava:guava:33.4.8-android")
-    // Official 2.3.15 does not expose JUnit4 to NoraProxy overlay tests.
-    testImplementation("junit:junit:4.13.2")
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))

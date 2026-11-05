@@ -1,7 +1,7 @@
 package com.v2ray.ang.ui.main
 
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class NoraImportRouterTest {
     @Test fun oneSubscriptionCreatesOneAutomaticGroupInput() {
@@ -46,7 +46,7 @@ class NoraImportRouterTest {
             "https://localhost/sub", "https://user:pass@example.com/sub",
             "https://example.local/sub"
         )) {
-            assertTrue("Should reject $url", NoraImportRouter.classify(url) is NoraImportPayload.Invalid)
+            assertTrue(NoraImportRouter.classify(url) is NoraImportPayload.Invalid, "Should reject $url")
         }
     }
 
