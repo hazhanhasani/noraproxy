@@ -11,6 +11,7 @@ on:
       - "scripts/post_telegram_release.sh"
       - "release-notes/**"
       - "tests/test_telegram_release.py"
+      - "tests/test_signing_overlay.py"
       - ".github/workflows/native-vpn.yml"
       - "app/src/main/res/drawable/ic_launcher.xml"
   pull_request:
@@ -47,7 +48,8 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s tests -p 'test_telegram_release.py' -v
           python3 -m unittest discover -s tests -p 'test_nora_design_contract.py' -v
-          python3 -m py_compile scripts/telegram_release.py
+          python3 -m py_compile scripts/telegram_release.py scripts/enable_release_signing.py
+          python3 -m unittest discover -s tests -p 'test_signing_overlay.py' -v
           bash -n scripts/post_telegram_release.sh
 
       - name: Checkout pinned official v2rayNG runtime and native submodules

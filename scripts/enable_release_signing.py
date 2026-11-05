@@ -37,7 +37,7 @@ with credentials.open("x", encoding="ascii") as stream:
         stream.write(name + "=" + encoded + "\n")
 credentials.chmod(0o600)
 
-source = ("import java.io.File\nimport java.util.Base64\nimport java.util.Properties\n"\n          + gradle.read_text(encoding="utf-8"))
+source = ("import java.io.File\n"\n          "import java.util.Base64\n"\n          "import java.util.Properties\n"\n          + gradle.read_text(encoding="utf-8"))
 marker = "    buildTypes {\n        debug {"
 if source.count(marker) != 1:
     raise SystemExit("Expected one upstream buildTypes.debug anchor.")
