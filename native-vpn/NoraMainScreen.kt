@@ -9,7 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
@@ -1521,7 +1521,7 @@ private fun NoraSwipeConnect(
         }
         Box(
             modifier = Modifier.align(Alignment.CenterStart)
-                .offset { IntOffset(-dragPx.roundToInt(), 0) }
+                .absoluteOffset { IntOffset(-dragPx.roundToInt(), 0) }
                 .size(knobSize)
                 .clip(CircleShape)
                 .background(Brush.radialGradient(listOf(
