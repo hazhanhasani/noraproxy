@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = ROOT / "upstream"
 APP = UPSTREAM / "V2rayNG" / "app"
 SRC = APP / "src/main"
-PIN = "9fcb1a30f81345920f9609029ae923b4ea0a866c"
+PIN = "57907cf354d9769200ed4717b4430d605abe0952"
 PROTECTED = (
     "java/com/v2ray/ang/core/CoreServiceManager.kt",
     "java/com/v2ray/ang/core/CoreConfigManager.kt",
@@ -68,6 +68,7 @@ def prepare():
         ("native-vpn/res/nora_tab_locations.xml", "res/drawable/nora_tab_locations.xml"),
         ("native-vpn/res/nora_tab_subscription.xml", "res/drawable/nora_tab_subscription.xml"),
         ("native-vpn/res/nora_tab_settings.xml", "res/drawable/nora_tab_settings.xml"),
+        ("native-vpn/res/nora_status.xml", "res/drawable/nora_status.xml"),
         ("app/src/main/res/drawable/ic_launcher.xml",
          "res/drawable/nora_launcher.xml"),
     )
@@ -127,8 +128,17 @@ dependencies {
 }
 """)
     print("Tapsell integration: " + ("enabled" if enabled else "disabled (no real IDs)"))
-    replace(gradle, 'versionCode = 745', 'versionCode = 223')
-    replace(gradle, 'versionName = "2.3.5"', 'versionName = "0.2.23"')
+    replace(gradle, 'versionCode = 755', 'versionCode = 224')
+    replace(gradle, 'versionName = "2.3.15"', 'versionName = "0.2.24"')
+    # A test-debug install has lower versionCode than the stable APK.
+    replace(gradle,
+            '(1000000 * versionCodes[abi]!!).plus(variant.versionCode)',
+            '(1000000 * versionCodes[abi]!!).plus(variant.versionCode)' +
+            '.plus(if (variant.buildType.name == "release") 1 else 0)')
+    replace(gradle, '    buildTypes {\n        release {',
+            '    buildTypes {\n        debug {\n'
+            '            versionNameSuffix = "-dev"\n'
+            '        }\n        release {')
     # Both F-Droid and Play Store output names must use NoraProxy.
     output_names = gradle.read_text(encoding="utf-8")
     if "v2rayNG_" not in output_names:
@@ -150,6 +160,27 @@ dependencies {
         raise SystemExit("Unable to find localized upstream app labels.")
 
     manifest = SRC / "AndroidManifest.xml"
+    # Customize only notification UI, without modifying VpnService/Xray.
+    notification = SRC / "java/com/v2ray/ang/handler/NotificationManager.kt"
+    helper = SRC / "java/com/v2ray/ang/helper/NotificationHelper.kt"
+    for source in (notification, helper):
+        current = source.read_text(encoding="utf-8")
+        if "R.drawable.ic_stat_name" not in current:
+            raise SystemExit("Upstream notification icon anchor changed: " + str(source))
+        for original in ("ic_stat_name", "ic_stat_proxy", "ic_stat_direct"):
+            current = current.replace("R.drawable." + original,
+                                      "R.drawable.nora_status")
+        if source == notification:
+            old_title = "currentConfig?.remarks ?: service.getString(R.string.app_name)"
+            if old_title not in current:
+                raise SystemExit("Upstream notification title anchor changed")
+            current = current.replace(old_title, '"NoraProxy"')
+            current = current.replace(
+                '.setContentTitle("NoraProxy")',
+                '.setContentTitle("NoraProxy")\n'
+                '            .setContentText("اتصال امن فعال است")', 1)
+        source.write_text(current, encoding="utf-8")
+
     replace(manifest, 'android:allowBackup="true"', 'android:allowBackup="false"')
     replace(manifest,
             'android:icon="@mipmap/ic_launcher"',
@@ -246,7 +277,7 @@ dependencies {
             '                        }\n'
             '                        "install-config" -> {')
 
-    print("Prepared NoraProxy v0.2.19, embedded Xray/VpnService, package app.noraproxy")
+    print("Prepared NoraProxy v0.2.24 over v2rayNG 2.3.15, package app.noraproxy")
 
 if __name__ == "__main__":
     prepare()
