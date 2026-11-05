@@ -37,19 +37,19 @@ with credentials.open("x", encoding="ascii") as stream:
         stream.write(name + "=" + encoded + "\n")
 credentials.chmod(0o600)
 
-source = gradle.read_text(encoding="utf-8")
+source = ("import java.io.File\nimport java.util.Base64\nimport java.util.Properties\n"\n          + gradle.read_text(encoding="utf-8"))
 marker = "    buildTypes {\n        debug {"
 if source.count(marker) != 1:
     raise SystemExit("Expected one upstream buildTypes.debug anchor.")
 
 # No secret value is embedded into the Gradle source or logged. Debug and
 # release use separate signing configurations and the same production key.
-inject = """    val noraSigningProperties = java.util.Properties().apply {
-        java.io.File(NORA_SIGNING_PROPERTIES_PATH).inputStream().use { load(it) }
+inject = """    val noraSigningProperties = Properties().apply {
+        File(NORA_SIGNING_PROPERTIES_PATH).inputStream().use { load(it) }
     }
     val noraSigningValue: (String) -> String = { name ->
         String(
-            java.util.Base64.getDecoder().decode(
+            Base64.getDecoder().decode(
                 requireNotNull(noraSigningProperties.getProperty(name))
             ), Charsets.UTF_8
         )
@@ -57,7 +57,7 @@ inject = """    val noraSigningProperties = java.util.Properties().apply {
 
     signingConfigs {
         getByName("debug") {
-            storeFile = java.io.File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
+            storeFile = File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
             storePassword = noraSigningValue("NORA_SIGNING_STORE_PASSWORD")
             keyAlias = noraSigningValue("NORA_SIGNING_KEY_ALIAS")
             keyPassword = noraSigningValue("NORA_SIGNING_KEY_PASSWORD")
@@ -65,7 +65,7 @@ inject = """    val noraSigningProperties = java.util.Properties().apply {
             enableV2Signing = true
         }
         create("noraRelease") {
-            storeFile = java.io.File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
+            storeFile = File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
             storePassword = noraSigningValue("NORA_SIGNING_STORE_PASSWORD")
             keyAlias = noraSigningValue("NORA_SIGNING_KEY_ALIAS")
             keyPassword = noraSigningValue("NORA_SIGNING_KEY_PASSWORD")
