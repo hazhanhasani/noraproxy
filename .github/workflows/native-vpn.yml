@@ -437,4 +437,4 @@ jobs:
       - name: Delete signing keystore from runner
         if: always()
         shell: bash
-        run: rm -f "$RUNNER_TEMP/nora-release.jks"
+        run: rm -f "$RUNNER_TEMP/nora-release.jks" "$RUNNER_TEMP/nora-release.signing.properties"
