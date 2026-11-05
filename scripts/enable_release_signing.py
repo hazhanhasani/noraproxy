@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Fail-closed signing config for official NoraProxy release APK builds.
+"""Configure trusted NoraProxy APK signing without storing secrets in Git.
 
-Never writes private credentials to Git, build.gradle.kts, or log output.
-Only invoked after NoraProxy pinned runtime overlay is applied.
+Gradle Kotlin DSL no longer relies on environment variables being present inside
+its worker process. Credentials are read from a 0600 temporary file and the
+build script stores only the non-secret file path.
 """
 from pathlib import Path
+import base64
+import json
 import os
 
 root = Path(__file__).resolve().parents[1]
@@ -18,45 +21,74 @@ env_names = (
 )
 missing = [name for name in env_names if not os.getenv(name)]
 if missing:
-    raise SystemExit("Required release-signing environment secrets are missing: " + ", ".join(missing))
+    raise SystemExit("Required signing environment variables are missing: " + ", ".join(missing))
 
-if not Path(os.environ["NORA_SIGNING_STORE_FILE"]).is_file():
+store = Path(os.environ["NORA_SIGNING_STORE_FILE"]).resolve()
+if not store.is_file():
     raise SystemExit("Release signing keystore file is missing.")
 
-text = gradle.read_text(encoding="utf-8")
+# Temporary file is outside the checkout, never included in a Git or APK
+# artifact. Values are encoded to avoid Java .properties delimiter escaping.
+credentials = store.with_suffix(".signing.properties")
+with credentials.open("x", encoding="ascii") as stream:
+    for name in env_names:
+        value = os.environ[name].encode("utf-8")
+        encoded = base64.b64encode(value).decode("ascii")
+        stream.write(name + "=" + encoded + "\n")
+credentials.chmod(0o600)
+
+source = gradle.read_text(encoding="utf-8")
 marker = "    buildTypes {\n        debug {"
-if text.count(marker) != 1:
+if source.count(marker) != 1:
     raise SystemExit("Expected one upstream buildTypes.debug anchor.")
 
-inject = '''    signingConfigs {
-        // Debug and release must have independent DSL config objects: AGP
-        // resets a reused custom signing config when wiring the debug variant.
+# No secret value is embedded into the Gradle source or logged. Debug and
+# release use separate signing configurations and the same production key.
+inject = """    val noraSigningProperties = java.util.Properties().apply {
+        java.io.File(NORA_SIGNING_PROPERTIES_PATH).inputStream().use { load(it) }
+    }
+    val noraSigningValue: (String) -> String = { name ->
+        String(
+            java.util.Base64.getDecoder().decode(
+                requireNotNull(noraSigningProperties.getProperty(name))
+            ), Charsets.UTF_8
+        )
+    }
+
+    signingConfigs {
         getByName("debug") {
-            storeFile = file(System.getenv("NORA_SIGNING_STORE_FILE"))
-            storePassword = System.getenv("NORA_SIGNING_STORE_PASSWORD")
-            keyAlias = System.getenv("NORA_SIGNING_KEY_ALIAS")
-            keyPassword = System.getenv("NORA_SIGNING_KEY_PASSWORD")
+            storeFile = java.io.File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
+            storePassword = noraSigningValue("NORA_SIGNING_STORE_PASSWORD")
+            keyAlias = noraSigningValue("NORA_SIGNING_KEY_ALIAS")
+            keyPassword = noraSigningValue("NORA_SIGNING_KEY_PASSWORD")
             enableV1Signing = true
             enableV2Signing = true
         }
         create("noraRelease") {
-            storeFile = file(System.getenv("NORA_SIGNING_STORE_FILE"))
-            storePassword = System.getenv("NORA_SIGNING_STORE_PASSWORD")
-            keyAlias = System.getenv("NORA_SIGNING_KEY_ALIAS")
-            keyPassword = System.getenv("NORA_SIGNING_KEY_PASSWORD")
+            storeFile = java.io.File(noraSigningValue("NORA_SIGNING_STORE_FILE"))
+            storePassword = noraSigningValue("NORA_SIGNING_STORE_PASSWORD")
+            keyAlias = noraSigningValue("NORA_SIGNING_KEY_ALIAS")
+            keyPassword = noraSigningValue("NORA_SIGNING_KEY_PASSWORD")
             enableV1Signing = true
             enableV2Signing = true
         }
     }
+    require(signingConfigs.getByName("debug").storeFile?.isFile == true) {
+        "NoraProxy trusted debug keystore was not configured."
+    }
+    require(signingConfigs.getByName("noraRelease").storeFile?.isFile == true) {
+        "NoraProxy release keystore was not configured."
+    }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")'''
-text = text.replace(marker, inject, 1)
+            signingConfig = signingConfigs.getByName("debug")"""
+inject = inject.replace("NORA_SIGNING_PROPERTIES_PATH", json.dumps(str(credentials)))
+source = source.replace(marker, inject, 1)
 release = "        release {"
-if text.count(release) != 1:
-    raise SystemExit("Expected one upstream release buildType anchor")
-text = text.replace(release,
+if source.count(release) != 1:
+    raise SystemExit("Expected one upstream release buildType anchor.")
+source = source.replace(release,
     release + '\n            signingConfig = signingConfigs.getByName("noraRelease")', 1)
-gradle.write_text(text, encoding="utf-8")
-print("NoraProxy trusted debug/release signing configured (same certificate; secrets not printed).")
+gradle.write_text(source, encoding="utf-8")
+print("Trusted debug/release signing configured using protected temporary credentials.")
