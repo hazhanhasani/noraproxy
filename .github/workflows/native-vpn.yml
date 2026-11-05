@@ -23,13 +23,13 @@ on:
 permissions:
   contents: write
 
-# Pull requests only need the latest native APK build. Superseded PR
-# runs are cancelled so rapid UI commits cannot congest the Actions queue.
-# Keep main-branch release builds running to avoid interrupting signing,
-# release publication, or Telegram distribution.
+# Feature branches and pull requests need only the latest APK build.
+# Cancel superseded runs to avoid wasting CI resources.
+# Never cancel a main-branch release in progress: signing, publication and
+# Telegram distribution must run to completion.
 concurrency:
   group: nora-native-queue-reset-20261104-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build-native-vpn:
