@@ -2,8 +2,8 @@ package com.v2ray.ang.ui.main
 
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class NoraForegroundRefreshTest {
     @Test fun refreshesEveryEnabledRemoteGroupIncludingNonSelected() {

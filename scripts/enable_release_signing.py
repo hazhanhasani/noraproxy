@@ -24,7 +24,7 @@ if not Path(os.environ["NORA_SIGNING_STORE_FILE"]).is_file():
     raise SystemExit("Release signing keystore file is missing.")
 
 text = gradle.read_text(encoding="utf-8")
-marker = "    buildTypes {\n        release {"
+marker = "    buildTypes {\n        debug {"
 if text.count(marker) != 1:
     raise SystemExit("Expected one upstream buildTypes.release anchor.")
 
@@ -40,8 +40,13 @@ inject = '''    signingConfigs {
     }
 
     buildTypes {
-        release {
+        debug {
             signingConfig = signingConfigs.getByName("noraRelease")'''
 text = text.replace(marker, inject, 1)
+release = "        release {"
+if text.count(release) != 1:
+    raise SystemExit("Expected one upstream release buildType anchor")
+text = text.replace(release,
+    release + '\n            signingConfig = signingConfigs.getByName("noraRelease")', 1)
 gradle.write_text(text, encoding="utf-8")
-print("NoraProxy release signing configured from private CI secrets (values not printed).")
+print("NoraProxy trusted debug/release signing configured (same certificate; secrets not printed).")

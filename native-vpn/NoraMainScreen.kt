@@ -8,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
@@ -57,6 +59,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,15 +74,20 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -783,16 +791,33 @@ fun MainScreen(
                             item {
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(RoundedCornerShape(21.dp))
+                                        .background(Brush.horizontalGradient(
+                                            listOf(Color(0xFF1A2B4B), surface)))
+                                        .border(1.dp, cyan.copy(alpha = .30f),
+                                            RoundedCornerShape(21.dp))
                                         .clickable { importExpanded = !importExpanded }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(13.dp)
                                 ) {
-                                    Text("افزودن کانفیگ یا اشتراک", color = light,
-                                        modifier = Modifier.weight(1f),
-                                        fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                                    Text(if (importExpanded) "−" else "＋",
-                                        color = cyan, fontSize = 22.sp)
+                                    Box(Modifier.size(45.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(cyan.copy(alpha = .18f)),
+                                        contentAlignment = Alignment.Center) {
+                                        Icon(painter = painterResource(R.drawable.nora_tab_subscription),
+                                            contentDescription = null,
+                                            tint = cyan, modifier = Modifier.size(25.dp))
+                                    }
+                                    Column(Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("افزودن کانفیگ یا اشتراک", color = light,
+                                            fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text("لینک اشتراک · کانفیگ خام · اسکن QR",
+                                            color = muted, fontSize = 11.sp)
+                                    }
+                                    Text(if (importExpanded) "−" else "+",
+                                        color = cyan, fontSize = 27.sp)
                                 }
                             }
                             if (importExpanded) {
@@ -848,7 +873,14 @@ fun MainScreen(
                                 }
                             }
                             item {
-                                NoraSection("گروه‌های من", "")
+                                Row(modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text("گروه‌های من", color = light,
+                                        fontSize = 18.sp, fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.weight(1f))
+                                    Text(persianNumber(subscriptions.size.toString()) + " گروه",
+                                        color = cyan, fontSize = 12.sp)
+                                }
                                 if (syncingGroups) {
                                     Text("در حال به‌روزرسانی خودکار گروه‌های فعال…",
                                         color = cyan, fontSize = 12.sp)
@@ -1244,44 +1276,13 @@ private fun NoraHomeContent(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(if (tiny) 3.dp else 7.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .height(if (tiny) 76.dp else 88.dp)
-                        .clip(RoundedCornerShape(52.dp))
-                        .background(Brush.horizontalGradient(listOf(surface2, surface)))
-                        .border(1.dp, if (connected) green.copy(alpha = .55f)
-                            else edge, RoundedCornerShape(52.dp))
-                        .clickable(
-                            enabled = !waiting && (connected || canConnect),
-                            onClick = onToggle
-                        )
-                        .padding(5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    NoraPowerButton(
-                        connected = connected,
-                        phase = phase,
-                        enabled = !waiting && (connected || canConnect),
-                        diameter = if (tiny) 64.dp else 76.dp,
-                        onClick = onToggle
-                    )
-                    Column(Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(if (connected) "قطع اتصال" else "اتصال سریع",
-                            color = light, fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold, maxLines = 1)
-                        Text(
-                            if (connected) "VPN فعال است"
-                            else if (canConnect) "آماده اتصال ایمن"
-                            else "ابتدا اشتراک اضافه کنید",
-                            color = if (connected) green else muted,
-                            fontSize = 11.sp, maxLines = 1
-                        )
-                    }
-                    Text("←", color = cyan, fontSize = 21.sp,
-                        modifier = Modifier.padding(end = 9.dp))
-                }
+                NoraSwipeConnect(
+                    connected = connected,
+                    phase = phase,
+                    enabled = !waiting && (connected || canConnect),
+                    compact = tiny,
+                    onToggle = onToggle
+                )
             }
 
             // Image fills its rounded card; small label overlays, never reserves width.
@@ -1297,11 +1298,7 @@ private fun NoraHomeContent(
                 horizontalArrangement = Arrangement.spacedBy(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(if (tiny) 39.dp else 46.dp)
-                    .clip(CircleShape).background(surface2),
-                    contentAlignment = Alignment.Center) {
-                    Text(locationFlag, fontSize = 25.sp)
-                }
+                NoraFlagBadge(locationFlag, if (tiny) 39.dp else 46.dp)
                 Column(Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("مکان انتخاب‌شده", color = muted, fontSize = 10.sp)
@@ -1422,7 +1419,7 @@ private fun NoraQuickCountryCard(
         verticalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(flag, fontSize = if (compact) 21.sp else 25.sp, maxLines = 1)
+        NoraFlagBadge(flag, if (compact) 34.dp else 40.dp)
         Text(label, color = if (selected) cyan else light,
             fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1462,6 +1459,101 @@ private fun NoraHeader(
             Text(compactStatus,
                 color = if (connected) green else if (phase.isBusy || phase == NoraConnectionPhase.FAILED) amber else muted,
                 fontSize = 11.sp, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * Drag-to-connect prevents accidental taps while preserving a TalkBack action.
+ * RTL layout keeps the thumb on the right; dragging left by 70% commits.
+ */
+@Composable
+private fun NoraSwipeConnect(
+    connected: Boolean,
+    phase: NoraConnectionPhase,
+    enabled: Boolean,
+    compact: Boolean,
+    onToggle: () -> Unit
+) {
+    val knobSize = if (compact) 60.dp else 70.dp
+    var dragPx by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(connected, enabled) { dragPx = 0f }
+    val accent = if (connected) green else cyan
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth()
+            .height(if (compact) 74.dp else 86.dp)
+            .clip(RoundedCornerShape(48.dp))
+            .background(Brush.horizontalGradient(listOf(surface2, Color(0xFF17233D))))
+            .border(1.dp, accent.copy(alpha = .40f), RoundedCornerShape(48.dp))
+            .semantics {
+                contentDescription = if (connected) "برای قطع اتصال به چپ بکشید"
+                    else "برای اتصال به چپ بکشید"
+                onClick(label = if (connected) "قطع اتصال" else "اتصال") {
+                    if (enabled) onToggle()
+                    enabled
+                }
+            }
+            .padding(6.dp)
+    ) {
+        val travelPx = with(LocalDensity.current) {
+            (maxWidth - knobSize - 12.dp).coerceAtLeast(1.dp).toPx()
+        }
+        val progress = (dragPx / travelPx).coerceIn(0f, 1f)
+        Box(
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 49.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    when {
+                        phase.isBusy -> phase.statusLabel
+                        connected -> "برای قطع اتصال بکشید"
+                        enabled -> "برای اتصال بکشید"
+                        else -> "ابتدا اشتراک اضافه کنید"
+                    },
+                    color = light, fontSize = if (compact) 12.sp else 14.sp,
+                    fontWeight = FontWeight.Bold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text("‹ ‹ ‹", color = accent.copy(alpha = .5f + progress * .5f),
+                    fontSize = 16.sp, maxLines = 1)
+            }
+        }
+        Box(
+            modifier = Modifier.align(Alignment.CenterStart)
+                .absoluteOffset { IntOffset(-dragPx.roundToInt(), 0) }
+                .size(knobSize)
+                .clip(CircleShape)
+                .background(Brush.radialGradient(listOf(
+                    accent.copy(alpha = .32f), Color(0xFF192746)
+                )))
+                .border(2.dp, accent.copy(alpha = .85f), CircleShape)
+                .pointerInput(enabled, connected, travelPx) {
+                    detectHorizontalDragGestures(
+                        onDragCancel = { dragPx = 0f },
+                        onDragEnd = {
+                            if (enabled && dragPx >= travelPx * .70f) onToggle()
+                            dragPx = 0f
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            change.consume()
+                            if (enabled) {
+                                dragPx = (dragPx - amount).coerceIn(0f, travelPx)
+                            }
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(knobSize * .40f)) {
+                val stroke = 3.5.dp.toPx()
+                drawArc(accent, -45f, 270f, false,
+                    style = Stroke(stroke, cap = StrokeCap.Round))
+                drawLine(accent,
+                    start = androidx.compose.ui.geometry.Offset(center.x, 0f),
+                    end = androidx.compose.ui.geometry.Offset(center.x, size.height * .48f),
+                    strokeWidth = stroke, cap = StrokeCap.Round)
+            }
         }
     }
 }
@@ -1534,12 +1626,25 @@ private fun NoraSubscriptionGroupCard(
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(painter = painterResource(R.drawable.nora_tab_subscription),
+                contentDescription = null, tint = if (active) cyan else muted,
+                modifier = Modifier.size(21.dp))
+            Spacer(Modifier.width(8.dp))
             Text(name, color = light, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (active) "● فعال" else "انتخاب  ←", color = if (active) cyan else muted,
-                fontSize = 12.sp)
+            Box(Modifier.clip(RoundedCornerShape(10.dp))
+                .background(if (active) cyan.copy(alpha = .17f) else surface2)
+                .padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text(if (active) "● فعال" else "انتخاب",
+                    color = if (active) cyan else muted, fontSize = 11.sp)
+            }
         }
-        Text(persianNumber(numberOfNodes.toString()) + " سرور", color = muted, fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("سرورهای این گروه", color = muted, fontSize = 11.sp)
+            Text(persianNumber(numberOfNodes.toString()) + " سرور",
+                color = light, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(usage?.remainingTrafficLabel() ?: "حجم نامشخص",
                 modifier = Modifier.weight(1f), color = light, fontSize = 12.sp)
@@ -1616,6 +1721,22 @@ private fun NoraMetric(label: String, number: String, modifier: Modifier) {
 }
 
 @Composable
+private fun NoraFlagBadge(flag: String, diameter: Dp) {
+    Box(
+        modifier = Modifier.size(diameter)
+            .clip(RoundedCornerShape(diameter * .34f))
+            .background(Brush.linearGradient(listOf(
+                Color(0xFF23365A), Color(0xFF151E33)
+            )))
+            .border(1.dp, cyan.copy(alpha = .3f),
+                RoundedCornerShape(diameter * .34f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(flag, fontSize = (diameter.value * .53f).sp, maxLines = 1)
+    }
+}
+
+@Composable
 private fun NoraLocationCard(
     emoji: String, title: String, subtitle: String,
     delay: Long?, selected: Boolean, compact: Boolean = false,
@@ -1635,15 +1756,7 @@ private fun NoraLocationCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier.size(if (compact) 42.dp else 50.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF202A49))
-                .border(1.dp, edge.copy(alpha = .55f), RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(emoji, fontSize = if (compact) 25.sp else 28.sp)
-        }
+        NoraFlagBadge(emoji, if (compact) 42.dp else 50.dp)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Text(title, fontSize = 15.sp, color = light, fontWeight = FontWeight.Bold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)

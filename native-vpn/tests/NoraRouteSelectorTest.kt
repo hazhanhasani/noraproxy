@@ -1,7 +1,7 @@
 package com.v2ray.ang.ui.main
 
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class NoraRouteSelectorTest {
     @Test fun isoCoverageIncludesCountriesAndTerritories() {
@@ -28,7 +28,7 @@ class NoraRouteSelectorTest {
             "🇽🇰 Kosovo" to "XK"
         )
         cases.forEach { (name, code) ->
-            assertEquals(name, code, NoraRouteSelector.identify(name).code)
+            assertEquals(code, NoraRouteSelector.identify(name).code, name)
         }
     }
 

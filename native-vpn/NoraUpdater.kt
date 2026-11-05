@@ -226,15 +226,23 @@ class NoraUpdater(private val context: Context) {
     }
 
     private fun isNewer(remote: String): Boolean {
-        val installed = context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            .orEmpty().removePrefix("v").split('.').map { it.toIntOrNull() ?: 0 }
-        val next = remote.split('.').map { it.toIntOrNull() ?: 0 }
-        for (i in 0..2) {
-            val a = installed.getOrElse(i) { 0 }
-            val b = next.getOrElse(i) { 0 }
-            if (a != b) return b > a
+        val currentVersion = context.packageManager
+            .getPackageInfo(context.packageName, 0).versionName.orEmpty()
+            .removePrefix("v")
+        fun numeric(version: String): List<Int>? {
+            val match = Regex("""^(\d+)\.(\d+)\.(\d+)(?:-dev)?$""")
+                .matchEntire(version) ?: return null
+            return (1..3).map { match.groupValues[it].toInt() }
         }
-        return false
+        val installed = numeric(currentVersion) ?: return false
+        val candidate = numeric(remote) ?: return false
+        for (index in 0..2) {
+            if (installed[index] != candidate[index]) {
+                return candidate[index] > installed[index]
+            }
+        }
+        // The signed -dev build is one versionCode behind its stable sibling.
+        return currentVersion.endsWith("-dev") && !remote.endsWith("-dev")
     }
 
     private fun downloadAndVerify(release: Release): File {
