@@ -26,9 +26,19 @@ if not Path(os.environ["NORA_SIGNING_STORE_FILE"]).is_file():
 text = gradle.read_text(encoding="utf-8")
 marker = "    buildTypes {\n        debug {"
 if text.count(marker) != 1:
-    raise SystemExit("Expected one upstream buildTypes.release anchor.")
+    raise SystemExit("Expected one upstream buildTypes.debug anchor.")
 
 inject = '''    signingConfigs {
+        // Debug and release must have independent DSL config objects: AGP
+        // resets a reused custom signing config when wiring the debug variant.
+        getByName("debug") {
+            storeFile = file(System.getenv("NORA_SIGNING_STORE_FILE"))
+            storePassword = System.getenv("NORA_SIGNING_STORE_PASSWORD")
+            keyAlias = System.getenv("NORA_SIGNING_KEY_ALIAS")
+            keyPassword = System.getenv("NORA_SIGNING_KEY_PASSWORD")
+            enableV1Signing = true
+            enableV2Signing = true
+        }
         create("noraRelease") {
             storeFile = file(System.getenv("NORA_SIGNING_STORE_FILE"))
             storePassword = System.getenv("NORA_SIGNING_STORE_PASSWORD")
@@ -41,7 +51,7 @@ inject = '''    signingConfigs {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("noraRelease")'''
+            signingConfig = signingConfigs.getByName("debug")'''
 text = text.replace(marker, inject, 1)
 release = "        release {"
 if text.count(release) != 1:
