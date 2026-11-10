@@ -106,6 +106,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 // BlueVPN-derived dark visual system adapted to NoraProxy Compose and native VPN lifecycle.
@@ -184,6 +185,7 @@ fun MainScreen(
     val pingPrefs = remember(context) { context.getSharedPreferences("nora_ui", android.content.Context.MODE_PRIVATE) }
     var livePingEnabled by remember { mutableStateOf(pingPrefs.getBoolean("live_ping", true)) }
     val syncingGroups by NoraForegroundSubscriptions.running.collectAsStateWithLifecycle()
+    val lastSyncReport by NoraForegroundSubscriptions.lastReport.collectAsStateWithLifecycle()
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             importScope.launch {
@@ -884,6 +886,16 @@ fun MainScreen(
                                 if (syncingGroups) {
                                     Text("در حال به‌روزرسانی خودکار گروه‌های فعال…",
                                         color = cyan, fontSize = 12.sp)
+                                } else {
+                                    lastSyncReport?.takeIf { it.checked > 0 || it.fatal }?.let { report ->
+                                        Text(
+                                            report.message,
+                                            color = if (report.failed > 0 || report.fatal)
+                                                Color(0xFFFFADAE) else muted,
+                                            fontSize = 11.sp,
+                                            maxLines = 2
+                                        )
+                                    }
                                 }
                                 Spacer(Modifier.height(4.dp))
                             }
@@ -1064,7 +1076,9 @@ fun MainScreen(
                         importScope.launch {
                             try {
                                 val groupId = withContext(Dispatchers.IO) {
-                                    NoraGroupRepository.save(editingGroup, name)
+                                    NoraSubscriptionMutationLock.mutex.withLock {
+                                        NoraGroupRepository.save(editingGroup, name)
+                                    }
                                 }
                                 editorVisible = false
                                 mainViewModel.setupGroupTab(forceRefresh = true).join()
@@ -1098,7 +1112,9 @@ fun MainScreen(
                             importScope.launch {
                                 try {
                                     withContext(Dispatchers.IO) {
-                                        NoraGroupRepository.remove(target.guid)
+                                        NoraSubscriptionMutationLock.mutex.withLock {
+                                            NoraGroupRepository.remove(target.guid)
+                                        }
                                     }
                                     deletingGroup = null
                                     onAction(MainAction.RefreshGroups)

@@ -5,8 +5,10 @@ import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** All text/QR/gallery/clipboard/file imports share the same automatic routing. */
@@ -20,10 +22,12 @@ internal object NoraImportCoordinator {
             is NoraImportPayload.Raw -> {
                 activity.lifecycleScope.launch {
                     val result = withContext(Dispatchers.IO) {
-                        runCatching {
-                            val defaultId = NoraImportRouter.ensureRawDefaultGroup()
-                            // Explicit Default group instead of the selected group.
-                            AngConfigManager.importBatchConfig(input.text, defaultId, true).first
+                        NoraSubscriptionMutationLock.mutex.withLock {
+                            runCatching {
+                                val defaultId = NoraImportRouter.ensureRawDefaultGroup()
+                                // Explicit Default group instead of the selected group.
+                                AngConfigManager.importBatchConfig(input.text, defaultId, true).first
+                            }
                         }
                     }
                     result.fold(
@@ -35,7 +39,8 @@ internal object NoraImportCoordinator {
                                 message("کانفیگ معتبری دریافت نشد؛ اطلاعات قبلی حفظ شدند")
                             }
                         },
-                        onFailure = {
+                        onFailure = { error ->
+                            if (error is CancellationException) throw error
                             message("ورود کانفیگ انجام نشد؛ لطفاً دوباره تلاش کنید")
                         }
                     )
@@ -44,10 +49,11 @@ internal object NoraImportCoordinator {
             is NoraImportPayload.Subscriptions -> {
                 activity.lifecycleScope.launch {
                     val report = withContext(Dispatchers.IO) {
-                        var created = 0
-                        var updated = 0
-                        var failed = 0
-                        var lastId: String? = null
+                        NoraSubscriptionMutationLock.mutex.withLock {
+                            var created = 0
+                            var updated = 0
+                            var failed = 0
+                            var lastId: String? = null
                         input.urls.forEach { url ->
                             try {
                                 val resolved = NoraImportRouter.createOrFindSubscription(url)
@@ -67,11 +73,14 @@ internal object NoraImportCoordinator {
                                         failed++
                                     }
                                 }
+                            } catch (cancel: CancellationException) {
+                                throw cancel
                             } catch (_: Exception) {
                                 failed++
                             }
                         }
-                        Triple(created, updated, Pair(failed, lastId))
+                            Triple(created, updated, Pair(failed, lastId))
+                        }
                     }
 
                     viewModel.setupGroupTab(forceRefresh = true).join()

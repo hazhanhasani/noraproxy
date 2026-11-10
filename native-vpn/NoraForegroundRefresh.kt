@@ -9,70 +9,117 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Guard repeated foreground callbacks (including ad and permission activities).
- * Elapsed realtime is monotonic; in-flight calls never overlap.
+ * The foreground synchronizer and all user-triggered imports share one mutex.
+ * Upstream's subscription replacement mutates global MMKV server lists.
+ */
+internal object NoraSubscriptionMutationLock {
+    val mutex = Mutex()
+}
+
+/**
+ * A refresh must not start while another one is running or immediately after
+ * a slow completed refresh. elapsedRealtime is immune to wall-clock changes.
  */
 internal class NoraForegroundRefreshGate(private val intervalMs: Long = 30_000L) {
     private var inFlight = false
-    private var lastStart: Long? = null
+    private var lastFinishedMs: Long? = null
 
     @Synchronized
     fun tryStart(nowMs: Long): Boolean {
         if (inFlight) return false
-        val previous = lastStart
-        if (previous != null && nowMs >= previous && nowMs - previous < intervalMs) return false
+        val last = lastFinishedMs
+        if (last != null && nowMs >= last && nowMs - last < intervalMs) return false
         inFlight = true
-        lastStart = nowMs
         return true
     }
 
     @Synchronized
-    fun finish() { inFlight = false }
+    fun finish(nowMs: Long) {
+        if (!inFlight) return
+        inFlight = false
+        lastFinishedMs = nowMs
+    }
 }
 
-/** Sync enabled URL-backed groups on cold launch and on return to the foreground. */
+/** Aggregate counts only: never include subscription URLs, hostnames or credentials. */
+internal data class NoraRefreshReport(
+    val checked: Int,
+    val succeeded: Int,
+    val failed: Int,
+    val fatal: Boolean = false
+) {
+    init {
+        require(checked >= 0 && succeeded >= 0 && failed >= 0)
+        require(succeeded + failed <= checked)
+    }
+
+    val message: String
+        get() = when {
+            fatal -> "همگام‌سازی اشتراک‌ها ناموفق بود؛ مجدداً تلاش کنید."
+            checked == 0 -> "اشتراک فعالی برای همگام‌سازی وجود ندارد."
+            failed == 0 -> "همگام‌سازی کامل: $succeeded از $checked گروه"
+            else -> "همگام‌سازی: $succeeded موفق · $failed ناموفق از $checked گروه"
+        }
+}
+
+/** Sync enabled URL-backed groups on cold launch and on return to foreground. */
 internal object NoraForegroundSubscriptions {
     private val gate = NoraForegroundRefreshGate()
     private val _running = MutableStateFlow(false)
+    private val _lastReport = MutableStateFlow<NoraRefreshReport?>(null)
     val running: StateFlow<Boolean> = _running.asStateFlow()
+    val lastReport: StateFlow<NoraRefreshReport?> = _lastReport.asStateFlow()
 
-    /** Raw/local groups and disabled remote groups must never be overwritten. */
+    /** Never overwrite raw/local groups or disabled remote subscriptions. */
     fun eligibleGroupIds(groups: List<SubscriptionCache>): List<String> =
         groups.filter { it.subscription.enabled && it.subscription.url.isNotBlank() }
-            .map { it.guid }
+            .map { it.guid }.distinct()
 
     suspend fun refresh(onFinished: suspend () -> Unit) {
         if (!gate.tryStart(SystemClock.elapsedRealtime())) return
         _running.value = true
+        var checked = 0
+        var succeeded = 0
+        var failed = 0
         try {
-            val ids = withContext(Dispatchers.IO) {
-                eligibleGroupIds(MmkvManager.decodeSubscriptions())
-            }
-            if (ids.isEmpty()) return
-
-            // Sequential writes avoid concurrent replacement of MMKV server lists.
-            // A failed URL must not prevent updates of later groups.
-            withContext(Dispatchers.IO) {
-                ids.forEach { id ->
-                    val current = MmkvManager.decodeSubscription(id) ?: return@forEach
-                    if (!current.enabled || current.url.isBlank()) return@forEach
-                    try {
-                        AngConfigManager.updateConfigViaSub(SubscriptionCache(id, current))
-                    } catch (cancel: CancellationException) {
-                        throw cancel
-                    } catch (_: Exception) {
-                        // Continue with remaining groups even if one URL fails.
+            NoraSubscriptionMutationLock.mutex.withLock {
+                withContext(Dispatchers.IO) {
+                    val ids = eligibleGroupIds(MmkvManager.decodeSubscriptions())
+                    checked = ids.size
+                    for (id in ids) {
+                        val current = MmkvManager.decodeSubscription(id)
+                        if (current == null || !current.enabled || current.url.isBlank()) {
+                            failed++
+                            continue
+                        }
+                        try {
+                            val result = AngConfigManager.updateConfigViaSub(
+                                SubscriptionCache(id, current)
+                            )
+                            if (result.successCount > 0) succeeded++ else failed++
+                        } catch (cancel: CancellationException) {
+                            throw cancel
+                        } catch (_: Exception) {
+                            // One failed URL must not block the remaining subscriptions.
+                            failed++
+                        }
                     }
                 }
             }
-            // The UI and quota metadata must reflect the new server lists.
-            onFinished()
+            _lastReport.value = NoraRefreshReport(checked, succeeded, failed)
+            if (checked > 0) onFinished()
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            _lastReport.value = NoraRefreshReport(checked, succeeded, failed, fatal = true)
         } finally {
             _running.value = false
-            gate.finish()
+            gate.finish(SystemClock.elapsedRealtime())
         }
     }
 }

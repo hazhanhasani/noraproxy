@@ -1,5 +1,10 @@
 # NoraProxy — Architecture
 
+> **Scope: historical `app/` companion MVP.** The deployable Android VPN now uses
+> the pinned v2rayNG/Xray overlay under `native-vpn/` with a real VpnService.
+> See [Native VPN](NATIVE-VPN.md) and [vNext plan](VNEXT_EXECUTION_PLAN.md)
+> for current architecture, integration sequence and release gates.
+
 ## MVP data flow
 
 Reseller HTTPS subscription → explicit customer import → bounded fetch → supported URI parser → on-device TCP probes → reliability/latency scoring → one reachable node per location → copy or share selected URI → v2rayNG/V2Box.
