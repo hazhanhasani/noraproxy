@@ -3,7 +3,9 @@
 🌐 **Official website:** [NoraProxy](https://hazhanhasani.github.io/noraproxy/) · [Website source](site/) · [Pages setup](site/README.md)
 
 
-**NoraProxy** is an Android VPN with its **own in-app Xray engine and Android VpnService**. Customers no longer have to install v2rayNG or V2Box. Sellers can distribute the same NoraProxy APK with a private subscription/invitation, and customers connect through NoraProxy itself.
+**NoraProxy** is a [GPL-3.0-licensed](LICENSE), open-source Android client for Xray/V2Ray-compatible subscriptions and proxy share links. It uses an in-app Xray runtime with Android `VpnService`, offers a Persian-first interface, and supports subscription imports, multiple configuration groups, and location-based server selection. Users can connect without installing a separate VPN client, using configurations from different providers.
+
+**Open-source maintenance:** This repository contains the Android integration and UI overlays, build automation, public documentation, and issue tracking. Current priorities include protocol compatibility, reliable VPN connectivity, accessible Persian UX, and reproducible Android builds. Contributions and reproducible bug reports are welcome through [GitHub Issues](https://github.com/hazhanhasani/noraproxy/issues).
 
 ## Two separate generations of the codebase
 
